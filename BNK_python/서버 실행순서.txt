@@ -1,0 +1,31 @@
+cd C:\java_class\CP\bnkcard
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\venv\Scripts\Activate.ps1
+cd .\BNK_python
+
+최초 1회실행
+python -m venv 
+
+pip install -r .\BNK_python\requirements.txt
+
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+API확인 
+http://localhost:8000/docs
+
+이건 문제가 없다는거지 ? 유저가 처음 대화를 하면 방이 생성되고 그런게 다 적용된거라는거지?
+
+
+pip install pdfkit
+pip install cx_Oracle
+pip install openai
+pip install pdfplumber
+pip install dotenv
+pip install fpdf
+
+
+<%-- faq.jsp 상단에 테스트로 추가 --%>
+<%
+  Object loginUser = session.getAttribute("loginUser");
+  out.println("세션에 로그인유저 있음? " + (loginUser != null));
+%>
