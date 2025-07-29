@@ -86,4 +86,9 @@ public class MainController {
 		}
 		return "introduce"; // 은행소개
 	}
+	
+	@GetMapping("/custom")
+	public String customPage() {
+		return "custom";
+	}
 }
