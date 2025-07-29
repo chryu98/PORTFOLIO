@@ -3,6 +3,7 @@ package com.busanbank.card.card.dto;
 import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.busanbank.card.card.common.NetworkUtil;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -34,20 +35,19 @@ public class CardDto {
 	private LocalDate editDate;
 	private String popularImgUrl;
 
-	// ✅ cardUrl getter 오버라이딩
-	public String getCardUrl() {
-		if (cardUrl != null && cardUrl.contains("localhost")) {
-			// 실제 PC의 IP 주소로 변경하세요!
-			return cardUrl.replace("localhost", "192.168.100.106");
-		}
-		return cardUrl;
-	}
+	 // 공통 처리 메서드
+    private String replaceLocalhost(String url) {
+        if (url != null && url.contains("localhost")) {
+            return url.replace("localhost", NetworkUtil.getServerIp());
+        }
+        return url;
+    }
 
-	// ✅ popularImgUrl도 필요하다면 동일하게 처리
-	public String getPopularImgUrl() {
-		if (popularImgUrl != null && popularImgUrl.contains("localhost")) {
-			return popularImgUrl.replace("localhost", "192.168.100.106");
-		}
-		return popularImgUrl;
-	}
+    public String getCardUrl() {
+        return replaceLocalhost(cardUrl);
+    }
+
+    public String getPopularImgUrl() {
+        return replaceLocalhost(popularImgUrl);
+    }
 }
