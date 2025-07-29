@@ -21,7 +21,9 @@ class _CardMainPageState extends State<CardMainPage> {
         ],
       ),
       body: SingleChildScrollView(
+
         child: Column(
+
           children: [
             // 🔍 검색창
             Padding(
@@ -49,7 +51,7 @@ class _CardMainPageState extends State<CardMainPage> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
                         image: DecorationImage(
-                          image: AssetImage('assets/card_${index + 1}.png'),
+                          image: AssetImage('assets/호박고구마썸네일.jpg'),
                           fit: BoxFit.cover,
                         ),
                       ),
