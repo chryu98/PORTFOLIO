@@ -1,4 +1,6 @@
-cd C:\java_class\CP\bnkcard
+성훈 - cd C:\java_class\CP\bnkcard
+대영 - cd C:\Users\GGG\Documents\GitHub\bnkcard\BNK_python
+
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\venv\Scripts\Activate.ps1
 cd .\BNK_python
