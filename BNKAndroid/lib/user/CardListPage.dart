@@ -1,13 +1,11 @@
-import 'package:bnkandroid/user/service/CardService.dart';
 import 'package:flutter/material.dart';
-
-
-import 'dart:convert';
-
+import 'package:bnkandroid/user/service/CardService.dart';
+import 'package:bnkandroid/constants/api.dart'; // ✅ API 경로 확인 필요
 import 'model/CardModel.dart';
 
-
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await API.initBaseUrl();
   runApp(MaterialApp(
     home: CardListPage(),
     debugShowCheckedModeBanner: false,
@@ -48,9 +46,9 @@ class _CardListPageState extends State<CardListPage> {
             itemBuilder: (context, index) {
               final card = cards[index];
 
-              // ✅ 프록시 URL 생성 (Spring 서버가 대신 이미지 요청)
-              final proxyUrl = 'http://192.168.100.106:8090/proxy/image?url=${Uri.encodeComponent(card.cardUrl)}';
-
+              // ✅ Spring 서버에서 프록시 호출 (baseUrl 사용)
+              final proxyUrl =
+                  '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(card.cardUrl)}';
 
               return Card(
                 margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -61,7 +59,6 @@ class _CardListPageState extends State<CardListPage> {
                     child: Image.network(
                       proxyUrl,
                       errorBuilder: (context, error, stackTrace) {
-                        print('에러: $error');
                         return Icon(Icons.broken_image);
                       },
                     ),
