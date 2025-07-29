@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.busanbank.card.busancrawler.mapper.ScrapCardMapper">
+
+
+    <insert id="insertCard">
+    INSERT INTO SCRAP_CARD (
+        SC_CARD_NO, SC_CARD_URL, SC_CARD_SLOGAN,
+        SC_CARD_NAME, SC_ANNUAL_FEE, SC_S_SERVICE, SC_DATE, SC_BENEFITS
+    ) VALUES (
+        SCRAP_CARD_SEQ.NEXTVAL,
+        #{scCardUrl},
+        #{scCardSlogan},
+        #{scCardName},
+        #{scAnnualFee},
+        #{scSService},
+        #{scDate},
+        #{scBenefits}
+    )
+	</insert>
+	
+	<select id="getScrapList" resultType="com.busanbank.card.busancrawler.dto.ScrapCardDto">
+		SELECT * FROM SCRAP_CARD ORDER BY SC_CARD_NO
+	</select>
+	
+	<delete id="deleteAllCards">
+    	DELETE FROM scrap_card
+	</delete>
+	
+	<select id="getCardById" resultType="com.busanbank.card.busancrawler.dto.ScrapCardDto">
+	    SELECT *
+	    FROM SCRAP_CARD
+	    WHERE SC_CARD_NO = #{scCardNo}
+	</select>
+	
+
+</mapper>

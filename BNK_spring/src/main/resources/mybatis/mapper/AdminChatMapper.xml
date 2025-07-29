@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.busanbank.card.admin.mapper.AdminChatMapper">
+
+  <!-- 전체 방 목록 -->
+<select id="selectAllRooms" resultType="com.busanbank.card.user.dto.ChatRoomDto">
+  SELECT
+    ROOM_ID AS roomId,
+    MEMBER_NO AS memberNo,
+    ADMIN_NO AS adminNo,
+    UNREAD_COUNT AS unreadCount,
+    CREATED_AT AS createdAt,
+    CLOSED_AT AS closedAt,
+    LAST_MSG_AT AS lastMessageAt
+  FROM CHAT_ROOM
+  ORDER BY NVL(LAST_MSG_AT, CREATED_AT) DESC
+</select>
+
+  <!-- 관리자 배정 -->
+  <update id="assignAdmin">
+    UPDATE CHAT_ROOM
+    SET ADMIN_NO = #{adminNo}
+    WHERE ROOM_ID = #{roomId}
+  </update>
+
+  <!-- 방 종료 -->
+  <update id="closeRoom">
+    UPDATE CHAT_ROOM
+    SET CLOSED_AT = SYSDATE
+    WHERE ROOM_ID = #{roomId}
+  </update>
+
+  <!-- 관리자 메시지 저장 -->
+  <insert id="insertAdminMessage" parameterType="com.busanbank.card.user.dto.ChatMessageDto">
+    INSERT INTO CHAT_MESSAGE
+      (MSG_ID, ROOM_ID, SENDER_TYPE, SENDER_ID, MESSAGE, SENT_AT)
+    VALUES
+      (SEQ_CHAT_MESSAGE.NEXTVAL, #{roomId}, #{senderType}, #{senderId}, #{message}, SYSDATE)
+  </insert>
+
+  <!-- 메시지 조회 -->
+  <select id="selectMessages" resultType="com.busanbank.card.user.dto.ChatMessageDto">
+    SELECT
+      ROOM_ID as roomId,
+      SENDER_TYPE as senderType,
+      SENDER_ID as senderId,
+      MESSAGE as message,
+      SENT_AT as sentAt
+    FROM CHAT_MESSAGE
+    WHERE ROOM_ID = #{roomId}
+    ORDER BY SENT_AT
+  </select>
+
+<update id="resetUnreadCount">
+  UPDATE CHAT_ROOM
+  SET UNREAD_COUNT = 0
+  WHERE ROOM_ID = #{roomId}
+</update>
+
+
+
+</mapper>

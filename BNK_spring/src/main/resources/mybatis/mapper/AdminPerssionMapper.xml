@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper 
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.busanbank.card.admin.dao.IAdminPermissionDao">
+
+  <resultMap id="PermissionResultMap" type="com.busanbank.card.admin.dto.PermissionDto">
+    <id property="perNo" column="PER_NO"/>
+    <result property="cardNo" column="CARD_NO"/>
+    <result property="status" column="STATUS"/>
+    <result property="reason" column="REASON"/>
+    <result property="admin" column="ADMIN"/>
+    <result property="sAdmin" column="S_ADMIN"/>
+    <result property="regDate" column="REG_DATE"/>
+    <result property="perDate" column="PER_DATE"/>
+  </resultMap>
+
+  <select id="selectAllPermissions" resultMap="PermissionResultMap">
+    SELECT
+      PER_NO,
+      CARD_NO,
+      STATUS,
+      REASON,
+      ADMIN,
+      S_ADMIN,
+      REG_DATE,
+      PER_DATE,
+      PER_CONTENT
+    FROM PERMISSION
+    ORDER BY PER_NO DESC
+  </select>
+
+</mapper>

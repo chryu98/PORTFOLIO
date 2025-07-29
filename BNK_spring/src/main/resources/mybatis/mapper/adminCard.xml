@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.busanbank.card.admin.dao.IAdminCardDao">
+	<select id="getCardList" resultType="com.busanbank.card.card.dto.CardDto">
+		SELECT * FROM CARD WHERE CARD_STATUS = '게시중' ORDER BY CARD_NO
+	</select>
+	
+	<select id="getCardList2" resultType="com.busanbank.card.card.dto.CardDto">
+		 SELECT *
+    FROM CARD
+    WHERE CARD_STATUS != '게시중' OR CARD_STATUS IS NULL
+    ORDER BY CARD_NO
+	</select>
+	
+	<insert id="insertCardTemp" parameterType="com.busanbank.card.card.dto.CardDto">
+        INSERT INTO CARD_TEMP (
+        TEMP_NO,
+	    CARD_NO,
+	    CARD_NAME,
+	    CARD_TYPE,
+	    CARD_BRAND,
+	    ANNUAL_FEE,
+	    ISSUEDTO,
+	    SERVICE,
+	    S_SERVICE,
+	    CARD_STATUS,
+	    CARD_URL,
+	    CARD_ISSUEDATE,
+	    CARD_DUEDATE,
+	    CARD_SLOGAN,
+	    CARD_NOTICE,
+	    REG_DATE,
+	    EDIT_DATE
+	  ) VALUES (
+	    CARD_TEMP_SEQ.NEXTVAL,
+	    #{cardNo},
+	    #{cardName},
+	    #{cardType},
+	    #{cardBrand},
+	    #{annualFee},
+	    #{issuedTo},
+	    #{service},
+	    #{sService, jdbcType=VARCHAR},
+	    #{cardStatus},
+	    #{cardUrl},
+	    #{cardIssueDate, jdbcType=DATE},
+#{cardDueDate, jdbcType=DATE},
+	    #{cardSlogan},
+	    #{cardNotice},
+	    SYSDATE,
+	    SYSDATE
+	  )
+    </insert>
+    
+    <insert id="insertPermission" parameterType="com.busanbank.card.admin.dto.PermissionParamDto">
+        INSERT INTO PERMISSION (
+        PER_NO,
+        CARD_NO,
+        STATUS,
+        REASON,
+        ADMIN,
+        S_ADMIN,
+        REG_DATE,
+        PER_DATE,
+        PER_CONTENT
+	  ) VALUES (
+	    PER_SEQ.NEXTVAL,
+	    #{cardNo},
+	    '대기중',
+	    '-',
+	    #{admin},
+	    '-',
+	    SYSDATE,
+	    null,
+	    #{perContent}
+	  )
+    </insert>
+    
+    
+    <select id="selectCard" resultType="com.busanbank.card.card.dto.CardDto">
+    SELECT *
+    FROM CARD
+    WHERE CARD_NO = #{cardNo}
+</select>
+</mapper>
