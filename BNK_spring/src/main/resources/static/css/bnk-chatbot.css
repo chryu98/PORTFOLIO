@@ -1,0 +1,188 @@
+@charset "UTF-8";
+:root {
+  /* BNK Brand */
+  --bnk-red: #d6001c;
+  --bnk-red-hover: #bb0018;
+  --bnk-gray-border: #d5d7db;
+  --bnk-gray-text: #555;
+  --bnk-gray-bg: #f5f6f8;
+
+  /* Chatbot-specific */
+  --cb-max-width: 600px;
+  --cb-gap: 8px;
+  --cb-border: var(--bnk-gray-border);
+  --cb-primary: var(--bnk-red);
+  --cb-primary-hover: var(--bnk-red-hover);
+  --cb-bg-card: #fff;
+  --cb-bg-answer: #fafafa;
+  --cb-error: #dc3545;
+  --cb-overlay-bg: rgba(0,0,0,.45);
+  --cb-radius: 8px;
+  --cb-z-index: 10000;
+  --cb-fab-size: 64px;
+  --cb-font: 'Noto Sans KR','맑은 고딕',sans-serif;
+}
+
+/* ===== 기본 리셋 (선택적으로 써도 됨 — 프로젝트 전역 style.css가 있으면 생략 가능) ===== */
+.bnk-cb-reset * {
+  font-family: var(--cb-font);
+  box-sizing: border-box;
+}
+
+/* ===== FAB ===== */
+.bnk-cb-fab {
+  position: fixed;
+  bottom: 24px;
+  width: var(--cb-fab-size);
+  height: var(--cb-fab-size);
+  background: var(--cb-primary);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 30px;
+  line-height: var(--cb-fab-size);
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  z-index: var(--cb-z-index);
+  transition: transform .15s, background .15s;
+}
+.bnk-cb-fab:hover { background: var(--cb-primary-hover); transform: scale(1.05); }
+.bnk-cb-fab:active { transform: scale(.95); }
+.bnk-cb-fab:focus-visible { outline: 3px solid rgba(0,0,0,.3); }
+
+.bnk-cb-fab.right { right: 24px; }
+.bnk-cb-fab.left  { left: 24px; }
+
+/* ===== 오버레이 ===== */
+#bnkCbOverlay {
+  position: fixed;
+  inset: 0;
+  background: var(--cb-overlay-bg);
+  display: none; /* JS로 토글 */
+  align-items: center;
+  justify-content: center;
+  z-index: calc(var(--cb-z-index) + 1);
+  padding: 16px;
+}
+
+/* ===== 모달 카드 ===== */
+#bnkCbModal {
+  width: 100%;
+  max-width: var(--cb-max-width);
+  background: var(--cb-bg-card);
+  border: 1px solid var(--cb-border);
+  border-radius: var(--cb-radius);
+  padding: 32px 24px 40px;
+  box-shadow: 0 2px 16px rgba(0,0,0,.25);
+  text-align: center;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* 닫기 버튼 */
+#bnkCbCloseBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+  line-height: 30px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  border-radius: 50%;
+  transition: background .15s;
+}
+#bnkCbCloseBtn:hover { background: rgba(0,0,0,.07); color: #000; }
+#bnkCbCloseBtn:focus-visible { outline: 2px solid var(--cb-primary); }
+
+/* 타이틀 */
+#bnkCbModal h2 {
+  margin: 0 0 20px;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+/* 폼 */
+.bnk-cb-form {
+  display: flex;
+  gap: var(--cb-gap);
+  margin-bottom: 16px;
+  align-items: stretch;
+}
+.bnk-cb-form input[type="text"] {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 16px;
+  border: 1px solid var(--cb-border);
+  border-radius: 4px;
+}
+.bnk-cb-form button {
+  padding: 0 18px;
+  min-width: 100px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--cb-primary);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.bnk-cb-form button:hover:not(:disabled) { background: var(--cb-primary-hover); }
+.bnk-cb-form button:disabled { opacity: .6; cursor: not-allowed; }
+
+/* 답변 */
+.bnk-cb-answer-wrapper { text-align: left; margin-top: 8px; }
+.bnk-cb-answer-wrapper h3 { margin-bottom: 8px; font-size: 18px; }
+
+#bnkCbAnswer {
+  white-space: pre-line;
+  border: 1px solid var(--cb-border);
+  padding: 12px;
+  min-height: 80px;
+  background: var(--cb-bg-answer);
+  border-radius: 4px;
+  line-height: 1.4;
+  font-size: 15px;
+}
+#bnkCbAnswer.loading::before { content: "응답을 기다리는 중..."; color: #666; }
+#bnkCbAnswer.error { border-color: var(--cb-error); color: var(--cb-error); white-space: normal; }
+
+/* 상담사 연결 안내 */
+#bnkCbEscalationBox {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #ffc107;
+  background: #fff8e1;
+  border-radius: 4px;
+  font-size: 15px;
+  line-height: 1.4;
+  display: none;
+  text-align: left;
+}
+#bnkCbEscalationBox button {
+  margin-top: 8px;
+  padding: 6px 14px;
+  font-size: 14px;
+  background: var(--cb-primary);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  transition: background .15s;
+}
+#bnkCbEscalationBox button:hover {
+  background: var(--cb-primary-hover);
+}
+
+/* 반응형 */
+@media (max-width:480px) {
+  #bnkCbModal { padding: 24px 16px 32px; }
+  .bnk-cb-form button { min-width: 80px; font-size: 15px; }
+  #bnkCbModal h2 { font-size: 20px; }
+}

@@ -1,0 +1,95 @@
+@charset "UTF-8";
+
+/* BNK 공식 컬러 팔레트 */
+:root {
+  --bnk-red: #D7191F;
+  --bnk-dark-gray: #655C4F;
+  --bnk-bg: #FFF8F0;
+}
+
+/* 공통 버튼 스타일 */
+.btn-bnk {
+  display: inline-block;
+  padding: 12px 20px;
+  background-color: var(--bnk-red);
+  color: #fff;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 15px;
+  text-decoration: none;
+  transition: 0.3s;
+}
+.btn-bnk:hover {
+  background-color: #b91318;
+}
+
+/* 챗봇 영역 스타일 (기존 JSP와 연결됨) */
+.chat-container {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  padding: 20px;
+  max-width: 450px;
+  margin: 0 auto;
+}
+
+.chat-container h2 {
+  color: var(--bnk-red);
+  font-weight: 700;
+  text-align: center;
+}
+
+.chat-box {
+  height: 350px;
+  overflow-y: auto;
+  background-color: #fafafa;
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-bottom: 15px;
+}
+
+.chat-entry {
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  display: inline-block;
+  max-width: 80%;
+  word-break: break-word;
+  clear: both;
+}
+
+.chat-entry.user {
+  background-color: var(--bnk-red);
+  color: white;
+  float: right;
+  text-align: right;
+}
+
+.chat-entry.bot {
+  background-color: #f1f1f1;
+  color: var(--bnk-dark-gray);
+  float: left;
+  text-align: left;
+}
+
+#inputArea {
+  display: flex;
+  gap: 10px;
+}
+
+#inputArea input[type="text"] {
+  flex: 1;
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+#inputArea button {
+  padding: 10px 15px;
+  background-color: var(--bnk-red);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
