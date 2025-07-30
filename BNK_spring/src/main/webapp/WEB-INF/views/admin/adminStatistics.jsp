@@ -166,7 +166,7 @@
   </div>
 </div>
 
-<h2 onclick="toggleSection('ageGroupSection')">2. 나이대별 카드 조회</h2>
+<h2 onclick="toggleSection('ageGroupSection')">2. 나이대별 검색 비율</h2>
 <div id="ageGroupSection" class="chart-container">
   <canvas id="ageGroupChart"></canvas>
   <div class="table-container">
@@ -177,7 +177,7 @@
   </div>
 </div>
 
-<h2 onclick="toggleSection('genderChartSection')">3. 성별별 카드 조회</h2>
+<h2 onclick="toggleSection('genderChartSection')">3. 성별별 검색 비율</h2>
 <div id="genderChartSection" class="chart-container">
   <canvas id="genderChart"></canvas>
   <div class="table-container">
@@ -188,7 +188,7 @@
   </div>
 </div>
 
-<h2 onclick="toggleSection('topCardsSection')">4. 가장 많이 보기된 카드</h2>
+<h2 onclick="toggleSection('topCardsSection')">4. 조회수가 높은 카드 순위</h2>
 <div id="topCardsSection" class="list-container">
   <ul id="topCardsList" class="ranked-list"></ul>
 </div>
