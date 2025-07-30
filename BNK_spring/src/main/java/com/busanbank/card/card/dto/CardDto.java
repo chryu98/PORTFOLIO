@@ -33,7 +33,9 @@ public class CardDto {
 	private String cardNotice;
 	private LocalDate regDate;
 	private LocalDate editDate;
+	@JsonProperty("popularImgUrl")
 	private String popularImgUrl;
+
 
 	 // 공통 처리 메서드
     private String replaceLocalhost(String url) {
