@@ -127,7 +127,7 @@ class _CardListPageState extends State<CardListPage> {
                         },
                         child: Text(
                           type == '신용' ? '신용카드' : type == '체크' ? '체크카드' : '전체',
-                          style: TextStyle(fontSize: 12), // 더 작게
+                          style: TextStyle(fontSize: 13),
                         ),
                       ),
                     );
@@ -182,7 +182,7 @@ class _CardListPageState extends State<CardListPage> {
 
                 // 카드 그리드 출력
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: GridView.builder(
                     itemCount: filteredCards.length,
                     shrinkWrap: true,
