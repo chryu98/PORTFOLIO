@@ -3,8 +3,9 @@ class CardModel {
   final String cardName;
   final String? cardSlogan;
   final String cardUrl;
-  final String? popularImgUrl; // ✅ 슬라이더용 이미지
+  final String? popularImgUrl;
   final int viewCount;
+  final String? cardType; // ✅ 추가됨
 
   CardModel({
     required this.cardNo,
@@ -13,6 +14,7 @@ class CardModel {
     this.cardSlogan,
     this.popularImgUrl,
     required this.viewCount,
+    this.cardType, // ✅ 생성자에 추가
   });
 
   factory CardModel.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class CardModel {
       cardUrl: json['cardUrl'],
       popularImgUrl: json['popularImgUrl'],
       viewCount: json['viewCount'],
+      cardType: json['cardType'], // ✅ JSON 매핑 추가
     );
   }
 }

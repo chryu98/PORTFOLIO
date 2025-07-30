@@ -21,13 +21,13 @@ class CardListPage extends StatefulWidget {
 
 class _CardListPageState extends State<CardListPage> {
   late Future<List<CardModel>> _futureCards;
-  late Future<List<CardModel>> _futurePopularCards;
+  String selectedType = '전체';
+  TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _futureCards = CardService.fetchCards();
-    _futurePopularCards = CardService.fetchPopularCards(); // 지금은 사용 안 하지만 유지 가능
   }
 
   @override
@@ -50,29 +50,30 @@ class _CardListPageState extends State<CardListPage> {
             return Center(child: Text('카드가 없습니다.'));
           }
 
-          final cards = snapshot.data!;
+          final allCards = snapshot.data!;
+
+          final filteredCards = selectedType == '전체'
+              ? allCards
+              : allCards.where((card) {
+            final type = card.cardType?.toLowerCase().replaceAll('카드', '').trim();
+            return type == selectedType.toLowerCase();
+          }).toList();
 
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✅ 상단 인기 카드 슬라이더
+                // 🔥 인기 카드 슬라이더
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
                   child: Builder(
                     builder: (context) {
-                      // ✅ 1. popularImgUrl이 존재하는 카드만 필터링
-                      final popularCards = cards
+                      final popularCards = allCards
                           .where((card) => card.popularImgUrl != null && card.popularImgUrl!.trim().isNotEmpty)
                           .toList();
-
-                      // ✅ 2. viewCount 기준 내림차순 정렬
                       popularCards.sort((a, b) => b.viewCount.compareTo(a.viewCount));
-
-                      // ✅ 3. 최대 6개만 사용
                       final limitedCards = popularCards.take(6).toList();
 
-                      // ✅ 4. 이미지가 없을 경우 대체 텍스트 출력
                       if (limitedCards.isEmpty) {
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -80,7 +81,6 @@ class _CardListPageState extends State<CardListPage> {
                         );
                       }
 
-                      // ✅ 5. Carousel에 적용
                       return CarouselSlider(
                         options: CarouselOptions(
                           height: 200,
@@ -97,25 +97,94 @@ class _CardListPageState extends State<CardListPage> {
                   ),
                 ),
 
+                SizedBox(height: 20),
 
-                SizedBox(height: 24),
-
-                // ✅ 전체 카드 타이틀
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    '전체 카드',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                // 🔘 필터 버튼 (작게!)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: ['전체', '신용', '체크'].map((type) {
+                    final isSelected = selectedType == type;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(horizontal: 17, vertical: 6),
+                          minimumSize: Size(0, 30), // 최소 크기 ↓↓↓
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          backgroundColor: isSelected ? Color(0xFFB91111) : Colors.white,
+                          foregroundColor: isSelected ? Colors.white : Colors.black87,
+                          side: isSelected
+                              ? BorderSide.none
+                              : BorderSide(color: Colors.grey.shade400),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            selectedType = type;
+                          });
+                        },
+                        child: Text(
+                          type == '신용' ? '신용카드' : type == '체크' ? '체크카드' : '전체',
+                          style: TextStyle(fontSize: 12), // 더 작게
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
 
                 SizedBox(height: 12),
 
-                // ✅ 전체 카드 그리드 리스트
+                // 🔍 검색창 (underline + 아이콘)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 50),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          readOnly: true,
+                          onTap: () {
+                            // 상세 검색 연결
+                          },
+                          decoration: InputDecoration(
+                            hintText: '카드이름, 혜택으로 검색',
+                            hintStyle: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                            border: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.grey.shade400),
+                            ),
+                            focusedBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.black87),
+                            ),
+                            contentPadding: EdgeInsets.only(bottom: 4),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(Icons.search, size: 20, color: Colors.black87),
+                      SizedBox(width: 8),
+                      Icon(Icons.tune, size: 20, color: Colors.black54),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: 14),
+
+                if (selectedType != '전체')
+                  Padding(
+                    padding: const EdgeInsets.only(left: 14.0, bottom: 6),
+                    child: Text(
+                      '${selectedType}카드 목록',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+
+                // 카드 그리드 출력
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: GridView.builder(
-                    itemCount: cards.length,
+                    itemCount: filteredCards.length,
                     shrinkWrap: true,
                     physics: NeverScrollableScrollPhysics(),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -125,7 +194,7 @@ class _CardListPageState extends State<CardListPage> {
                       childAspectRatio: 0.6,
                     ),
                     itemBuilder: (context, index) {
-                      final card = cards[index];
+                      final card = filteredCards[index];
                       return Column(
                         children: [
                           SizedBox(
@@ -154,10 +223,8 @@ class _CardListPageState extends State<CardListPage> {
     );
   }
 
-  /// ✅ 카드 이미지 출력 함수 (프록시 + 회전 적용)
   Widget _buildImageCard(String imageUrl, {bool rotate = false}) {
-    final proxyUrl =
-        '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(imageUrl)}';
+    final proxyUrl = '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(imageUrl)}';
 
     final image = Image.network(
       proxyUrl,
@@ -166,8 +233,7 @@ class _CardListPageState extends State<CardListPage> {
         if (loadingProgress == null) return child;
         return Center(child: CircularProgressIndicator());
       },
-      errorBuilder: (context, error, stackTrace) =>
-          Center(child: Icon(Icons.broken_image)),
+      errorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.broken_image)),
     );
 
     return ClipRRect(

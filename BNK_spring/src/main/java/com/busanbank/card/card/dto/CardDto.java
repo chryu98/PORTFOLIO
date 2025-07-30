@@ -13,7 +13,7 @@ import lombok.Setter;
 public class CardDto {
 	private Long cardNo;
 	private String cardName;
-	private String cardType;
+//	private String cardType;
 	private String cardBrand;
 	private Integer viewCount;
 	private Integer annualFee;
@@ -52,4 +52,7 @@ public class CardDto {
     public String getPopularImgUrl() {
         return replaceLocalhost(popularImgUrl);
     }
+    
+    @JsonProperty("cardType")
+    private String cardType;
 }
