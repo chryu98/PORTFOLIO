@@ -43,10 +43,12 @@ public class CardDto {
         return url;
     }
 
+    @JsonProperty("cardUrl")
     public String getCardUrl() {
         return replaceLocalhost(cardUrl);
     }
 
+    @JsonProperty("popularImgUrl")
     public String getPopularImgUrl() {
         return replaceLocalhost(popularImgUrl);
     }
