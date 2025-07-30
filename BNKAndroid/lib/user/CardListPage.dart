@@ -36,6 +36,7 @@ class _CardListPageState extends State<CardListPage> {
     final imageHeight = screenHeight * 0.19;
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(title: Text('')),
       body: FutureBuilder<List<CardModel>>(
         future: _futureCards,
@@ -81,17 +82,20 @@ class _CardListPageState extends State<CardListPage> {
                         );
                       }
 
-                      return CarouselSlider(
-                        options: CarouselOptions(
-                          height: 200,
-                          autoPlay: true,
-                          enlargeCenterPage: true,
-                          viewportFraction: 0.9,
+                      return Container(
+                        color: Colors.white, // ✅ 슬라이더 배경 흰색
+                        child: CarouselSlider(
+                          options: CarouselOptions(
+                            height: 200,
+                            autoPlay: true,
+                            enlargeCenterPage: true,
+                            viewportFraction: 0.9,
+                          ),
+                          items: limitedCards.map((card) {
+                            final imageUrl = card.popularImgUrl ?? card.cardUrl;
+                            return _buildImageCard(imageUrl, rotate: false);
+                          }).toList(),
                         ),
-                        items: limitedCards.map((card) {
-                          final imageUrl = card.popularImgUrl ?? card.cardUrl;
-                          return _buildImageCard(imageUrl, rotate: false);
-                        }).toList(),
                       );
                     },
                   ),
@@ -99,7 +103,7 @@ class _CardListPageState extends State<CardListPage> {
 
                 SizedBox(height: 20),
 
-                // 🔘 필터 버튼 (작게!)
+                // 🔘 필터 버튼
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: ['전체', '신용', '체크'].map((type) {
@@ -109,7 +113,7 @@ class _CardListPageState extends State<CardListPage> {
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.symmetric(horizontal: 17, vertical: 6),
-                          minimumSize: Size(0, 30), // 최소 크기 ↓↓↓
+                          minimumSize: Size(0, 30),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           backgroundColor: isSelected ? Color(0xFFB91111) : Colors.white,
                           foregroundColor: isSelected ? Colors.white : Colors.black87,
@@ -136,7 +140,7 @@ class _CardListPageState extends State<CardListPage> {
 
                 SizedBox(height: 12),
 
-                // 🔍 검색창 (underline + 아이콘)
+                // 🔍 검색창
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 50),
                   child: Row(
@@ -205,7 +209,7 @@ class _CardListPageState extends State<CardListPage> {
                           Text(
                             card.cardName,
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 12),
+                            style: TextStyle(fontSize: 11),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
@@ -238,7 +242,10 @@ class _CardListPageState extends State<CardListPage> {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: rotate ? Transform.rotate(angle: pi / 2, child: image) : image,
+      child: Container(
+        color: Colors.white, // ✅ 카드 이미지 컨테이너 배경도 흰색
+        child: rotate ? Transform.rotate(angle: pi / 2, child: image) : image,
+      ),
     );
   }
 }
