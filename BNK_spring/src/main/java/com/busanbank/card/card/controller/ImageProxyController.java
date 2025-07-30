@@ -17,29 +17,32 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/proxy")
 public class ImageProxyController {
 
-    @GetMapping("/image")
-    public ResponseEntity<byte[]> proxyImage(@RequestParam("url") String encodedUrl) {
-        try { 
-            // ✅ 1. URL 디코딩
-            String decodedUrl = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8);
+	@GetMapping("/image")
+	public ResponseEntity<byte[]> proxyImage(@RequestParam("url") String encodedUrl) {
+	    try {
+	        String decodedUrl = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8);
+	        URL imageUrl = new URL(decodedUrl);
+	        HttpURLConnection connection = (HttpURLConnection) imageUrl.openConnection();
+	        connection.setRequestProperty("User-Agent", "Mozilla/5.0");
+	        connection.connect();
 
-            // ✅ 2. 외부 이미지 요청
-            URL imageUrl = new URL(decodedUrl);
-            HttpURLConnection connection = (HttpURLConnection) imageUrl.openConnection();
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0");
-            connection.connect();
+	        String contentType = connection.getContentType();
+	        if (contentType == null || !contentType.startsWith("image")) {
+	            contentType = "image/png"; // 기본 fallback
+	        }
 
-            InputStream in = connection.getInputStream();
-            byte[] imageBytes = in.readAllBytes();
+	        InputStream in = connection.getInputStream();
+	        byte[] imageBytes = in.readAllBytes();
+	        in.close();
 
-            String contentType = connection.getContentType();
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType(contentType));
+	        HttpHeaders headers = new HttpHeaders();
+	        headers.setContentType(MediaType.parseMediaType(contentType));
 
-            return new ResponseEntity<>(imageBytes, headers, HttpStatus.OK);
-        } catch (Exception e) {
-            e.printStackTrace(); // 디버깅용
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
-        }
-    }
+	        return new ResponseEntity<>(imageBytes, headers, HttpStatus.OK);
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
+	    }
+	}
+
 }

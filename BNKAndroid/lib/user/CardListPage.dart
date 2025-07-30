@@ -21,6 +21,8 @@ class CardListPage extends StatefulWidget {
 
 class _CardListPageState extends State<CardListPage> {
   late Future<List<CardModel>> _futureCards;
+  late Future<List<CardModel>> _futurePopularCards;
+
   String selectedType = '전체';
   TextEditingController _searchController = TextEditingController();
 
@@ -28,6 +30,7 @@ class _CardListPageState extends State<CardListPage> {
   void initState() {
     super.initState();
     _futureCards = CardService.fetchCards();
+    _futurePopularCards = CardService.fetchPopularCards();
   }
 
   @override
@@ -51,7 +54,6 @@ class _CardListPageState extends State<CardListPage> {
           }
 
           final allCards = snapshot.data!;
-
           final filteredCards = selectedType == '전체'
               ? allCards
               : allCards.where((card) {
@@ -66,21 +68,20 @@ class _CardListPageState extends State<CardListPage> {
                 // 🔥 인기 카드 슬라이더
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
-                  child: Builder(
-                    builder: (context) {
-                      final popularCards = allCards
-                          .where((card) => card.popularImgUrl != null && card.popularImgUrl!.trim().isNotEmpty)
-                          .toList();
-                      popularCards.sort((a, b) => b.viewCount.compareTo(a.viewCount));
-                      final limitedCards = popularCards.take(6).toList();
-
-                      if (limitedCards.isEmpty) {
+                  child: FutureBuilder<List<CardModel>>(
+                    future: _futurePopularCards,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text('인기카드 이미지가 없습니다.'),
                         );
                       }
 
+                      final popularCards = snapshot.data!;
                       return CarouselSlider(
                         options: CarouselOptions(
                           height: 200,
@@ -88,7 +89,7 @@ class _CardListPageState extends State<CardListPage> {
                           enlargeCenterPage: true,
                           viewportFraction: 0.9,
                         ),
-                        items: limitedCards.map((card) {
+                        items: popularCards.map((card) {
                           final imageUrl = card.popularImgUrl ?? card.cardUrl;
                           return _buildImageCard(imageUrl, rotate: false);
                         }).toList(),
@@ -99,7 +100,7 @@ class _CardListPageState extends State<CardListPage> {
 
                 SizedBox(height: 20),
 
-                // 🔘 필터 버튼 (작게!)
+                // 🔘 필터 버튼
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: ['전체', '신용', '체크'].map((type) {
@@ -109,7 +110,7 @@ class _CardListPageState extends State<CardListPage> {
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.symmetric(horizontal: 17, vertical: 6),
-                          minimumSize: Size(0, 30), // 최소 크기 ↓↓↓
+                          minimumSize: Size(0, 30),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           backgroundColor: isSelected ? Color(0xFFB91111) : Colors.white,
                           foregroundColor: isSelected ? Colors.white : Colors.black87,
@@ -136,7 +137,7 @@ class _CardListPageState extends State<CardListPage> {
 
                 SizedBox(height: 12),
 
-                // 🔍 검색창 (underline + 아이콘)
+                // 🔍 검색창
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 50),
                   child: Row(
@@ -146,7 +147,7 @@ class _CardListPageState extends State<CardListPage> {
                           controller: _searchController,
                           readOnly: true,
                           onTap: () {
-                            // 상세 검색 연결
+                            // 상세 검색 연결 예정
                           },
                           decoration: InputDecoration(
                             hintText: '카드이름, 혜택으로 검색',
@@ -180,7 +181,7 @@ class _CardListPageState extends State<CardListPage> {
                     ),
                   ),
 
-                // 카드 그리드 출력
+                // 카드 목록
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: GridView.builder(
@@ -233,7 +234,8 @@ class _CardListPageState extends State<CardListPage> {
         if (loadingProgress == null) return child;
         return Center(child: CircularProgressIndicator());
       },
-      errorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.broken_image)),
+      errorBuilder: (context, error, stackTrace) =>
+          Center(child: Icon(Icons.broken_image)),
     );
 
     return ClipRRect(
