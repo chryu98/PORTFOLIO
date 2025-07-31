@@ -9,7 +9,8 @@ class API {
 
     try {
       // fallbackIp를 먼저 사용해서 base-url 얻기
-      final response = await http.get(Uri.parse('http://$fallbackIp:8090/api/config/base-url'));
+      final response = await http.get(
+          Uri.parse('http://$fallbackIp:8090/api/config/base-url'));
       if (response.statusCode == 200) {
         baseUrl = response.body.trim();
         print('[API] baseUrl 세팅됨: $baseUrl');
@@ -24,7 +25,18 @@ class API {
 
   // endpoint getter
   static String get cards => '$baseUrl/api/cards';
+
   static String cardDetail(int id) => '$baseUrl/api/cards/detail/$id';
+
   static String get popularCards => '$baseUrl/api/cards/popular';
 
+  static String searchCards(String keyword, String type, List<String> tags) {
+    final params = <String, String>{};
+    if (keyword.isNotEmpty) params['q'] = keyword;
+    if (type.isNotEmpty && type != '전체') params['type'] = type;
+    if (tags.isNotEmpty) params['tags'] = tags.join(',');
+
+    final query = Uri(queryParameters: params).query;
+    return '$baseUrl/api/cards/search?$query';
+  }
 }

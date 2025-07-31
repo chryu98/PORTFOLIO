@@ -37,4 +37,23 @@ class CardService {
       throw Exception('인기 카드 로딩 실패');
     }
   }
+
+  //검색창 기능
+  static Future<List<CardModel>> searchCards({
+    String keyword = '',
+    String type = '',
+    List<String> tags = const [],
+  }) async {
+    final url = API.searchCards(keyword, type, tags);
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final List data = json.decode(utf8.decode(response.bodyBytes));
+      return data.map((e) => CardModel.fromJson(e)).toList();
+    } else {
+      throw Exception('검색 실패: ${response.statusCode}');
+    }
+  }
+
+
 }
