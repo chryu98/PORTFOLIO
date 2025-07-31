@@ -112,14 +112,69 @@ class _CardListPageState extends State<CardListPage> {
                           color: Colors.white,
                           child: CarouselSlider(
                             options: CarouselOptions(
-                              height: 200,
+                              height: 280,
                               autoPlay: true,
                               enlargeCenterPage: true,
                               viewportFraction: 0.9,
                             ),
                             items: popularCards.map((card) {
                               final imageUrl = card.popularImgUrl ?? card.cardUrl;
-                              return _buildImageCard(imageUrl, rotate: false);
+                              final proxyUrl = '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(imageUrl)}';
+
+                              return Stack(
+                                children: [
+                                  // 카드 이미지
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      proxyUrl,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return Center(child: CircularProgressIndicator());
+                                      },
+                                      errorBuilder: (context, error, stackTrace) =>
+                                          Center(child: Icon(Icons.broken_image)),
+                                    ),
+                                  ),
+
+                                  // 텍스트 오버레이
+                                  Positioned(
+                                    bottom: 16,
+                                    left: 16,
+                                    right: 16,
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.5),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            card.cardName,
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          if (card.cardSlogan != null && card.cardSlogan!.isNotEmpty)
+                                            Text(
+                                              card.cardSlogan!,
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
                             }).toList(),
                           ),
                         );
@@ -127,7 +182,7 @@ class _CardListPageState extends State<CardListPage> {
                     ),
                   ),
 
-                  SizedBox(height: 30),
+                  SizedBox(height: 40),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -137,7 +192,7 @@ class _CardListPageState extends State<CardListPage> {
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(horizontal: 17, vertical: 6),
+                            padding: EdgeInsets.symmetric(horizontal: 18, vertical: 11),
                             minimumSize: Size(0, 30),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             backgroundColor: isSelected ? Color(0xFFB91111) : Colors.white,
@@ -256,7 +311,7 @@ class _CardListPageState extends State<CardListPage> {
                             Text(
                               card.cardName,
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 11),
+                              style: TextStyle(fontSize: 12),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
@@ -359,7 +414,7 @@ class _TagFilterModalState extends State<TagFilterModal> {
             mainAxisSize: MainAxisSize.min, // ⬅️ 높이를 Wrap하고 overflow 방지
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('주요 혜택 선택 (최대 5개)',
+              Text('원하는 혜택을 골라보세요 (최대 5개)',
                   style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height: 16),
               Wrap(
@@ -401,9 +456,12 @@ class _TagFilterModalState extends State<TagFilterModal> {
                   },
                   child: Text('적용'),
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFB91111)),
+                    backgroundColor: Color(0xFFB91111),
+                    foregroundColor: Colors.white, // ✅ 텍스트 색상 흰색으로 지정
+                  ),
                 ),
               ),
+
             ],
           ),
         ),
