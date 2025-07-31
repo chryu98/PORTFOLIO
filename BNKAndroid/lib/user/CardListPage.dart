@@ -86,6 +86,7 @@ class _CardListPageState extends State<CardListPage> {
             }).toList());
 
             final screenHeight = MediaQuery.of(context).size.height;
+
             final imageHeight = screenHeight * 0.19;
 
             return SingleChildScrollView(

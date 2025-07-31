@@ -55,5 +55,19 @@ class CardService {
     }
   }
 
+  //모달 비교창
+  static Future<CardModel> fetchCompareCardDetail(dynamic cardId) async {
+    final url = API.compareCardDetail(cardId);
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      return CardModel.fromJson(data);
+    } else {
+      throw Exception('비교용 카드 상세 조회 실패 (${response.statusCode})');
+    }
+  }
+
+
 
 }

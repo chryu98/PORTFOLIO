@@ -28,6 +28,9 @@ class API {
 
   static String cardDetail(int id) => '$baseUrl/api/cards/detail/$id';
 
+  /// 카드 비교용 상세 정보 (자행/타행 모두 지원)
+  static String compareCardDetail(dynamic id) => '$baseUrl/cards/$id';
+
   static String get popularCards => '$baseUrl/api/cards/popular';
 
   static String searchCards(String keyword, String type, List<String> tags) {
