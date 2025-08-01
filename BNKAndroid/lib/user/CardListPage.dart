@@ -3,9 +3,45 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:bnkandroid/constants/api.dart';
 import 'package:bnkandroid/user/service/CardService.dart';
 import 'model/CardModel.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+
+class CompareCard {
+  final String cardNo;
+  final String cardName;
+  final String cardUrl;
+
+  CompareCard({
+    required this.cardNo,
+    required this.cardName,
+    required this.cardUrl,
+  });
+
+  factory CompareCard.fromCardModel(CardModel card) {
+    return CompareCard(
+      cardNo: card.cardNo.toString(),
+      cardName: card.cardName,
+      cardUrl: card.cardUrl,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'cardNo': cardNo,
+    'cardName': cardName,
+    'cardUrl': cardUrl,
+  };
+
+  factory CompareCard.fromJson(Map<String, dynamic> json) {
+    return CompareCard(
+      cardNo: json['cardNo'],
+      cardName: json['cardName'],
+      cardUrl: json['cardUrl'],
+    );
+  }
+}
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,11 +57,13 @@ class CardListPage extends StatefulWidget {
 class _CardListPageState extends State<CardListPage> {
   late Future<List<CardModel>> _futureCards;
   late Future<List<CardModel>> _futurePopularCards;
+
   List<CardModel> _searchResults = [];
+  List<CompareCard> compareCards = []; // ✅ 비교함 리스트
   List<String> _selectedTags = [];
   String _keyword = '';
-  bool _isLoading = false;
   String selectedType = '전체';
+  bool _isLoading = false;
   TextEditingController _searchController = TextEditingController();
 
   @override
@@ -33,6 +71,50 @@ class _CardListPageState extends State<CardListPage> {
     super.initState();
     _futureCards = CardService.fetchCards();
     _futurePopularCards = CardService.fetchPopularCards();
+    _loadCompareList();
+  }
+
+  Future<void> _loadCompareList() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getStringList('compareCards') ?? [];
+    setState(() {
+      compareCards = data.map((e) => CompareCard.fromJson(jsonDecode(e))).toList();
+    });
+  }
+
+  // ✅ 비교함 저장
+  Future<void> _saveCompareList() async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = compareCards.map((c) => jsonEncode(c.toJson())).toList();
+    await prefs.setStringList('compareCards', encoded);
+  }
+  // ✅ 비교함 담기/제거
+  void _toggleCompare(CardModel card) {
+    final cardId = card.cardNo.toString();
+    final isSelected = compareCards.any((c) => c.cardNo == cardId);
+
+    setState(() {
+      if (isSelected) {
+        compareCards.removeWhere((c) => c.cardNo == cardId);
+        print('❌ 제거됨: $cardId');
+      } else {
+        if (compareCards.length >= 2) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('최대 2개까지만 비교할 수 있습니다.')),
+          );
+          return;
+        }
+        compareCards.add(CompareCard.fromCardModel(card));
+        print('✅ 담김: $cardId');
+      }
+    });
+
+    _saveCompareList();
+  }
+
+  // ✅ 포함 여부 체크
+  bool _isInCompare(CardModel card) {
+    return compareCards.any((c) => c.cardNo == card.cardNo.toString());
   }
 
   Future<void> _performSearch() async {
@@ -90,6 +172,7 @@ class _CardListPageState extends State<CardListPage> {
             final imageHeight = screenHeight * 0.19;
 
             return SingleChildScrollView(
+              padding: EdgeInsets.only(bottom: 120), // ✅ 오버플로우 방지 하단 여백 추가
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -153,6 +236,7 @@ class _CardListPageState extends State<CardListPage> {
                                       ),
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
                                             card.cardName,
@@ -161,6 +245,8 @@ class _CardListPageState extends State<CardListPage> {
                                               fontSize: 15,
                                               fontWeight: FontWeight.bold,
                                             ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
                                           ),
                                           if (card.cardSlogan != null && card.cardSlogan!.isNotEmpty)
                                             Text(
@@ -169,6 +255,8 @@ class _CardListPageState extends State<CardListPage> {
                                                 color: Colors.white,
                                                 fontSize: 12,
                                               ),
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
                                             ),
                                         ],
                                       ),
@@ -182,8 +270,7 @@ class _CardListPageState extends State<CardListPage> {
                       },
                     ),
                   ),
-
-                  SizedBox(height: 40),
+                  SizedBox(height: 40), // ✅ 기존 여백 유지
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -290,46 +377,81 @@ class _CardListPageState extends State<CardListPage> {
 
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: GridView.builder(
-                      itemCount: displayCards.length,
-                      shrinkWrap: true,
-                      physics: NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 0,
-                        mainAxisSpacing: 30,
-                        childAspectRatio: 0.6,
-                      ),
-                      itemBuilder: (context, index) {
-                        final card = displayCards[index];
-                        return Column(
-                          children: [
-                            SizedBox(
-                              height: imageHeight,
-                              child: _buildImageCard(card.cardUrl, rotate: true),
-                            ),
-                            SizedBox(height: 1),
-                            Text(
-                              card.cardName,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        );
-                      },
+                    child: Column(
+                      children: [
+                        GridView.builder(
+                          itemCount: displayCards.length,
+                          shrinkWrap: true,
+                          physics: NeverScrollableScrollPhysics(),
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 0,
+                            mainAxisSpacing: 30,
+                            childAspectRatio: 0.6,
+                          ),
+                          itemBuilder: (context, index) {
+                            final card = displayCards[index];
+                            return Column(
+                              children: [
+                                SizedBox(
+                                  height: imageHeight,
+                                  child: _buildImageCard(card.cardUrl, rotate: true),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  card.cardName,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                CheckboxListTile(
+                                  dense: true,
+                                  visualDensity: VisualDensity.compact,
+                                  value: _isInCompare(card),
+                                  onChanged: (_) => _toggleCompare(card),
+                                  controlAffinity: ListTileControlAffinity.leading,
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    '비교함 담기',
+                                    style: TextStyle(fontSize: 11),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+
+                        /// ✅ FloatingActionButton과 겹치지 않도록 충분한 여백
+                        SizedBox(height: 140),
+                      ],
                     ),
                   ),
 
-                  SizedBox(height: 40),
                 ],
               ),
             );
           },
         ),
       ),
+      floatingActionButton: () {
+        print('🧪 현재 compareCards 길이: ${compareCards.length}');
+        return compareCards.isNotEmpty
+            ? FloatingActionButton.extended(
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              builder: (_) => _buildCompareModal(),
+            );
+          },
+          label: Text("비교함 (${compareCards.length})"),
+          icon: Icon(Icons.compare),
+          backgroundColor: Colors.red,
+        )
+            : null;
+      }(),
     );
   }
+
 
   Widget _buildImageCard(String imageUrl, {bool rotate = false}) {
     final proxyUrl = '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(imageUrl)}';
@@ -350,6 +472,31 @@ class _CardListPageState extends State<CardListPage> {
       ),
     );
   }
+  Widget _buildCompareModal() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: compareCards.map((c) {
+          return ListTile(
+            leading: Image.network(c.cardUrl, width: 50),
+            title: Text(c.cardName),
+            trailing: IconButton(
+              icon: Icon(Icons.close),
+              onPressed: () {
+                setState(() {
+                  compareCards.removeWhere((x) => x.cardNo == c.cardNo);
+                });
+                _saveCompareList();
+                Navigator.pop(context);
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
 }
 
 class TagFilterModal extends StatefulWidget {
@@ -398,75 +545,71 @@ class _TagFilterModalState extends State<TagFilterModal> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery
-              .of(context)
-              .viewInsets
-              .bottom, // 키보드 대응
+      padding: EdgeInsets.only(
+        bottom: MediaQuery
+            .of(context)
+            .viewInsets
+            .bottom + 40, // ✅ 여유 여백 추가
+      ),
+      child: Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
-        child: Container(
-          padding: EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min, // ⬅️ 높이를 Wrap하고 overflow 방지
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('원하는 혜택을 골라보세요 (최대 5개)',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: allTags.map((tag) {
-                  final isSelected = selected.contains(tag);
-                  return GestureDetector(
-                    onTap: () => toggleTag(tag),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 14,
-                          vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? Color(0xfffdeeee) : Colors
-                            .grey[200],
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: isSelected ? Colors.red : Colors.grey
-                                .shade300),
-                      ),
-                      child: Text(
-                        '#$tag',
-                        style: TextStyle(
-                          color: isSelected ? Colors.red : Colors.black87,
-                          fontWeight: FontWeight.w500,
-                        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // ✅ wrap content
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('원하는 혜택을 골라보세요 (최대 5개)',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: allTags.map((tag) {
+                final isSelected = selected.contains(tag);
+                return GestureDetector(
+                  onTap: () => toggleTag(tag),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Color(0xfffdeeee) : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? Colors.red : Colors.grey.shade300,
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
-              SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    widget.onConfirm(selected);
-                    Navigator.pop(context);
-                  },
-                  child: Text('적용'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFFB91111),
-                    foregroundColor: Colors.white, // ✅ 텍스트 색상 흰색으로 지정
+                    child: Text(
+                      '#$tag',
+                      style: TextStyle(
+                        color: isSelected ? Colors.red : Colors.black87,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
+                );
+              }).toList(),
+            ),
+            SizedBox(height: 30),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  widget.onConfirm(selected);
+                  Navigator.pop(context);
+                },
+                child: Text('적용'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFFB91111),
+                  foregroundColor: Colors.white,
                 ),
               ),
-
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+

@@ -1,31 +1,52 @@
 class CardModel {
   final int cardNo;
   final String cardName;
-  final String? cardSlogan;
   final String cardUrl;
   final String? popularImgUrl;
   final int viewCount;
-  final String? cardType; // ✅ 추가됨
+  final String? cardType;
+  final String? cardSlogan;
+  final String? service;
+  final String? sService;
+  final String? issuedTo;
+  final String? benefits;
+  final String? scBenefits;
+  final int? annualFee;
+  final int? scAnnualFee;
 
   CardModel({
     required this.cardNo,
     required this.cardName,
     required this.cardUrl,
-    this.cardSlogan,
     this.popularImgUrl,
     required this.viewCount,
-    this.cardType, // ✅ 생성자에 추가
+    this.cardType,
+    this.cardSlogan,
+    this.service,
+    this.sService,
+    this.issuedTo,
+    this.benefits,
+    this.scBenefits,
+    this.annualFee,
+    this.scAnnualFee,
   });
 
   factory CardModel.fromJson(Map<String, dynamic> json) {
     return CardModel(
       cardNo: json['cardNo'],
       cardName: json['cardName'],
-      cardSlogan: json['cardSlogan'],
       cardUrl: json['cardUrl'],
       popularImgUrl: json['popularImgUrl'],
       viewCount: json['viewCount'],
-      cardType: json['cardType'], // ✅ JSON 매핑 추가
+      cardType: json['cardType'],
+      cardSlogan: json['cardSlogan'],
+      service: json['service'],
+      sService: json['sService'],
+      issuedTo: json['issuedTo'],
+      benefits: json['benefits'],
+      scBenefits: json['scBenefits'],
+      annualFee: json['annualFee'],
+      scAnnualFee: json['scAnnualFee'],
     );
   }
 }
