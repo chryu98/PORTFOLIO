@@ -104,6 +104,18 @@ public class AdminMainController {
 	    }
 	    return "admin/adminChat";
 	}
+	
+	
+	// 상품 약관 관리 페이지
+	@GetMapping("/productTerms")
+	public String productTerms() {
+		AdminDto admin = adminSession.getLoginUser();
+		if (admin == null) {
+			// 로그인 안한 경우
+			return "redirect:/admin/adminLoginForm";
+		}
+		return "admin/adminTerms";
+	}
 
 	
 	//=========================================

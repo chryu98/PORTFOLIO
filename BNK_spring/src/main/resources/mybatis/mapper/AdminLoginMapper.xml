@@ -5,8 +5,12 @@
 
 <mapper namespace="com.busanbank.card.admin.dao.IAdminLoginDao">
 
-	<select id="adminLogin" parameterType="com.busanbank.card.admin.dto.AdminDto">
-		SELECT * FROM admin where username = #{username}
+	<select id="adminLogin" parameterType="com.busanbank.card.admin.dto.AdminDto" resultType="com.busanbank.card.admin.dto.AdminDto">
+		SELECT admin_no ,
+	    username,
+	    password,
+	    name,
+	    role FROM admin where username = #{username}
 	</select>
 
 </mapper>
