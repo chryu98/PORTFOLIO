@@ -56,15 +56,20 @@ class CardService {
   }
 
   //모달 비교창
-  static Future<CardModel> fetchCompareCardDetail(dynamic cardId) async {
+  static Future<CardModel> fetchCompareCardDetail(String cardId) async {
     final url = API.compareCardDetail(cardId);
+    print('📡 [API 호출] $url');
+
     final response = await http.get(Uri.parse(url));
+    print('📥 응답 코드: ${response.statusCode}');
 
     if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      return CardModel.fromJson(data);
+      final body = utf8.decode(response.bodyBytes);
+      print('📦 응답 데이터: $body');
+      return CardModel.fromJson(json.decode(body));
     } else {
-      throw Exception('비교용 카드 상세 조회 실패 (${response.statusCode})');
+      print('❌ 실패 응답: ${response.body}');
+      throw Exception('카드 상세 조회 실패 (${response.statusCode})');
     }
   }
 
