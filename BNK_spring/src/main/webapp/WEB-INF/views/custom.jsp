@@ -23,6 +23,7 @@
 	  background-position: 50% 50%;
 	  
 	  border: 1px solid #ccc;
+      border-radius: 20px;
 	  overflow: hidden;
 	  position: relative;
 	  touch-action: none; /* 모바일 터치 방지 */
@@ -74,19 +75,109 @@
 	  transform-origin: center center;
 	  object-fit: cover;
 	  pointer-events: none; /* 드래그 이벤트가 텍스트 등에만 전달되도록 */
+	  height: 100%;
 	}
+	
+	#emojiListContainer {
+	  position: fixed;
+	  bottom: 0px;
+	  left: 0;
+	  right: 0;
+	  background: #f0f0f0;
+	  padding: 10px 0;
+	  overflow-x: auto;
+	  white-space: nowrap;
+	  display: none;
+	  border-top: 1px solid #ccc;
+	  z-index: 20;
+	}
+	
+	#emojiList {
+	  display: inline-block;
+	  padding: 0 20px;
+	}
+	
+	.emoji {
+	  display: inline-block;
+	  font-size: 24px;
+	  margin: 0 10px;
+	  cursor: pointer;
+	  user-select: none;
+	}
+	
+  #fontListContainer {
+    position: fixed;
+    bottom: 0px;
+    left: 0;
+    right: 0;
+    background: #f8f8f8;
+    padding: 8px 0;
+    overflow-x: auto;
+    white-space: nowrap;
+    display: none;
+    border-top: 1px solid #ccc;
+    z-index: 20;
+  }
+  #fontList {
+    display: inline-block;
+    padding: 0 20px;
+  }
+  .font-option {
+    display: inline-block;
+    font-size: 16px;
+    margin: 0 10px;
+    padding: 4px 8px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+  }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  
 </head>
 <body>
   	<button id="addTextBtn">텍스트 추가</button>
 	<button id="increaseFont">A+</button>
 	<button id="decreaseFont">A-</button>
-	<input type="color" id="fontColorPicker" value="#000000">
+	<button id="toggleFontList">🔤 폰트</button>
+	<label>T<input type="color" id="fontColorPicker" value="#000000"></label>
 	<input type="file" id="cardBgInput" accept="image/*" />
+	<label>배경<input type="color" id="cardBgColorPicker" value="#ffffff" /></label>
 	<button id="zoomIn">확대</button>
 	<button id="zoomOut">축소</button>
 	<button id="reset">초기화</button>
 	<label>회전: <input type="range" id="rotateRange" min="-180" max="180" value="0" /></label>
+	<button id="toggleEmojiList">😊 이모티콘</button>
+	<button id="saveBtn">카드 저장</button>
+	
+
+	<div id="emojiListContainer">
+	  <div id="emojiList">
+	    <span class="emoji">😀</span>
+	    <span class="emoji">😂</span>
+	    <span class="emoji">😍</span>
+	    <span class="emoji">👍</span>
+	    <span class="emoji">🔥</span>
+	    <span class="emoji">🎉</span>
+	    <span class="emoji">💖</span>
+	    <span class="emoji">🐱</span>
+	    <span class="emoji">🌈</span>
+	    <!-- 필요 시 더 추가 -->
+	  </div>
+	</div>
+	
+	<div id="fontListContainer">
+	  <div id="fontList">
+	    <span class="font-option" data-font="sans-serif" style="font-family: sans-serif">기본</span>
+	    <span class="font-option" data-font="serif" style="font-family: serif">Serif</span>
+	    <span class="font-option" data-font="monospace" style="font-family: monospace">Mono</span>
+	    <span class="font-option" data-font="'Courier New'" style="font-family: 'Courier New'">Courier</span>
+	    <span class="font-option" data-font="'Comic Sans MS'" style="font-family: 'Comic Sans MS'">Comic</span>
+	    <span class="font-option" data-font="'Times New Roman'" style="font-family: 'Times New Roman'">Times</span>
+	    <!-- 필요시 더 추가 -->
+	  </div>
+	</div>
 		
   <div class="card" id="card">
   	<img id="bgImg" />
@@ -188,7 +279,10 @@
       rotateBtn.className = 'rotate-btn';
       textBox.appendChild(rotateBtn);
 
+
       let isRotating = false;
+      let startAngle = 0;
+      let baseRotate = 0;
 
       rotateBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
@@ -199,17 +293,24 @@
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
 
+        const x = parseFloat(textBox.getAttribute('data-x')) || 0;
+        const y = parseFloat(textBox.getAttribute('data-y')) || 0;
+        baseRotate = parseFloat(textBox.getAttribute('data-rotate')) || 0;
+
+        const dx = e.clientX - centerX;
+        const dy = e.clientY - centerY;
+        startAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+
         function onPointerMove(eMove) {
           if (!isRotating) return;
-          const dx = eMove.clientX - centerX;
-          const dy = eMove.clientY - centerY;
-          const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+          const dx2 = eMove.clientX - centerX;
+          const dy2 = eMove.clientY - centerY;
+          const currentAngle = Math.atan2(dy2, dx2) * (180 / Math.PI);
+          const angleDiff = currentAngle - startAngle;
+          const newAngle = baseRotate + angleDiff;
 
-          const x = parseFloat(textBox.getAttribute('data-x')) || 0;
-          const y = parseFloat(textBox.getAttribute('data-y')) || 0;
-
-          textBox.style.transform = `translate(\${x}px, \${y}px) rotate(\${angle}deg)`;
-          textBox.setAttribute('data-rotate', angle);
+          textBox.style.transform = `translate(\${x}px, \${y}px) rotate(\${newAngle}deg)`;
+          textBox.setAttribute('data-rotate', newAngle);
         }
 
         function onPointerUp() {
@@ -285,6 +386,12 @@ fileInput.addEventListener('change', (e) => {
   const reader = new FileReader();
   reader.onload = (event) => {
 	  document.getElementById('bgImg').src = event.target.result;
+	    // 추가: 이미지 업로드 시 초기화
+	    bgPos = { x: 0, y: 0 };
+	    bgScale = 1;
+	    bgRotate = 0;
+	    rotateRange.value = 0;
+	    updateBgTransform();
   };
   reader.readAsDataURL(file);
 });
@@ -335,6 +442,8 @@ resetBtn.addEventListener('click', () => {
   bgPos = { x: 0, y: 0 };
   bgSize = 100;
   updateBgTransform();
+  document.getElementById('card').style.backgroundColor = '#ffffff'; // 배경색초기값
+  document.getElementById('cardBgColorPicker').value = '#ffffff'; // 컬러피커도 초기화
 });
 
 // 적용 함수
@@ -366,8 +475,6 @@ document.addEventListener('touchmove', (e) => {
   bgPos.x += dx / card.offsetWidth * 100;
   bgPos.y += dy / card.offsetHeight * 100;
 
-  /* bgPos.x = Math.max(0, Math.min(100, bgPos.x));
-  bgPos.y = Math.max(0, Math.min(100, bgPos.y)); */
 
   updateBgTransform();
 
@@ -395,6 +502,68 @@ resetBtn.addEventListener('click', () => {
 	  rotateRange.value = 0; // 슬라이더도 초기화
 	  updateBgTransform();
 	});
+	
+//배경색 변경
+document.getElementById('cardBgColorPicker').addEventListener('input', (e) => {
+  document.getElementById('card').style.backgroundColor = e.target.value;
+});
+
+
+//이모티콘 목록 토글
+document.getElementById('toggleEmojiList').addEventListener('click', () => {
+  const list = document.getElementById('emojiListContainer');
+  const fontlist = document.getElementById('fontListContainer');
+  list.style.display = list.style.display === 'block' ? 'none' : 'block';
+  fontlist.style.display = 'none';
+});
+
+// 이모티콘 클릭 시 카드에 추가
+document.querySelectorAll('#emojiList .emoji').forEach(emojiEl => {
+  emojiEl.addEventListener('click', () => {
+    const card = document.getElementById('card');
+    const newEmoji = document.createElement('div');
+
+    newEmoji.className = 'text-box';
+    newEmoji.innerText = emojiEl.innerText;
+    newEmoji.setAttribute('data-x', 0);
+    newEmoji.setAttribute('data-y', 0);
+    newEmoji.setAttribute('data-rotate', 0);
+    newEmoji.style.transform = 'translate(0px, 0px) rotate(0deg)';
+    card.appendChild(newEmoji);
+
+    makeDraggable(newEmoji);
+    enableTextBoxInteraction(newEmoji);
+  });
+});
+
+//폰트 목록 토글
+document.getElementById('toggleFontList').addEventListener('click', () => {
+  const list = document.getElementById('fontListContainer');
+  const emojilist = document.getElementById('emojiListContainer');
+  list.style.display = list.style.display === 'block' ? 'none' : 'block';
+  emojilist.style.display = 'none';
+});
+
+// 폰트 클릭 시 텍스트 박스에 적용
+document.querySelectorAll('.font-option').forEach(fontEl => {
+  fontEl.addEventListener('click', () => {
+    if (selectedTextBox) {
+      selectedTextBox.style.fontFamily = fontEl.getAttribute('data-font');
+    }
+  });
+});
+
+//카드 이미지로 저장
+document.getElementById('saveBtn').addEventListener('click', () => {
+    const card = document.getElementById('card'); // 카드 전체를 감싸는 요소 ID
+
+    html2canvas(card).then(canvas => {
+      const link = document.createElement('a');
+      link.download = 'custom_card.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  });
 </script>
 
 
