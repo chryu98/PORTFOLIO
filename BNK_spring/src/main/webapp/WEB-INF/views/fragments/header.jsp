@@ -9,6 +9,8 @@ uri="http://java.sun.com/jsp/jstl/core" %>
 		<a href="/admin/Scraping">스크래핑</a>
 		<a href="/admin/faq/list">FAQ관리</a>
 		<a href="/admin/chat">고객관리</a>
+		
+		<a href="/admin/productTerms">상품 약관 관리</a>
 		<a href="/admin/Mainpage">사용자 메인페이지로</a>
 		<button id="logoutBtn">로그아웃</button>
 	</div>
