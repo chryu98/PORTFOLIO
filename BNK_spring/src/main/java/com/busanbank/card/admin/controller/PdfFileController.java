@@ -1,10 +1,14 @@
 package com.busanbank.card.admin.controller;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -50,16 +54,33 @@ public class PdfFileController {
     }
     
     // 수정
-    @PutMapping("/pdf/update")
-    public ResponseEntity<String> updatePdf(@RequestBody PdfFile dto) {
-    	pdfFileService.updatePdf(dto); // pdfNo, pdfName, isActive 사용
-        return ResponseEntity.ok("수정 완료");
+    @PostMapping("/pdf/edit")
+    public ResponseEntity<String> editPdf(
+        @RequestParam("pdfNo") Long pdfNo,
+        @RequestParam("pdfName") String pdfName,
+        @RequestParam("isActive") String isActive,
+        @RequestParam(value = "file", required = false) MultipartFile file
+    ) {
+        AdminDto loginUser = adminSession.getLoginUser();
+        if (loginUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
+        }
+
+        try {
+            pdfFileService.editPdfFile(pdfNo, pdfName, isActive, file, loginUser.getAdminNo());
+            return ResponseEntity.ok("수정 완료");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("수정 실패: " + e.getMessage());
+        }
     }
 
+
+
     // 삭제
-    @DeleteMapping("/pdf/delete/{pdfNo}")
-    public ResponseEntity<String> deletePdf(@PathVariable("pdfNo") int pdfNo) {
-        System.out.println("🔥 DELETE 요청: pdfNo = " + pdfNo);
+    @PostMapping("/pdf/delete")
+    public ResponseEntity<String> deletePdfViaPost(@RequestParam("pdfNo") int pdfNo) {
+        System.out.println("🔥 POST로 삭제 요청: pdfNo = " + pdfNo);
         boolean deleted = pdfFileService.deletePdf(pdfNo);
 
         if (deleted) {
@@ -69,8 +90,6 @@ public class PdfFileController {
         }
     }
 
-
-    
     
     // 조회
     @GetMapping("/pdf/list")
@@ -78,4 +97,41 @@ public class PdfFileController {
         List<PdfFile> list = pdfFileService.getAllPdfFiles();
         return ResponseEntity.ok(list);
     }
+    
+    // 다운로드
+    @GetMapping("/pdf/download/{pdfNo}")
+    public ResponseEntity<byte[]> downloadPdf(@PathVariable("pdfNo") Long pdfNo) {
+        PdfFile pdf = pdfFileService.getPdfByNo(pdfNo);
+        if (pdf == null || pdf.getPdfData() == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF); //브라우저가 pdf 인식
+        headers.setContentDisposition(ContentDisposition
+            .builder("attachment") //다운로드로 처리
+            .filename(pdf.getPdfName() + ".pdf", StandardCharsets.UTF_8)
+            .build());
+
+        return new ResponseEntity<>(pdf.getPdfData(), headers, HttpStatus.OK);
+    }
+    
+    // 뷰어
+    @GetMapping("/pdf/view/{pdfNo}")
+    public ResponseEntity<byte[]> viewPdf(@PathVariable("pdfNo") int pdfNo) {
+        PdfFile file = pdfFileService.getPdfByNo(pdfNo);
+        if (file == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.inline()
+            .filename(file.getPdfName() + ".pdf", StandardCharsets.UTF_8)
+            .build());
+
+        return new ResponseEntity<>(file.getPdfData(), headers, HttpStatus.OK);
+    }
+
+
 }

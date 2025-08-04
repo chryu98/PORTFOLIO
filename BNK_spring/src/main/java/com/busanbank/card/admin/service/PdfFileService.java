@@ -31,9 +31,21 @@ public class PdfFileService {
 
 	 
 	 // 수정
-	 public void updatePdf(PdfFile dto) {
-		 pdfFileMapper.updatePdf(dto);
-	    }
+	 public void editPdfFile(Long pdfNo, String pdfName, String isActive, MultipartFile file, Long adminNo) throws IOException {
+		    PdfFile dto = new PdfFile();
+		    dto.setPdfNo(pdfNo);
+		    dto.setPdfName(pdfName);
+		    dto.setIsActive(isActive);
+		    dto.setAdminNo(adminNo);
+
+		    if (file != null && !file.isEmpty()) {
+		        dto.setPdfData(file.getBytes()); // BLOB 파일
+		        pdfFileMapper.updatePdfWithFile(dto);  // 파일 포함
+		    } else {
+		        pdfFileMapper.updatePdfWithoutFile(dto);  // 파일 제외
+		    }
+		}
+
 
 	 
 	 // 삭제
@@ -46,5 +58,15 @@ public class PdfFileService {
 	 public List<PdfFile> getAllPdfFiles() {
 		    return pdfFileMapper.selectAllPdfFiles();  // Mapper 호출
 		}
+	 
+	 // 다운로드
+	 public PdfFile getPdfByNo(Long pdfNo) {
+		    return pdfFileMapper.selectPdfByNo(pdfNo);
+		}
+
+	 // 뷰어
+	 public PdfFile getPdfByNo(int pdfNo) {
+	        return pdfFileMapper.findByPdfNo(pdfNo);
+	    }
 
 }
