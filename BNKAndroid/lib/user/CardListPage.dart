@@ -36,7 +36,9 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
   Widget build(BuildContext ctx) =>
-      MaterialApp(debugShowCheckedModeBanner: false, home: CardListPage());
+      MaterialApp(debugShowCheckedModeBanner: false,  theme: ThemeData(
+          scaffoldBackgroundColor: Colors.white,),
+          home: CardListPage());
 }
 
 /* ───────────────── Main Page ───────────────── */
@@ -148,6 +150,7 @@ class _CardListPageState extends State<CardListPage>
         builder: (_, Set<String> ids, __) => ids.isNotEmpty
             ? FloatingActionButton.extended(
           backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
           icon: const Icon(Icons.compare),
           label: Text('비교함 (${ids.length})'),
           onPressed: () => showModalBottomSheet(
@@ -247,76 +250,92 @@ class _CardListPageState extends State<CardListPage>
   Widget _buildCarousel(List<CardModel> list) {
     if (list.isEmpty) {
       return const Padding(
-          padding: EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-          child: Text('인기카드 이미지가 없습니다.'));
-    }
-
-      return CarouselSlider(
-        key: const PageStorageKey('popular_carousel'),
-        options: CarouselOptions(
-          height: 280,
-          autoPlay: true,
-          enlargeCenterPage: true,
-          viewportFraction: 0.9,
-        ),
-        items: list.map((c) {
-          final url = '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(c.popularImgUrl ?? c.cardUrl)}';
-
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => CardDetailPage(cardNo: c.cardNo.toString()),
-                ),
-              );
-            },
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.network(
-                    url,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (_, child, progress) =>
-                    progress == null ? child : const Center(child: CircularProgressIndicator()),
-                    errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image)),
-                  ),
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(c.cardName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                          if (c.cardSlogan?.isNotEmpty ?? false)
-                            Text(c.cardSlogan!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.white, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
+        padding: EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        child: Text('인기카드 이미지가 없습니다.'),
       );
     }
+
+    return CarouselSlider(
+      key: const PageStorageKey('popular_carousel'),
+      options: CarouselOptions(
+        height: 280,
+        autoPlay: true,
+        enlargeCenterPage: true,
+        viewportFraction: 0.9,
+      ),
+      items: list.map((c) {
+        final url = '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(c.popularImgUrl ?? c.cardUrl)}';
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CardDetailPage(
+                  cardNo: c.cardNo.toString(),        // ✅ 카드번호
+                  compareIds: compareIds,             // ✅ 비교 상태 넘김
+                  onCompareChanged: _saveCompare,     // ✅ 저장 콜백
+                ),
+              ),
+            );
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (_, child, progress) =>
+                  progress == null ? child : const Center(child: CircularProgressIndicator()),
+                  errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image)),
+                ),
+                Positioned(
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          c.cardName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        if (c.cardSlogan?.isNotEmpty ?? false)
+                          Text(
+                            c.cardSlogan!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
 
 
 
@@ -414,7 +433,11 @@ class _CardListPageState extends State<CardListPage>
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => CardDetailPage(cardNo: c.cardNo.toString()),
+                builder: (_) => CardDetailPage(
+                  cardNo: c.cardNo.toString(),
+                  compareIds: compareIds, // ✅ 상태 공유
+                  onCompareChanged: _saveCompare, // ✅ 저장 콜백 전달
+                ),
               ),
             );
           },
@@ -432,7 +455,11 @@ class _CardListPageState extends State<CardListPage>
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => CardDetailPage(cardNo: c.cardNo.toString()),
+                builder: (_) => CardDetailPage(
+                  cardNo: c.cardNo.toString(),
+                  compareIds: compareIds, // ✅ 상태 공유
+                  onCompareChanged: _saveCompare, // ✅ 저장 콜백 전달
+                ),
               ),
             );
           },
@@ -562,13 +589,29 @@ class _CardListPageState extends State<CardListPage>
 
 List<Widget> extractCategoriesAsWidget(String text, {int max = 5}) {
   const keys = {
-    '커피': ['커피', '스타벅스', '이디야'],
-    '편의점': ['편의점', 'GS25', 'CU'],
-    '영화': ['영화', 'CGV', '롯데시네마'],
-    '교통': ['버스', '지하철', '후불교통'],
-    '통신': ['휴대폰', '통신요금', 'SKT', 'KT'],
+    '커피': ['커피', '스타벅스', '이디야', '카페베네'],
+    '편의점': ['편의점', 'GS25', 'CU', '세븐일레븐'],
+    '베이커리': ['베이커리', '파리바게뜨', '뚜레쥬르', '던킨'],
+    '영화': ['영화관', '영화', '롯데시네마', 'CGV'],
+    '쇼핑': ['쇼핑몰', '쿠팡', '마켓컬리', 'G마켓', '다이소', '백화점', '홈쇼핑'],
+    '외식': ['음식점', '레스토랑', '맥도날드', '롯데리아'],
+    '교통': ['버스', '지하철', '택시', '대중교통', '후불교통'],
+    '통신': ['통신요금', '휴대폰', 'SKT', 'KT', 'LGU+'],
+    '교육': ['학원', '학습지'],
+    '레저&스포츠': ['체육', '골프', '스포츠', '레저'],
+    '구독': ['넷플릭스', '멜론', '유튜브프리미엄', '정기결제', '디지털 구독'],
+    '병원': ['병원', '약국', '동물병원'],
+    '공공요금': ['전기요금', '도시가스', '아파트관리비'],
+    '주유': ['주유', '주유소', 'SK주유소', 'LPG'],
+    '하이패스': ['하이패스'],
+    '배달앱': ['쿠팡', '배달앱'],
+    '환경': ['전기차', '수소차', '친환경'],
+    '공유모빌리티': ['공유모빌리티', '카카오T바이크', '따릉이', '쏘카', '투루카'],
+    '세무지원': ['세무', '전자세금계산서', '부가세'],
     '포인트&캐시백': ['포인트', '캐시백', '가맹점', '청구할인'],
-    '기타': []
+    '놀이공원': ['놀이공원', '자유이용권'],
+    '라운지': ['공항라운지'],
+    '발렛': ['발렛파킹']
   };
   final lower = text.toLowerCase();
   final found = <String>{
