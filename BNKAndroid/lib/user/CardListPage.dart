@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:bnkandroid/constants/api.dart';
 import 'package:bnkandroid/user/service/CardService.dart';
+import '../CardDetailPage.dart';
 import 'model/CardModel.dart';
 
 /* ───────────────── Compare DTO ───────────────── */
@@ -249,61 +250,76 @@ class _CardListPageState extends State<CardListPage>
           padding: EdgeInsets.symmetric(vertical: 20, horizontal: 16),
           child: Text('인기카드 이미지가 없습니다.'));
     }
-    return CarouselSlider(
-      key: const PageStorageKey('popular_carousel'),
-      options: CarouselOptions(
-          height: 280, autoPlay: true, enlargeCenterPage: true, viewportFraction: 0.9),
-      items: list.map((c) {
-        final url =
-            '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(c.popularImgUrl ?? c.cardUrl)}';
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Stack(
-            children: [
-              Image.network(
-                url,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                loadingBuilder: (_, child, p) =>
-                p == null ? child : const Center(child: CircularProgressIndicator()),
-                errorBuilder: (_, __, ___) =>
-                const Center(child: Icon(Icons.broken_image)),
-              ),
-              Positioned(
-                bottom: 16,
-                left: 16,
-                right: 16,
-                child: Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(c.cardName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15)),
-                        if (c.cardSlogan?.isNotEmpty ?? false)
-                          Text(c.cardSlogan!,
+
+      return CarouselSlider(
+        key: const PageStorageKey('popular_carousel'),
+        options: CarouselOptions(
+          height: 280,
+          autoPlay: true,
+          enlargeCenterPage: true,
+          viewportFraction: 0.9,
+        ),
+        items: list.map((c) {
+          final url = '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(c.popularImgUrl ?? c.cardUrl)}';
+
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CardDetailPage(cardNo: c.cardNo.toString()),
+                ),
+              );
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (_, child, progress) =>
+                    progress == null ? child : const Center(child: CircularProgressIndicator()),
+                    errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image)),
+                  ),
+                  Positioned(
+                    bottom: 16,
+                    left: 16,
+                    right: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(c.cardName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                  color: Colors.white, fontSize: 12)),
-                      ]),
-                ),
+                                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                          if (c.cardSlogan?.isNotEmpty ?? false)
+                            Text(c.cardSlogan!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.white, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
+            ),
+          );
+        }).toList(),
+      );
+    }
+
+
+
 
   Widget _buildTypeFilter() => ValueListenableBuilder(
     valueListenable: selType,
@@ -389,34 +405,66 @@ class _CardListPageState extends State<CardListPage>
 
   Widget _buildGridItem(CardModel c) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: _CELL_PAD),
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      AspectRatio(
-          aspectRatio: _CARD_ASPECT,
-          child: _buildImageCard(c.cardUrl, rotate: true)),
-      const SizedBox(height: 4),
-      Text(c.cardName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 12)),
-      GestureDetector(
-        onTap: () => _toggleCompare(c),
-        child: ValueListenableBuilder(
-          valueListenable: compareIds,
-          builder: (_, Set<String> cur, __) => Row(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 🔹 카드 이미지 클릭 시 상세 페이지 이동
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CardDetailPage(cardNo: c.cardNo.toString()),
+              ),
+            );
+          },
+          child: AspectRatio(
+            aspectRatio: _CARD_ASPECT,
+            child: _buildImageCard(c.cardUrl, rotate: true),
+          ),
+        ),
+
+        const SizedBox(height: 4),
+
+        // 🔹 카드 이름 클릭 시 상세 페이지 이동
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CardDetailPage(cardNo: c.cardNo.toString()),
+              ),
+            );
+          },
+          child: Text(
+            c.cardName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+
+        // ✅ 비교함 버튼도 그대로 유지
+        GestureDetector(
+          onTap: () => _toggleCompare(c),
+          child: ValueListenableBuilder(
+            valueListenable: compareIds,
+            builder: (_, Set<String> cur, __) => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Checkbox(
                   value: cur.contains(c.cardNo.toString()),
                   onChanged: null,
                   visualDensity: VisualDensity.compact,
-                  materialTapTargetSize:
-                  MaterialTapTargetSize.shrinkWrap,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 const Text('비교함 담기', style: TextStyle(fontSize: 11))
-              ]),
+              ],
+            ),
+          ),
         ),
-      ),
-    ]),
+      ],
+    ),
   );
 
   Widget _buildImageCard(String url, {bool rotate = false}) {

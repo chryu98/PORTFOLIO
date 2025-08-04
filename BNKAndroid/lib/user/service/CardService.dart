@@ -55,7 +55,7 @@ class CardService {
     }
   }
 
-  //모달 비교창
+  //모달 비교창 & 카드디테일 로딩
   static Future<CardModel> fetchCompareCardDetail(String cardId) async {
     final url = API.compareCardDetail(cardId);
     print('📡 [API 호출] $url');
@@ -72,6 +72,7 @@ class CardService {
       throw Exception('카드 상세 조회 실패 (${response.statusCode})');
     }
   }
+
 
 
 
