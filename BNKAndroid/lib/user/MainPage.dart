@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 class CardMainPage extends StatefulWidget {
+  const CardMainPage({super.key});
+
   @override
   _CardMainPageState createState() => _CardMainPageState();
 }
