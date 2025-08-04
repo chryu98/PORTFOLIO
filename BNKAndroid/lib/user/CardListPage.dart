@@ -539,49 +539,91 @@ class _CardListPageState extends State<CardListPage>
                 final feeMaster =
                 brand.contains('MASTER') ? fee : '없음';
 
-                return Flexible(
+                Flexible(
                   child: Container(
                     margin: const EdgeInsets.all(8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(12)),
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center, // ✅ 중앙 정렬
                       children: [
                         Image.network(
                           '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(c.cardUrl)}',
                           width: 80,
-                          errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.broken_image, size: 80),
+                          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 80),
                         ),
                         const SizedBox(height: 8),
-                        Text(c.cardName,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold)),
+                        Text(
+                          c.cardName,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         const SizedBox(height: 4),
-                        Text(c.cardSlogan ?? '-',
-                            style: const TextStyle(fontSize: 12)),
-                        const SizedBox(height: 8),
-                        const Text('💳 연회비'),
-                        Text('국내: $feeDom'),
-                        Text('VISA: $feeVisa'),
-                        Text('MASTER: $feeMaster'),
+                        Text(
+                          c.cardSlogan ?? '-',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 12),
+                        ),
                         const SizedBox(height: 8),
                         const Text('🔖 요약 혜택',
                             style: TextStyle(fontWeight: FontWeight.bold)),
-                        ...extractCategoriesAsWidget(
-                            '${c.service}\n${c.sService ?? ''}'),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: extractCategories('${c.service}\n${c.sService ?? ''}')
+                              .map((tag) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.red),
+                            ),
+                            child: Text('#$tag',
+                                style: const TextStyle(color: Colors.red, fontSize: 13)),
+                          ))
+                              .toList(),
+                        ),
+                        const SizedBox(height: 6),
+                        _feeItemWithIcon('assets/overseas_pay_domestic.png', feeDom),
+                        const SizedBox(height: 4),
+                        _feeItemWithIcon('assets/overseas_pay_visa.png', feeVisa),
+                        const SizedBox(height: 4),
+                        _feeItemWithIcon('assets/overseas_pay_master.png', feeMaster),
                       ],
                     ),
                   ),
                 );
+
               },
             );
           }).toList(),
         ),
       );
     },
+  );
+}
+
+Widget _feeItemWithIcon(String assetPath, String feeText) {
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Image.asset(
+        assetPath,
+        width: 24,
+        height: 24,
+      ),
+      const SizedBox(width: 4),
+      Text(
+        feeText,
+        style: const TextStyle(fontSize: 14),
+      ),
+    ],
   );
 }
 

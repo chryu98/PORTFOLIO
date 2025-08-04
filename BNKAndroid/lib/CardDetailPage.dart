@@ -220,6 +220,7 @@ class _CardDetailPageState extends State<CardDetailPage> {
                   final feeDom = brand.contains('LOCAL') || brand.contains('BC') ? fee : '없음';
                   final feeVisa = brand.contains('VISA') ? fee : '없음';
                   final feeMaster = brand.contains('MASTER') ? fee : '없음';
+                  final tags = extractCategories('${c.service}\n${c.sService ?? ''}');
 
                   return Flexible(
                     child: Container(
@@ -242,15 +243,44 @@ class _CardDetailPageState extends State<CardDetailPage> {
                           Text(c.cardName, style: const TextStyle(fontWeight: FontWeight.bold)),
                           const SizedBox(height: 4),
                           Text(c.cardSlogan ?? '-', style: const TextStyle(fontSize: 12)),
+
+                          /// ✅ 해시태그 추가 영역
                           const SizedBox(height: 8),
-                          const Text('연회비'),
-                          Text('국내: $feeDom'),
-                          Text('VISA: $feeVisa'),
-                          Text('MASTER: $feeMaster'),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: extractCategories('${c.service}\n${c.sService ?? ''}')
+                                .map((tag) => Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.red),
+                              ),
+                              child: Text(
+                                '#$tag',
+                                style: const TextStyle(fontSize: 11, color: Colors.red),
+                              ),
+                            ))
+                                .toList(),
+                          ),
+                          const SizedBox(height: 6),
+
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _feeItemWithIcon('assets/overseas_pay_domestic.png', feeDom),
+                              const SizedBox(height: 4),
+                              _feeItemWithIcon('assets/overseas_pay_visa.png', feeVisa),
+                              const SizedBox(height: 4),
+                              _feeItemWithIcon('assets/overseas_pay_master.png', feeMaster),
+                            ],
+                          ),
                         ],
                       ),
                     ),
                   );
+
                 },
               );
             }).toList(),
@@ -352,18 +382,28 @@ class _CardDetailPageState extends State<CardDetailPage> {
                     const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: _sectionTitle('연회비'),
-                    ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _feeItem('국내', feeDomestic),
-                          _feeItem('VISA', feeVisa),
-                          _feeItem('MASTER', feeMaster),
+                          _sectionTitle('연회비'),
+                          const SizedBox(height: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _feeItemWithIcon('assets/overseas_pay_domestic.png', feeDomestic),
+                              const SizedBox(height: 6),
+                              _feeItemWithIcon('assets/overseas_pay_visa.png', feeVisa),
+                              const SizedBox(height: 6),
+                              _feeItemWithIcon('assets/overseas_pay_master.png', feeMaster),
+                            ],
+                          ),
+                          const SizedBox(height: 16), // ✅ 해시태그 간격
+
                         ],
                       ),
                     ),
+
+
                     const SizedBox(height: 30),
                     Align(
                       alignment: Alignment.centerLeft,
@@ -422,6 +462,24 @@ class _CardDetailPageState extends State<CardDetailPage> {
       Text(value),
     ]),
   );
+
+  Widget _feeItemWithIcon(String assetPath, String feeText) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(
+          assetPath,
+          width: 24,
+          height: 24,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          feeText,
+          style: const TextStyle(fontSize: 14),
+        ),
+      ],
+    );
+  }
 
   Widget _sectionTitle(String title) {
     return Row(
