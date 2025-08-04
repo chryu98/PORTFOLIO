@@ -20,7 +20,8 @@
 		)
 	</insert>
 
-	<!-- 조회 (관리자 이름은 포함 X) -->
+
+	<!-- 조회  -->
 	<select id="selectAllPdfFiles"
 		resultType="com.busanbank.card.admin.dto.PdfFile">
 		SELECT
@@ -36,19 +37,67 @@
 		ORDER BY p.upload_date DESC
 	</select>
 
+
 	<!-- 수정 -->
-	<update id="updatePdf">
-		UPDATE pdf_files
-		SET
-		pdf_name = #{pdfName},
-		is_active = #{isActive}
-		WHERE pdf_no = #{pdfNo}
-	</update>
+	<update id="updatePdfWithFile" parameterType="com.busanbank.card.admin.dto.PdfFile">
+    UPDATE pdf_files
+    SET
+        pdf_name = #{pdfName},
+        is_active = #{isActive},
+        upload_date = SYSDATE,
+        admin_no = #{adminNo},
+        pdf_data = #{pdfData}   <!-- BLOB 컬럼 -->
+    WHERE
+        pdf_no = #{pdfNo}
+</update>
+
+<update id="updatePdfWithoutFile" parameterType="com.busanbank.card.admin.dto.PdfFile">
+    UPDATE pdf_files
+    SET
+        pdf_name = #{pdfName},
+        is_active = #{isActive},
+        upload_date = SYSDATE,
+        admin_no = #{adminNo}
+    WHERE
+        pdf_no = #{pdfNo}
+</update>
+
 
 	<!-- 삭제 -->
 	<delete id="deletePdf">
 		DELETE FROM pdf_files
 		WHERE pdf_no = #{pdfNo}
 	</delete>
+	
+	
+	<!-- 다운로드 -->
+	<select id="selectPdfByNo" parameterType="long" resultType="com.busanbank.card.admin.dto.PdfFile">
+    SELECT
+        pdf_no,
+        pdf_name,
+        pdf_data
+    FROM
+        pdf_files
+    WHERE
+        pdf_no = #{pdfNo}
+</select>
+
+	<!-- 뷰어 -->
+	<select id="findByPdfNo" resultType="com.busanbank.card.admin.dto.PdfFile" parameterType="int">
+    SELECT 
+        pdf_no AS pdfNo,
+        pdf_name AS pdfName,
+        pdf_data AS pdfData,
+        is_active AS isActive,
+        upload_date AS uploadDate,
+        admin_no AS adminNo,
+        (SELECT UserName FROM admin WHERE admin_no = p.admin_no) AS adminName
+    FROM 
+        pdf_files p
+    WHERE 
+        pdf_no = #{pdfNo}
+</select>
+	
+	
 
 </mapper>

@@ -25,6 +25,28 @@
     <button type="submit">업로드</button>
 </form>
 
+<!-- 수정 모달-->
+<div id="editFormWrapper" style="display:none; border:1px solid #ccc; padding:15px; margin-top:20px;">
+  <h3>PDF 수정</h3>
+  <form id="editForm">
+    <input type="hidden" id="editPdfNo" />
+    <label>파일명:</label><br>
+    <input type="text" id="editPdfName" required /><br><br>
+
+    <label>사용 여부:</label><br>
+    <select id="editIsActive" required>
+        <option value="Y">사용</option>
+        <option value="N">미사용</option>
+    </select><br><br>
+
+    <label>새 PDF 파일 (선택):</label><br>
+    <input type="file" id="editFile" accept="application/pdf" /><br><br>
+
+    <button type="submit">수정 완료</button>
+    <button type="button" onclick="cancelEdit()">취소</button>
+  </form>
+</div>
+
 <h3>사용 중 약관</h3>
 <table border="1" cellpadding="8">
     <thead>
@@ -62,6 +84,7 @@
 </table>
 
 <script>
+	// 업로드
     document.getElementById("uploadForm").addEventListener("submit", async function (event) {
         event.preventDefault();
 
@@ -86,6 +109,7 @@
         }
     });
 
+	// 조회
     async function loadPdfList() {
         try {
             const res = await fetch("/admin/pdf/list");
@@ -111,10 +135,10 @@
                 const row = `
                     <tr>
                         <td>\${pdf.pdfNo}</td>
-                        <td>\${pdf.pdfName}</td>
+                        <td><a href="/admin/pdf/view/\${pdf.pdfNo}" target="_blank">\${pdf.pdfName}</a></td>
                         <td>\${formattedDate}</td>
                         <td>\${pdf.adminName}</td>
-                        <td><a href="/admin/pdf/download/${pdf.pdfNo}">다운로드</a></td>
+                        <td><a href="/admin/pdf/download/\${pdf.pdfNo}">다운로드</a></td>
                         <td><button onclick="editPdf(\${pdf.pdfNo})">수정</button></td>
                         <td><button onclick="deletePdf(\${pdf.pdfNo})">삭제</button></td>
                     </tr>
@@ -133,35 +157,80 @@
     }
     
     // 수정
-    function editPdf(pdfNo) {
-        const newName = prompt("새 파일명을 입력하세요:");
-        if (!newName) return;
+    
+    // 모달 폼 열기
+   function editPdf(pdfNo) {
+    const pdf = getPdfByNo(pdfNo); // 목록에서 선택한 pdf 객체 찾기
+    if (!pdf) return;
 
-        const newStatus = confirm("사용 상태로 설정할까요?") ? 'Y' : 'N';
+    document.getElementById("editPdfNo").value = pdf.pdfNo;
+    document.getElementById("editPdfName").value = pdf.pdfName;
+    document.getElementById("editIsActive").value = pdf.isActive;
+    document.getElementById("editFormWrapper").style.display = "block";
+}
 
-        fetch("/admin/pdf/update", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pdfNo, pdfName: newName, isActive: newStatus }),
-            credentials: "include"
-        })
-        .then(res => res.text())
-        .then(msg => {
-            alert(msg);
-            loadPdfList();
-        })
-        .catch(err => {
-            console.error(err);
-            alert("수정 중 오류 발생");
-        });
-    }
+   function getPdfByNo(pdfNo) {
+	    const rows = document.querySelectorAll("tbody tr");
+	    for (const row of rows) {
+	        const cells = row.querySelectorAll("td");
+	        if (cells.length && parseInt(cells[0].textContent) === pdfNo) {
+	            return {
+	                pdfNo: parseInt(cells[0].textContent),
+	                pdfName: cells[1].textContent,
+	                isActive: row.closest("tbody").id === "activeTableBody" ? "Y" : "N"
+	            };
+	        }
+	    }
+	    return null;
+	}
+    
+   document.getElementById("editForm").addEventListener("submit", function (event) {
+	    event.preventDefault();
 
+	    const formData = new FormData();
+	    formData.append("pdfNo", document.getElementById("editPdfNo").value);
+	    formData.append("pdfName", document.getElementById("editPdfName").value);
+	    formData.append("isActive", document.getElementById("editIsActive").value);
+
+	    const file = document.getElementById("editFile").files[0];
+	    if (file) {
+	        formData.append("file", file);
+	    }
+
+	    fetch("/admin/pdf/edit", {
+	        method: "POST",
+	        body: formData,
+	        credentials: "include"
+	    })
+	    .then(res => res.text())
+	    .then(msg => {
+	        alert(msg);
+	        loadPdfList();
+	        cancelEdit();
+	    })
+	    .catch(err => {
+	        console.error(err);
+	        alert("수정 중 오류 발생");
+	    });
+	});
+
+   // 모달 닫기
+   function cancelEdit() {
+	    document.getElementById("editFormWrapper").style.display = "none";
+	    document.getElementById("editForm").reset();
+	}
+
+   
     //삭제
-    function deletePdf(pdfNo) {
+function deletePdf(pdfNo) {
     if (!confirm("정말 삭제하시겠습니까?")) return;
 
-    fetch(`/admin/pdf/delete/${pdfNo}`, {
-        method: "DELETE",
+    const formData = new FormData();
+    formData.append("pdfNo", pdfNo);
+
+    fetch("/admin/pdf/delete", {
+        method: "POST",
+        body: formData,
         credentials: "include"
     })
     .then(res => res.text())
@@ -174,7 +243,6 @@
         alert("삭제 중 오류 발생");
     });
 }
-
 
     // 초기 로딩 시 목록 불러오기
     window.addEventListener("DOMContentLoaded", loadPdfList);
