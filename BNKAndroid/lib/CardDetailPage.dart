@@ -5,6 +5,7 @@ import '../constants/api.dart';
 import '../user/model/CardModel.dart';
 import '../user/service/CardService.dart';
 
+/// 🔍 키워드 기반 카테고리 추출
 List<String> extractCategories(String text, {int max = 5}) {
   const keywords = {
     '커피': ['커피', '스타벅스', '이디야', '카페베네'],
@@ -48,12 +49,86 @@ List<String> extractCategories(String text, {int max = 5}) {
   return result.toList();
 }
 
+List<Widget> buildBenefitSummaryWidgets(String text) {
+  const categoryKeywords = {
+    '커피': ['커피', '스타벅스', '이디야', '카페베네'],
+    '편의점': ['편의점', 'GS25', 'CU', '세븐일레븐'],
+    '베이커리': ['베이커리', '파리바게뜨', '뚜레쥬르', '던킨'],
+    '영화': ['영화관', '영화', '롯데시네마', 'CGV'],
+    '쇼핑': ['쇼핑몰', '쿠팡', '마켓컬리', 'G마켓', '다이소', '백화점', '홈쇼핑'],
+    '외식': ['음식점', '레스토랑', '맥도날드', '롯데리아'],
+    '교통': ['버스', '지하철', '택시', '대중교통', '후불교통'],
+    '통신': ['통신요금', '휴대폰', 'SKT', 'KT', 'LGU+'],
+    '교육': ['학원', '학습지'],
+    '레저&스포츠': ['체육', '골프', '스포츠', '레저'],
+    '구독': ['넷플릭스', '멜론', '유튜브프리미엄', '정기결제', '디지털 구독'],
+    '병원': ['병원', '약국', '동물병원'],
+    '공공요금': ['전기요금', '도시가스', '아파트관리비'],
+    '주유': ['주유', '주유소', 'SK주유소', 'LPG'],
+    '하이패스': ['하이패스'],
+    '배달앱': ['쿠팡', '배달앱'],
+    '환경': ['전기차', '수소차', '친환경'],
+    '공유모빌리티': ['공유모빌리티', '카카오T바이크', '따릉이', '쏘카', '투루카'],
+    '세무지원': ['세무', '전자세금계산서', '부가세'],
+    '포인트&캐시백': ['포인트', '캐시백', '가맹점', '청구할인'],
+    '놀이공원': ['놀이공원', '자유이용권'],
+    '라운지': ['공항라운지'],
+    '발렛': ['발렛파킹']
+  };
+
+  final lowerText = text.toLowerCase();
+  final widgets = <Widget>[];
+
+  for (final entry in categoryKeywords.entries) {
+    final category = entry.key;
+    final keywords = entry.value;
+    final matched = keywords.where((k) => lowerText.contains(k.toLowerCase())).toList();
+
+    if (matched.isNotEmpty) {
+      final lines = text.split(RegExp(r'\n|•|-|·')).where((line) {
+        return keywords.any((k) => line.toLowerCase().contains(k.toLowerCase()));
+      }).toList();
+
+      widgets.add(
+        Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('#$category',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                      fontSize: 14)),
+              const SizedBox(height: 6),
+              ...lines.map((line) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(line.trim(),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              )),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  return widgets;
+}
+
+/// 🏷️ 해시태그 형태로 보여줄 때 사용하는 위젯 리스트
 List<Widget> extractCategoriesAsWidget(String text, {int max = 5}) {
   return extractCategories(text, max: max)
       .map((tag) => Padding(
     padding: const EdgeInsets.only(top: 4),
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding:
+      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.red.shade50,
         borderRadius: BorderRadius.circular(20),
@@ -265,7 +340,7 @@ class _CardDetailPageState extends State<CardDetailPage> {
                     const SizedBox(height: 30),
                     const Text('🔖 혜택 요약', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    ...extractCategoriesAsWidget('${card.service}\n${card.sService ?? ''}'),
+                    ...buildBenefitSummaryWidgets('${card.service}\n${card.sService ?? ''}'),
                     const SizedBox(height: 30),
                     const Text('📌 상세 혜택', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
