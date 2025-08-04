@@ -14,6 +14,7 @@ class CardModel {
   final int? annualFee;
   final int? scAnnualFee;
   final String? cardBrand;
+  final String? notice;
 
   CardModel({
     required this.cardNo,
@@ -31,6 +32,7 @@ class CardModel {
     this.annualFee,
     this.scAnnualFee,
     this.cardBrand,
+    this.notice,
   });
 
   factory CardModel.fromJson(Map<String, dynamic> json) {
@@ -50,6 +52,7 @@ class CardModel {
       annualFee: json['annualFee'],
       scAnnualFee: json['scAnnualFee'],
       cardBrand: json['cardBrand'],
+      notice: json['cardNotice'],
     );
   }
 }

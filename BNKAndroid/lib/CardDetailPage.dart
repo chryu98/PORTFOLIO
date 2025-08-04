@@ -130,9 +130,9 @@ List<Widget> extractCategoriesAsWidget(String text, {int max = 5}) {
       padding:
       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.red.shade200),
+        border: Border.all(color: Colors.red),
       ),
       child: Text('#$tag',
           style: const TextStyle(fontSize: 12, color: Colors.red)),
@@ -226,8 +226,10 @@ class _CardDetailPageState extends State<CardDetailPage> {
                       margin: const EdgeInsets.all(8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(12)),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.red),
+                      ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -241,13 +243,10 @@ class _CardDetailPageState extends State<CardDetailPage> {
                           const SizedBox(height: 4),
                           Text(c.cardSlogan ?? '-', style: const TextStyle(fontSize: 12)),
                           const SizedBox(height: 8),
-                          const Text('💳 연회비'),
+                          const Text('연회비'),
                           Text('국내: $feeDom'),
                           Text('VISA: $feeVisa'),
                           Text('MASTER: $feeMaster'),
-                          const SizedBox(height: 8),
-                          const Text('🔖 요약 혜택', style: TextStyle(fontWeight: FontWeight.bold)),
-                          ...extractCategoriesAsWidget('${c.service}\n${c.sService ?? ''}'),
                         ],
                       ),
                     ),
@@ -293,58 +292,102 @@ class _CardDetailPageState extends State<CardDetailPage> {
               SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Center(
-                      child: Image.network(
-                        imgUrl,
-                        height: 240,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 100),
+                      child: RotatedBox(
+                        quarterTurns: 1,
+                        child: Image.network(
+                          imgUrl,
+                          height: 160,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 100),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text(card.cardName,
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 6),
-                    Text(card.cardSlogan ?? '-', style: const TextStyle(color: Colors.grey)),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: tags
-                          .map((t) => Chip(
-                        label: Text('#$t'),
-                        backgroundColor: Colors.red.shade50,
-                        labelStyle: const TextStyle(color: Colors.red),
-                      ))
-                          .toList(),
+                    Center(
+                      child: Text(card.cardName,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                     ),
-                    const SizedBox(height: 16),
-                    const Divider(),
-                    const Text('💳 연회비', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Row(children: [
-                      _feeItem('국내', feeDomestic),
-                      _feeItem('VISA', feeVisa),
-                      _feeItem('MASTER', feeMaster),
-                    ]),
+                    const SizedBox(height: 6),
+                    Center(
+                      child: Text(card.cardSlogan ?? '-',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 15,
+                          )),
+                    ),
                     const SizedBox(height: 20),
-                    ElevatedButton.icon(
-                      onPressed: () => _toggleCompare(card.cardNo.toString()),
-                      icon: const Icon(Icons.compare),
-                      label: Text(isInCompare ? "비교함 제거" : "비교함 담기"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        foregroundColor: Colors.white,
+                    Center(
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: tags.map((t) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.red),
+                          ),
+                          child: Text('#$t', style: const TextStyle(color: Colors.red, fontSize: 13)),
+                        )).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Center(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _toggleCompare(card.cardNo.toString()),
+                        icon: const Icon(Icons.compare),
+                        label: Text(isInCompare ? "비교함 제거" : "비교함 담기"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: _sectionTitle('연회비'),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        children: [
+                          _feeItem('국내', feeDomestic),
+                          _feeItem('VISA', feeVisa),
+                          _feeItem('MASTER', feeMaster),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 30),
-                    const Text('🔖 혜택 요약', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: _sectionTitle('혜택 요약'),
+                    ),
                     const SizedBox(height: 6),
-                    ...buildBenefitSummaryWidgets('${card.service}\n${card.sService ?? ''}'),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: buildBenefitSummaryWidgets('${card.service}\n${card.sService ?? ''}'),
+                      ),
+                    ),
                     const SizedBox(height: 30),
-                    const Text('📌 상세 혜택', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    Text(card.sService ?? '-', style: const TextStyle(fontSize: 13)),
+                    SectionTile(
+                      title: '유의사항',
+                      child: Text(
+                        (card.notice != null && card.notice!.trim().isNotEmpty)
+                            ? card.notice!
+                            : '유의사항이 없습니다.',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                    const SizedBox(height: 60),
                   ],
                 ),
               ),
@@ -354,8 +397,9 @@ class _CardDetailPageState extends State<CardDetailPage> {
                 child: ValueListenableBuilder<Set<String>>(
                   valueListenable: widget.compareIds,
                   builder: (context, ids, _) {
+                    if (ids.isEmpty) return const SizedBox();
                     return FloatingActionButton.extended(
-                      backgroundColor: Colors.red,
+                      backgroundColor: Colors.redAccent,
                       foregroundColor: Colors.white,
                       icon: const Icon(Icons.compare_arrows),
                       label: Text('비교함 (${ids.length})'),
@@ -378,4 +422,91 @@ class _CardDetailPageState extends State<CardDetailPage> {
       Text(value),
     ]),
   );
+
+  Widget _sectionTitle(String title) {
+    return Row(
+      children: [
+        Container(width: 4, height: 20, color: Colors.black, margin: const EdgeInsets.only(right: 8)),
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            color: Color(0xFF444444),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class SectionTile extends StatefulWidget {
+  final String title;
+  final Widget child;
+  final bool initiallyExpanded;
+
+  const SectionTile({
+    Key? key,
+    required this.title,
+    required this.child,
+    this.initiallyExpanded = false,
+  }) : super(key: key);
+
+  @override
+  State<SectionTile> createState() => _SectionTileState();
+}
+
+class _SectionTileState extends State<SectionTile> {
+  late bool _isExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _isExpanded = widget.initiallyExpanded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 20,
+              color: Colors.black,
+              margin: const EdgeInsets.only(right: 8),
+            ),
+            Text(
+              widget.title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: Color(0xFF444444),
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              icon: Icon(
+                _isExpanded ? Icons.expand_less : Icons.expand_more,
+                size: 20,
+                color: Colors.black87,
+              ),
+              onPressed: () {
+                setState(() {
+                  _isExpanded = !_isExpanded;
+                });
+              },
+            ),
+          ],
+        ),
+        if (_isExpanded)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: widget.child,
+          ),
+      ],
+    );
+  }
 }

@@ -36,7 +36,9 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
   Widget build(BuildContext ctx) =>
-      MaterialApp(debugShowCheckedModeBanner: false, home: CardListPage());
+      MaterialApp(debugShowCheckedModeBanner: false,  theme: ThemeData(
+          scaffoldBackgroundColor: Colors.white,),
+          home: CardListPage());
 }
 
 /* ───────────────── Main Page ───────────────── */
@@ -148,6 +150,7 @@ class _CardListPageState extends State<CardListPage>
         builder: (_, Set<String> ids, __) => ids.isNotEmpty
             ? FloatingActionButton.extended(
           backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
           icon: const Icon(Icons.compare),
           label: Text('비교함 (${ids.length})'),
           onPressed: () => showModalBottomSheet(
