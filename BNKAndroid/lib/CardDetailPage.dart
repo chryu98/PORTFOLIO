@@ -4,6 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api.dart';
 import '../user/model/CardModel.dart';
 import '../user/service/CardService.dart';
+import 'package:http/http.dart' as http;
+
+import 'ApplicationStep1Page.dart';
 
 /// 🔍 키워드 기반 카테고리 추출
 List<String> extractCategories(String text, {int max = 5}) {
@@ -182,6 +185,39 @@ class _CardDetailPageState extends State<CardDetailPage> {
     widget.onCompareChanged();
     setState(() {});
   }
+
+  Future<void> _startCardApplication(String cardNo) async {
+    try {
+      final url = '${API.baseUrl}/api/application/start';
+      final res = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'cardNo': cardNo}),
+      );
+
+      if (res.statusCode == 200) {
+        final jsonData = json.decode(utf8.decode(res.bodyBytes));
+        final applicationNo = jsonData['applicationNo'];
+        final isCreditCard = jsonData['isCreditCard']?.toString();
+
+        // Step 1 페이지로 이동
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ApplicationStep1Page(
+              applicationNo: applicationNo,
+              isCreditCard: isCreditCard == 'Y',
+            ),
+          ),
+        );
+      } else {
+        print('❌ 서버 응답 실패: ${res.statusCode}');
+      }
+    } catch (e) {
+      print('❌ 카드 신청 오류: $e');
+    }
+  }
+
 
   void _showCompareModal() {
     final ids = widget.compareIds.value;
@@ -366,6 +402,21 @@ class _CardDetailPageState extends State<CardDetailPage> {
                         )).toList(),
                       ),
                     ),
+
+                    Positioned(
+                      bottom: 90, // 비교함 FAB보다 위에 위치
+                      right: 20,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _startCardApplication(card.cardNo.toString()),
+                        icon: const Icon(Icons.credit_card),
+                        label: const Text("카드 발급하기"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black87,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+
                     const SizedBox(height: 20),
                     Center(
                       child: ElevatedButton.icon(
@@ -378,6 +429,7 @@ class _CardDetailPageState extends State<CardDetailPage> {
                         ),
                       ),
                     ),
+
                     const Divider(),
                     const SizedBox(height: 12),
                     Align(

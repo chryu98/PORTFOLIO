@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.busanbank.card.card.dao.CardApplicationMapper">
+
+  <!-- Step 0. 신청 마스터 등록 -->
+  <insert id="insertCardApplication" parameterType="com.busanbank.card.card.dto.ApplicationUserInfoDTO">
+    INSERT INTO CARD_APPLICATION (
+      APPLICATION_NO, MEMBER_NO, CARD_NO, SIGN_NO, STATUS, IS_CREDIT_CARD, CREATED_AT
+    ) VALUES (
+      #{applicationNo}, #{memberNo}, #{cardNo}, #{signNo}, #{status}, #{isCreditCard}, SYSDATE
+    )
+  </insert>
+
+  <!-- Step 1. 개인정보 입력 저장 -->
+  <insert id="insertUserInfo" parameterType="com.busanbank.card.card.dto.ApplicationUserInfoDTO">
+    INSERT INTO APPLICATION_USER_INFO (
+      INFO_NO, APPLICATION_NO, NAME, NAME_ENG, RRN_FRONT, RRN_TAIL_ENC, IS_EXISTING_ACCOUNT, CREATED_AT
+    ) VALUES (
+      #{infoNo}, #{applicationNo}, #{name}, #{nameEng}, #{rrnFront}, #{rrnTailEnc}, #{isExistingAccount}, SYSDATE
+    )
+  </insert>
+
+  <!-- Step 2. 약관 동의 저장 -->
+  <insert id="insertAgreement" parameterType="com.busanbank.card.card.dto.ApplicationUserInfoDTO">
+    INSERT INTO APPLICATION_TERMS (
+      AGREEMENT_NO, APPLICATION_NO, TERM_NO, AGREED_AT
+    ) VALUES (
+      #{agreementNo}, #{applicationNo}, #{termNo}, SYSDATE
+    )
+  </insert>
+
+  <!-- Step 3. 서명 및 인증 이미지 저장 -->
+  <insert id="insertSign" parameterType="com.busanbank.card.card.dto.ApplicationUserInfoDTO">
+    INSERT INTO APPLICATION_SIGN (
+      SIGN_NO, APPLICATION_NO, AGREED_TEXT, SIGN_IMAGE, ID_IMAGE, SIGNED_AT
+    ) VALUES (
+      #{signNo}, #{applicationNo}, #{agreedText}, #{signImage}, #{idImage}, SYSDATE
+    )
+  </insert>
+
+  <!-- (선택) 카드 번호로 약관 매핑 가져오기 -->
+  <select id="getCardTermsByCardNo" parameterType="long" resultType="com.busanbank.card.card.dto.ApplicationUserInfoDTO">
+    SELECT CARD_NO, PDF_NO, IS_REQUIRED
+    FROM CARD_PDF_MAPPING
+    WHERE CARD_NO = #{cardNo}
+  </select>
+
+</mapper>
