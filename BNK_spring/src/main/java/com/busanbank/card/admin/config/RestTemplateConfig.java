@@ -12,3 +12,4 @@ public class RestTemplateConfig {
         return new RestTemplate();
     }
 }
+//여기확인
