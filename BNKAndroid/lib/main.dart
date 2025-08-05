@@ -3,8 +3,8 @@ import 'user/CardListPage.dart';
 import 'package:bnkandroid/constants/api.dart';
 import 'user/NaverMapPage.dart';
 
-await NaverMapSdk.instance.initialize(clientId: "your client id");
-await NaverMapSdk.instance.initialize();
+// await NaverMapSdk.instance.initialize(clientId: "your client id");
+// await NaverMapSdk.instance.initialize();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();  // 필수
