@@ -56,3 +56,4 @@ class CardModel {
     );
   }
 }
+//확인
