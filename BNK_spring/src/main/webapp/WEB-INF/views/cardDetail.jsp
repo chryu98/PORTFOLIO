@@ -217,6 +217,16 @@
         <div class="fee-line"><img src="/image/overseas_pay_visa.png" alt="VISA"><span id="feeVisa">-</span></div>
         <div class="fee-line"><img src="/image/overseas_pay_master.png" alt="MASTER"><span id="feeMaster">-</span></div>
       	</div>
+      	
+      	<div style="margin-top: 30px;">
+  <%
+    String cardNo = request.getParameter("no"); // URL에서 no 파라미터 받아옴
+%>
+<a href="/application/startForm?cardNo=<%=cardNo%>"
+   style="display:inline-block; padding:12px 24px; background:#d44; color:white; font-weight:bold; border-radius:8px; text-decoration:none;">
+   카드 발급하기
+</a>
+</div>
     </div>
   </div>
 

@@ -1,12 +1,17 @@
 package com.busanbank.card;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.busanbank.card.admin.dto.AdminDto;
 import com.busanbank.card.admin.session.AdminSession;
+import com.busanbank.card.card.dto.CardPdfMappingDTO;
+import com.busanbank.card.card.service.CardApplicationService;
 import com.busanbank.card.user.dao.IUserDao;
 import com.busanbank.card.user.dto.UserDto;
 import com.busanbank.card.user.service.SessionService;
@@ -22,6 +27,8 @@ public class MainController {
 	private IUserDao userDao;
 	@Autowired
 	private SessionService sessionService;
+	@Autowired
+    private CardApplicationService cardApplicationService;
 	
 	@Autowired
 	private AdminSession adminSession;
@@ -91,4 +98,7 @@ public class MainController {
 	public String customPage() {
 		return "custom";
 	}
+	
+	
+
 }

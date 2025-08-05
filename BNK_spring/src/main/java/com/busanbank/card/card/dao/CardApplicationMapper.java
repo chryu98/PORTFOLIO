@@ -27,4 +27,6 @@ public interface CardApplicationMapper {
 
     // (선택) 카드번호로 해당 약관 PDF 목록 불러오기
     List<CardPdfMappingDTO> getCardTermsByCardNo(Long cardNo);
+    
+    Long selectCardNoByApplication(Long applicationNo);
 }
