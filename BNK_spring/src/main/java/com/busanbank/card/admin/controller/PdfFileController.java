@@ -28,23 +28,22 @@ public class PdfFileController {
     @Autowired
     private AdminSession adminSession;
 
-    // 등록
+    // 업로드
     @PostMapping("/pdf/upload")
     public ResponseEntity<String> uploadPdf(
         @RequestParam("file") MultipartFile file,
         @RequestParam("pdfName") String pdfName,
-        @RequestParam("isActive") String isActive
+        @RequestParam("isActive") String isActive,
+        @RequestParam("termScope") String termScope
     ) {
         try {
             AdminDto loginUser = adminSession.getLoginUser();
-            System.out.println("✔ loginUser: " + loginUser); // ✅ 1. null인지 확인
             if (loginUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
             }
 
             Long adminNo = loginUser.getAdminNo();
-            pdfFileService.uploadPdfFile(file, pdfName, isActive, adminNo);
-            System.out.println("✔ admin_no: " + loginUser.getAdminNo()); // ✅ 2. 값이 있는지 확인
+            pdfFileService.uploadPdfFile(file, pdfName, isActive, termScope, adminNo);
             return ResponseEntity.ok("파일 업로드 성공");
 
         } catch (IOException e) {
@@ -59,6 +58,7 @@ public class PdfFileController {
         @RequestParam("pdfNo") Long pdfNo,
         @RequestParam("pdfName") String pdfName,
         @RequestParam("isActive") String isActive,
+        @RequestParam("termScope") String termScope,
         @RequestParam(value = "file", required = false) MultipartFile file
     ) {
         AdminDto loginUser = adminSession.getLoginUser();
@@ -67,7 +67,7 @@ public class PdfFileController {
         }
 
         try {
-            pdfFileService.editPdfFile(pdfNo, pdfName, isActive, file, loginUser.getAdminNo());
+            pdfFileService.editPdfFile(pdfNo, pdfName, isActive, termScope, file, loginUser.getAdminNo());
             return ResponseEntity.ok("수정 완료");
         } catch (Exception e) {
             e.printStackTrace();

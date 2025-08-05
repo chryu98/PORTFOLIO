@@ -36,7 +36,7 @@ public class AdminLoginController {
 
             return ResponseEntity
                     .ok()
-                    .contentType(MediaType.APPLICATION_JSON_UTF8)
+                    .contentType(MediaType.APPLICATION_JSON)
                     .body(result);
 
         } catch (RuntimeException e) {

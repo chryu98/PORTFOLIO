@@ -17,35 +17,34 @@ public class PdfFileService {
 	    private PdfFileMapper pdfFileMapper;
 
 	 // 업로드
-	 public void uploadPdfFile(MultipartFile file, String pdfName, String isActive, Long adminNo) throws IOException {
-		    
-		 
-		 PdfFile pdf = new PdfFile();
+	 public void uploadPdfFile(MultipartFile file, String pdfName, String isActive, String termScope, Long adminNo) throws IOException {
+		    PdfFile pdf = new PdfFile();
 		    pdf.setPdfName(pdfName);
 		    pdf.setPdfData(file.getBytes());
 		    pdf.setIsActive(isActive);
-		    pdf.setAdminNo(adminNo); // ✅ 관리자 번호 설정
+		    pdf.setTermScope(termScope);
+		    pdf.setAdminNo(adminNo);
 
 		    pdfFileMapper.insertPdfFile(pdf);
 		}
 
 	 
 	 // 수정
-	 public void editPdfFile(Long pdfNo, String pdfName, String isActive, MultipartFile file, Long adminNo) throws IOException {
+	 public void editPdfFile(Long pdfNo, String pdfName, String isActive, String termScope, MultipartFile file, Long adminNo) throws IOException {
 		    PdfFile dto = new PdfFile();
 		    dto.setPdfNo(pdfNo);
 		    dto.setPdfName(pdfName);
 		    dto.setIsActive(isActive);
+		    dto.setTermScope(termScope);
 		    dto.setAdminNo(adminNo);
 
 		    if (file != null && !file.isEmpty()) {
-		        dto.setPdfData(file.getBytes()); // BLOB 파일
-		        pdfFileMapper.updatePdfWithFile(dto);  // 파일 포함
+		        dto.setPdfData(file.getBytes());
+		        pdfFileMapper.updatePdfWithFile(dto);
 		    } else {
-		        pdfFileMapper.updatePdfWithoutFile(dto);  // 파일 제외
+		        pdfFileMapper.updatePdfWithoutFile(dto);
 		    }
 		}
-
 
 	 
 	 // 삭제
