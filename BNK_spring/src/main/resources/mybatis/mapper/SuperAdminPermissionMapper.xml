@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.busanbank.card.admin.dao.ISuperAdminPermissionDao">
+
+    <!-- 승인 목록 -->
+    <select id="selectPermissionList" resultType="com.busanbank.card.admin.dto.PermissionDto">
+        SELECT
+            PER_NO,
+            CARD_NO,
+            STATUS,
+            REASON,
+            ADMIN,
+            S_ADMIN AS s_admin,
+            REG_DATE,
+            PER_DATE,
+            PER_CONTENT
+        FROM PERMISSION
+        ORDER BY REG_DATE DESC
+    </select>
+
+    <!-- TEMP 카드 -->
+    <select id="selectCardTemp" parameterType="long"
+        resultType="com.busanbank.card.card.dto.CardDto">
+    SELECT *
+    FROM (
+        SELECT *
+        FROM CARD_TEMP
+        WHERE CARD_NO = #{cardNo}
+        ORDER BY REG_DATE DESC
+    )
+    WHERE ROWNUM = 1
+</select>
+
+    <!-- 기존 카드 -->
+    <select id="selectCardOriginal" parameterType="long" resultType="com.busanbank.card.card.dto.CardDto">
+        SELECT * FROM CARD WHERE CARD_NO = #{cardNo}
+    </select>
+
+    <!-- 등록/수정 -->
+    <insert id="insertOrUpdateCard" parameterType="com.busanbank.card.card.dto.CardDto">
+        MERGE INTO CARD c
+        USING (SELECT #{cardNo} AS CARD_NO FROM DUAL) t
+        ON (c.CARD_NO = t.CARD_NO)
+        WHEN MATCHED THEN UPDATE SET
+            CARD_NAME = #{cardName},
+            CARD_TYPE = #{cardType},
+            CARD_BRAND = #{cardBrand},
+            ANNUAL_FEE = #{annualFee},
+            ISSUEDTO = #{issuedTo},
+            SERVICE = #{service},
+            S_SERVICE = #{sService},
+            CARD_STATUS = #{cardStatus},
+            CARD_URL = #{cardUrl},
+            CARD_ISSUEDATE = #{cardIssueDate, jdbcType=DATE},
+            CARD_DUEDATE = #{cardDueDate, jdbcType=DATE},
+            CARD_SLOGAN = #{cardSlogan},
+            CARD_NOTICE = #{cardNotice},
+            EDIT_DATE = SYSDATE
+        WHEN NOT MATCHED THEN INSERT (
+            CARD_NO, CARD_NAME, CARD_TYPE, CARD_BRAND,
+            ANNUAL_FEE, ISSUEDTO, SERVICE, S_SERVICE,
+            CARD_STATUS, CARD_URL, CARD_ISSUEDATE,
+            CARD_DUEDATE, CARD_SLOGAN, CARD_NOTICE,
+            REG_DATE, EDIT_DATE
+        ) VALUES (
+            #{cardNo}, #{cardName}, #{cardType}, #{cardBrand},
+            #{annualFee}, #{issuedTo}, #{service}, #{sService},
+            #{cardStatus}, #{cardUrl},
+            #{cardIssueDate, jdbcType=DATE},
+            #{cardDueDate, jdbcType=DATE},
+            #{cardSlogan}, #{cardNotice},
+            SYSDATE, SYSDATE
+        )
+    </insert>
+
+    <!-- 승인 처리 -->
+    <update id="updatePermissionApprove">
+        UPDATE PERMISSION
+        SET
+            STATUS = '허가',
+            REASON = '-',
+            S_ADMIN = #{sAdmin},
+            PER_DATE = SYSDATE
+        WHERE CARD_NO = #{cardNo}
+    </update>
+
+    <!-- 보류/불허 처리 -->
+    <update id="updatePermissionReject">
+        UPDATE PERMISSION
+        SET
+            STATUS = #{status},
+            REASON = #{reason},
+            S_ADMIN = #{sAdmin},
+            PER_DATE = SYSDATE
+        WHERE CARD_NO = #{cardNo}
+    </update>
+
+    <!-- 삭제 처리 -->
+    <update id="updatePermissionCancel">
+        UPDATE PERMISSION
+        SET
+            STATUS = '삭제',
+            REASON = '-',
+            S_ADMIN = #{sAdmin},
+            PER_DATE = SYSDATE
+        WHERE CARD_NO = #{cardNo}
+    </update>
+    
+    <delete id="deleteCardTemp">
+    DELETE FROM CARD_TEMP
+    WHERE CARD_NO = #{cardNo}
+</delete>
+
+<delete id="deleteCard">
+    DELETE FROM CARD
+    WHERE CARD_NO = #{cardNo}
+</delete>
+
+<select id="selectPermissionListPaged" resultType="com.busanbank.card.admin.dto.PermissionDto">
+  SELECT *
+    FROM PERMISSION
+    ORDER BY per_No DESC
+    OFFSET #{offset} ROWS FETCH NEXT #{size} ROWS ONLY
+</select>
+
+<select id="selectPermissionCount" resultType="int">
+SELECT COUNT(*) FROM permission
+</select>
+
+</mapper>

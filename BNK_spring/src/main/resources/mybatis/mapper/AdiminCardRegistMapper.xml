@@ -1,0 +1,76 @@
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper
+	namespace="com.busanbank.card.admin.dao.IAdminCardRegistDao">
+
+	<insert id="insertCardTemp2"
+		parameterType="com.busanbank.card.card.dto.CardDto">
+		INSERT INTO CARD_TEMP (
+		TEMP_NO,
+		CARD_NO,
+		CARD_NAME,
+		CARD_TYPE,
+		CARD_BRAND,
+		ANNUAL_FEE,
+		ISSUEDTO,
+		SERVICE,
+		S_SERVICE,
+		CARD_STATUS,
+		CARD_URL,
+		CARD_ISSUEDATE,
+		CARD_DUEDATE,
+		CARD_SLOGAN,
+		CARD_NOTICE,
+		REG_DATE,
+		EDIT_DATE
+		) VALUES (
+		CARD_TEMP_SEQ.NEXTVAL,
+		 #{cardNo}, 
+		#{cardName},
+		#{cardType},
+		#{cardBrand},
+		#{annualFee},
+		#{issuedTo},
+		#{service},
+		#{sService, jdbcType=VARCHAR},
+		#{cardStatus},
+		#{cardUrl},
+		#{cardIssueDate},
+		#{cardDueDate},
+		#{cardSlogan},
+		#{cardNotice},
+		SYSDATE,
+		SYSDATE
+		)
+	</insert>
+
+	<insert id="insertPermission2"
+		parameterType="com.busanbank.card.admin.dto.PermissionParamDto">
+		INSERT INTO PERMISSION (
+		PER_NO,
+		CARD_NO,
+		STATUS,
+		REASON,
+		ADMIN,
+		S_ADMIN,
+		REG_DATE,
+		PER_DATE,
+		PER_CONTENT
+		) VALUES (
+		PER_SEQ.NEXTVAL,
+		#{cardNo, jdbcType=NUMERIC},
+		'대기중',
+		'-',
+		#{admin},
+		'-',
+		SYSDATE,
+		NULL,
+		#{perContent}
+		)
+	</insert>
+
+	<select id="getNextCardSeq" resultType="long">
+		SELECT CARD_SEQ.NEXTVAL FROM DUAL
+	</select>
+</mapper>
