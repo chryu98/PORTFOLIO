@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.bnkandroid">
 
-    <!-- 카카오 SDK 사용을 위한 퍼미션 (필요 시 추가) -->
+    <!-- 네이버 지도 API 사용을 위한 권한 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -30,16 +30,10 @@
             </intent-filter>
         </activity>
 
-        <!-- 카카오 지도 Activity -->
-        <activity
-            android:name=".KakaoMapActivity"
-            android:exported="false"
-            android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
-
-        <!-- Kakao SDK 네이티브 앱 키 설정 -->
+        <!-- 네이버 지도 API 클라이언트 ID 메타데이터 (발급받은 값으로 교체) -->
         <meta-data
-            android:name="com.kakao.sdk.AppKey"
-            android:value="여기에_발급받은_네이티브_앱키_입력" />
+            android:name="com.naver.maps.map.CLIENT_ID"
+            android:value="zsmkzlyhar" />
 
         <!-- Flutter 내부에서 사용하는 설정 -->
         <meta-data
