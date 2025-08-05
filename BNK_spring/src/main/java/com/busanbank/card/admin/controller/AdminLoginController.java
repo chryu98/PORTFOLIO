@@ -34,7 +34,10 @@ public class AdminLoginController {
             result.put("message", "로그인 성공");
             result.put("user", admin);
 
-            return ResponseEntity.ok(result);
+            return ResponseEntity
+                    .ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(result);
 
         } catch (RuntimeException e) {
             

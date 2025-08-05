@@ -11,6 +11,7 @@ public class PdfFile {
 	private String pdfName;
 	private byte[] pdfData;
 	private String isActive;
+	private String termScope;   // 약관 범위: common / specific / select
 	private Date uploadDate;
 	
 	private Long adminNo;  // 업로드한 관리자 번호
