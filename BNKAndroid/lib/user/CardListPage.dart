@@ -525,21 +525,20 @@ class _CardListPageState extends State<CardListPage>
               builder: (ctx, snap) {
                 if (!snap.hasData) {
                   return const SizedBox(
-                      width: 80,
-                      height: 120,
-                      child: CircularProgressIndicator());
+                    width: 80,
+                    height: 120,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
                 }
+
                 final c = snap.data!;
                 final brand = (c.cardBrand ?? '').toUpperCase();
                 final fee = '${c.annualFee ?? 0}원';
-                final feeDom = brand.contains('LOCAL') || brand.contains('BC')
-                    ? fee
-                    : '없음';
+                final feeDom = brand.contains('LOCAL') || brand.contains('BC') ? fee : '없음';
                 final feeVisa = brand.contains('VISA') ? fee : '없음';
-                final feeMaster =
-                brand.contains('MASTER') ? fee : '없음';
+                final feeMaster = brand.contains('MASTER') ? fee : '없음';
 
-                Flexible(
+                return Flexible(
                   child: Container(
                     margin: const EdgeInsets.all(8),
                     padding: const EdgeInsets.all(12),
@@ -584,8 +583,10 @@ class _CardListPageState extends State<CardListPage>
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: Colors.red),
                             ),
-                            child: Text('#$tag',
-                                style: const TextStyle(color: Colors.red, fontSize: 13)),
+                            child: Text(
+                              '#$tag',
+                              style: const TextStyle(color: Colors.red, fontSize: 13),
+                            ),
                           ))
                               .toList(),
                         ),
@@ -599,7 +600,6 @@ class _CardListPageState extends State<CardListPage>
                     ),
                   ),
                 );
-
               },
             );
           }).toList(),
@@ -607,6 +607,7 @@ class _CardListPageState extends State<CardListPage>
       );
     },
   );
+
 }
 
 Widget _feeItemWithIcon(String assetPath, String feeText) {
