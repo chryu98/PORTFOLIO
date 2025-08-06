@@ -38,9 +38,12 @@ public class CardApplicationController {
 
     // ✅ [GET] Step 1 - 개인정보 입력 페이지
     @GetMapping("/userInfoForm")
-    public String userInfoForm(@RequestParam("applicationNo") Long applicationNo, Model model) {
-        model.addAttribute("applicationNo", applicationNo);
-        return "userInfoForm"; // → /WEB-INF/views/userInfoForm.jsp
+    public String userInfoForm(HttpSession session, Model model) {
+        UserDto loginUser = sessionService.prepareLoginUserAndSession(session, model);
+        if (loginUser == null) {
+            return "user/userInfoForm";
+        }
+        return "user/userInfoForm";
     }
 
     // ✅ [POST] Step 1 - 개인정보 입력 저장 처리
