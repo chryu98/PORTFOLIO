@@ -35,6 +35,10 @@
             android:name="com.naver.maps.map.CLIENT_ID"
             android:value="zsmkzlyhar" />
 
+        <meta-data
+            android:name="com.naver.maps.map.NCP_KEY_ID"
+            android:value="zsmkzlyhar"/>
+
         <!-- Flutter 내부에서 사용하는 설정 -->
         <meta-data
             android:name="flutterEmbedding"
