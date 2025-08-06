@@ -5,6 +5,10 @@ import com.busanbank.card.card.dto.ApplicationUserInfoDTO;
 import com.busanbank.card.card.dto.CardApplicationDTO;
 import com.busanbank.card.card.dto.CardPdfMappingDTO;
 import com.busanbank.card.card.service.CardApplicationService;
+import com.busanbank.card.user.dto.UserDto;
+import com.busanbank.card.user.service.SessionService;
+
+import jakarta.servlet.http.HttpSession;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -21,6 +25,9 @@ public class CardApplicationController {
 
     @Autowired
     private CardApplicationService service;
+    
+    @Autowired
+    private SessionService sessionService;
 
     // ✅ [GET] Step 0 - 카드 신청 시작 페이지
     @GetMapping("/startForm")
