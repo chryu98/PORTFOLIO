@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'user/CardListPage.dart';
 import 'package:bnkandroid/constants/api.dart';
-import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'user/NaverMapPage.dart';
 
+// await NaverMapSdk.instance.initialize(clientId: "your client id");
+// await NaverMapSdk.instance.initialize();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();  // 필수
@@ -19,7 +21,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: CardListPage(),
+      home: NaverMapPage(),
     );
   }
 }
