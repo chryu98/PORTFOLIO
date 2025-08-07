@@ -5,14 +5,20 @@ import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
+import org.springframework.security.web.session.SessionInformationExpiredStrategy;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -27,11 +33,24 @@ public class UserSecurityConfig {
     @Autowired
     private CustomSessionExpiredStrategy customSessionExpiredStrategy;
 
+    @Autowired
+    private CustomUserDetailsService userDetailsService;
+    
+    @Autowired
+    private RestLoginSuccessHandler restLoginSuccessHandler;
+    @Autowired
+    private RestLoginFailureHandler restLoginFailureHandler;
+    
     @Bean
     BCryptPasswordEncoder bCryptPasswordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+//    @Bean
+//    SessionInformationExpiredStrategy customSessionExpiredStrategy() {
+//        return new CustomSessionExpiredStrategy();
+//    }
+    
     @Bean
     SessionRegistry sessionRegistry() {
         return new SessionRegistryImpl();
@@ -41,14 +60,33 @@ public class UserSecurityConfig {
     static ServletListenerRegistrationBean<HttpSessionEventPublisher> httpSessionEventPublisher() {
         return new ServletListenerRegistrationBean<>(new HttpSessionEventPublisher());
     }
+    
+    @Bean
+    AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
+    }
+
+    @Bean
+    DaoAuthenticationProvider daoAuthenticationProvider() {
+    	DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+    	provider.setUserDetailsService(userDetailsService); // 실제 사용자 서비스 주입 필요
+    	provider.setPasswordEncoder(bCryptPasswordEncoder());
+    	return provider;
+    }
 
     @Bean(name = "userFilterChain")
-    SecurityFilterChain userFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain userFilterChain(HttpSecurity http, AuthenticationManager authenticationManager) throws Exception {
 
+    	// REST 로그인용 커스텀 필터
+        CustomRestAuthenticationFilter restLoginFilter = new CustomRestAuthenticationFilter(authenticationManager);
+        restLoginFilter.setAuthenticationSuccessHandler(restLoginSuccessHandler);
+        restLoginFilter.setAuthenticationFailureHandler(restLoginFailureHandler);
+    	
         http.securityMatcher("/regist/**", "/user/chat/**", "/user/**", "/loginProc", "/logout")
             .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll()
-            );
+            .requestMatchers("/user/api/**").permitAll()  // REST 로그인은 누구나 접근 가능
+            .anyRequest().permitAll()
+        );
 
         http.formLogin(auth -> auth
             .loginPage("/user/login")
@@ -59,7 +97,7 @@ public class UserSecurityConfig {
         );
 
         http.logout(logout -> logout
-            .logoutUrl("/logout")
+            .logoutUrl("/user/api/logout")
             .logoutSuccessHandler((request, response, authentication) -> {
                 // 회원 로그아웃 시 관리자 세션 보존을 위해 전체 세션 무효화는 하지 않음
                 HttpSession session = request.getSession(false);
@@ -76,19 +114,14 @@ public class UserSecurityConfig {
                 // Spring Security 인증 컨텍스트 제거
                 SecurityContextHolder.clearContext();
 
-                // 로그아웃 후 리다이렉트
-                String expired = request.getParameter("expired");
-                if (expired != null) {
-                    response.sendRedirect("/user/login?expired=true");
-                } else {
-                    response.sendRedirect("/user/login?logout=true");
-                }
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"message\":\"로그아웃 되었습니다.\"}");
+                response.getWriter().flush();
             })
-            .invalidateHttpSession(false)
-            .permitAll()
         );
 
         http.sessionManagement(session -> session
+        	.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED) // 세션 필요 시 생성
             .sessionFixation().none()  // 세션 ID 고정 (기존 세션 그대로 사용)
             .maximumSessions(1)
             .expiredSessionStrategy(customSessionExpiredStrategy)
@@ -98,6 +131,10 @@ public class UserSecurityConfig {
 
         http.csrf(csrf -> csrf.disable());
 
+        // 커스텀 REST 로그인 필터를 UsernamePasswordAuthenticationFilter 앞에 등록
+        http.addFilterBefore(restLoginFilter, UsernamePasswordAuthenticationFilter.class);
+        
         return http.build();
     }
+    
 }

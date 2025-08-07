@@ -109,38 +109,53 @@ body {
 		<p class="page-subtitle">회원유형을 선택해 주세요</p>
 		<div class="divider-section">
 			<div class="member-type-container">
-				<form action="/regist/terms" method="POST">
-					<input type="hidden" name="role" value="ROLE_PERSON">
-					<button type="submit" class="member-type">
-						<div class="title">일반회원(개인)</div>
-						<div class="desc">
-							영업점 방문 없이 홈페이지에서<br>간편하게 신청 가능합니다
-						</div>
-					</button>
-				</form>
+				<button type="button" class="member-type" onclick="selectMemberType('ROLE_PERSON')">
+					<div class="title">일반회원(개인)</div>
+					<div class="desc">
+						영업점 방문 없이 홈페이지에서<br>간편하게 신청 가능합니다
+					</div>
+				</button>
 				
-				<form action="/regist/terms" method="POST">
-					<input type="hidden" name="role" value="ROLE_OWNER">
-					<button type="submit" class="member-type">
-						<div class="title">개인사업자</div>
-						<div class="desc">
-							사업체를 운영하는 개인 고객을 위한<br>전용 서비스입니다
-						</div>
-					</button>
-				</form>
+				<button type="button" class="member-type" onclick="selectMemberType('ROLE_OWNER')">
+					<div class="title">개인사업자</div>
+					<div class="desc">
+						사업체를 운영하는 개인 고객을<br>위한 전용 서비스입니다
+					</div>
+				</button>
 				
-				<form action="/regist/terms" method="POST">
-					<input type="hidden" name="role" value="ROLE_CORP">
-					<button type="submit" class="member-type">
-						<div class="title">법인</div>
-						<div class="desc">
-							법인 사업체를 위한<br>신뢰도 높은 금융 솔루션 제공
-						</div>
-					</button>
-				</form>
+				<button type="button" class="member-type" onclick="selectMemberType('ROLE_CORP')">
+					<div class="title">법인</div>
+					<div class="desc">
+						법인 사업체를 위한<br>신뢰도 높은 금융 솔루션 제공
+					</div>
+				</button>
 			</div>
 		</div>
 	</div>
-	<script src="/js/header2.js"></script>
+<script src="/js/header2.js"></script>
+<script>
+	async function selectMemberType(role) {
+	    const response = await fetch("/user/api/regist/selectMemberType", {
+	        method: "POST",
+	        headers: {
+	            "Content-Type": "application/json"
+	        },
+	        body: JSON.stringify({ role })
+	    });
+	
+	    const result = await response.json();
+
+	    if (result.message) {
+	        alert(result.message);
+	    }
+
+	    if (result.redirectUrl) {
+	        location.href = result.redirectUrl;
+	    }
+	    else if (!result.message) {
+	        alert("알 수 없는 오류가 발생했습니다.");
+	    }
+	}
+</script>
 </body>
 </html>

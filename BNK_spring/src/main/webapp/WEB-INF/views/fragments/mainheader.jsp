@@ -27,7 +27,7 @@ uri="http://java.sun.com/jsp/jstl/core" %>
 			<div class="login-box">
 				<c:choose>
 					<c:when test="${not empty loginUser}">
-						<a href="/logout">로그아웃</a>
+						<a href="#" onclick="logout()">로그아웃</a>
 					</c:when>
 					<c:otherwise>
 						<a class="header-login-btn" href="/user/login">로그인</a>
