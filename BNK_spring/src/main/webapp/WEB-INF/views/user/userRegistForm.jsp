@@ -167,64 +167,70 @@ input::placeholder {
 	<p class="sub-title">정보를 입력해 주세요.</p>
 
 	<div class="divider-section">
-		<form id="signupForm" action="/regist/regist" method="post">
-			<table>
-				<tr>
-					<th>성명(실명)</th>
-					<td><input type="text" name="name" id="name"></td>
-				</tr>
-				<tr>
-					<th>아이디</th>
-					<td>
-						<div class="id-check-wrapper">
-							<input type="text" name="username" id="username" onchange="resetUsernameCheck()" oninput="resetUsernameCheck()">
-							<button type="button" id="checkBtn" onclick="checkUsername()">중복확인</button>
-						</div>
-					</td>
-				</tr>
-				<tr>
-					<th></th>
-					<td><div id="idErrorMsg"></div></td>
-				</tr>
-				<tr>
-					<th>비밀번호</th>
-					<td>
-						<input type="password" name="password" id="password" oninput="validatePassword()">
-						<span> ※ 영문자, 숫자, 특수문자 포함 8~12자 이내 (영문, 숫자, 특수문자 조합)</span>
-					</td>
-				</tr>
-				<tr>
-					<th>비밀번호 확인</th>
-					<td><input type="password" name="passwordCheck" id="passwordCheck" oninput="checkPasswordMatch()" onfocus="blockIfInvalidPassword()"><span> ※ 비밀번호 재입력</span></td>
-				</tr>
-				<tr>
-					<th></th>
-					<td><div id="pwErrorMsg"></div></td>
-				</tr>
-				<tr>
-					<th>주민등록번호</th>
-					<td><input type="text" name="rrnFront" id="rrnFront" maxlength="6">
-					 - <input type="password" name="rrnBack" id="rrnBack" maxlength="7"></td>
-				</tr>
-				<tr>
-					<th>주소</th>
-					<td>
-						<div class="zipcode-wrapper">
-							<input type="text" name="zipCode" id="zipCode" readonly>
-							<input type="button" onclick="sample6_execDaumPostcode()" value="우편번호 찾기"><br>
-						</div>
-						<input type="text" name="address1" id="address1" readonly><br>
-						<input type="text" name="extraAddress" id="extraAddress" readonly><br>
-						<input type="text" name="address2" id="address2" placeholder="상세주소">
-					</td>
-				</tr>
-			</table>
-			<input type="hidden" name="role" value="${role}">
-			<div class="button-group">
-				<button type="button" onclick="validateAndSubmit()">등록</button>
-				<button type="button" onclick="cancelRegist()">취소</button>
-			</div>
-		</form>
+		<table>
+			<tr>
+				<th>성명(실명)</th>
+				<td><input type="text" name="name" id="name"></td>
+			</tr>
+			<tr>
+				<th>아이디</th>
+				<td>
+					<div class="id-check-wrapper">
+						<input type="text" name="username" id="username" onchange="resetUsernameCheck()" oninput="resetUsernameCheck()">
+						<button type="button" id="checkBtn" onclick="checkUsername()">중복확인</button>
+					</div>
+				</td>
+			</tr>
+			<tr>
+				<th></th>
+				<td><div id="idErrorMsg"></div></td>
+			</tr>
+			<tr>
+				<th>비밀번호</th>
+				<td>
+					<input type="password" name="password" id="password" oninput="validatePassword()">
+					<span> ※ 영문자, 숫자, 특수문자 포함 8~12자 이내 (영문, 숫자, 특수문자 조합)</span>
+				</td>
+			</tr>
+			<tr>
+				<th>비밀번호 확인</th>
+				<td><input type="password" name="passwordCheck" id="passwordCheck" oninput="checkPasswordMatch()" onfocus="blockIfInvalidPassword()"><span> ※ 비밀번호 재입력</span></td>
+			</tr>
+			<tr>
+				<th></th>
+				<td><div id="pwErrorMsg"></div></td>
+			</tr>
+			<tr>
+				<th>주민등록번호</th>
+				<td><input type="text" name="rrnFront" id="rrnFront" maxlength="6">
+				 - <input type="password" name="rrnBack" id="rrnBack" maxlength="7"></td>
+			</tr>
+			<tr>
+				<th>주소</th>
+				<td>
+					<div class="zipcode-wrapper">
+						<input type="text" name="zipCode" id="zipCode" readonly>
+						<input type="button" onclick="sample6_execDaumPostcode()" value="우편번호 찾기"><br>
+					</div>
+					<input type="text" name="address1" id="address1" readonly><br>
+					<input type="text" name="extraAddress" id="extraAddress" readonly><br>
+					<input type="text" name="address2" id="address2" placeholder="상세주소">
+				</td>
+			</tr>
+		</table>
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+		<!-- <input type="hidden" name="role" value="${role}"> -->
+=======
+		<input type="hidden" name="role" value="${role}">
+>>>>>>> Stashed changes
+=======
+		<input type="hidden" name="role" value="${role}">
+>>>>>>> Stashed changes
+		<div class="button-group">
+			<button type="button" onclick="validateAndSubmit()">등록</button>
+			<button type="button" onclick="cancelRegist()">취소</button>
+		</div>
 	</div>
 </div>
 <c:if test="${not empty msg}">
@@ -275,7 +281,7 @@ input::placeholder {
 				usernameChecked = false;
 			}
 		}
-		xhr.open("POST", "/regist/check-username");
+		xhr.open("POST", "/user/api/regist/check-username");
 		xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 		xhr.send("username=" + username);
 	}
@@ -294,8 +300,6 @@ input::placeholder {
 	function validatePassword(){
 		const password = document.getElementById("password");
 		const pwErrorMsg = document.getElementById("pwErrorMsg");
-		
-		console.log("validatePassword 실행됨:", password.value);
 		
 		if(!password.value.trim()){
 			pwErrorMsg.textContent = "";
@@ -367,32 +371,51 @@ input::placeholder {
 	}
 	
 	function validateAndSubmit(){
-		const form = document.getElementById("signupForm");
+		const name = document.getElementById("name").value.trim();
+	    const username = document.getElementById("username").value.trim();
+	    const password = document.getElementById("password").value.trim();
+	    const passwordCheck = document.getElementById("passwordCheck").value.trim();
+	    const rrnFront = document.getElementById("rrnFront").value.trim();
+	    const rrnBack = document.getElementById("rrnBack").value.trim();
+	    const zipCode = document.getElementById("zipCode").value.trim();
+	    const address1 = document.getElementById("address1").value.trim();
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+	    const extraAddress = document.getElementById("extraAddress").value;
+	    const address2 = document.getElementById("address2").value.trim();
+=======
+	    const extraAddress = document.getElementById("extraAddress").value.trim();
+	    const address2 = document.getElementById("address2").value.trim();
+	    const role = document.getElementById("role").value;
+>>>>>>> Stashed changes
+=======
+	    const extraAddress = document.getElementById("extraAddress").value.trim();
+	    const address2 = document.getElementById("address2").value.trim();
+	    const role = document.getElementById("role").value;
+>>>>>>> Stashed changes
 		
 		//성명 유효성 검사
-		const nameInput = document.getElementById("name");
-		const nameValue = nameInput.value.trim();
 		const nameRegex = /^[가-힣]{2,20}$/;
 
-		if (!nameValue) {
+		if (!name) {
 			alert("성명을 입력해주세요.");
-			nameInput.focus();
+			document.getElementById("name").focus();
 			return;
 		}
-		if (!nameRegex.test(nameValue)) {
+		if (!nameRegex.test(name)) {
 			alert("성명은 한글 2~20자여야 합니다.");
 			nameInput.focus();
 			return;
 		}
 		//성명 검사
-		if (!document.getElementById("name").value.trim()) {
+		if (!name) {
 			alert("성명을 입력해주세요.");
 			document.getElementById("name").focus();
 			return;
 		}
 
 		//아이디 검사
-		if (!document.getElementById("username").value.trim()) {
+		if (!username) {
 			alert("아이디를 입력해주세요.");
 			document.getElementById("username").focus();
 			return;
@@ -404,48 +427,39 @@ input::placeholder {
 		}
 		
 		//비밀번호 검사
-		const password = document.getElementById("password");
-		const passwordCheck = document.getElementById("passwordCheck");
-
-		if(!password.value.trim()){
+		if(!password){
 			alert("비밀번호를 입력해주세요.");
-			password.focus();
+			document.getElementById("password").focus();
 			return;
 		}
-		if(!passwordCheck.value.trim()){
+		if(!passwordCheck){
 			alert("비밀번호를 확인하세요.");
-			passwordCheck.focus();
+			document.getElementById("passwordCheck").focus();
 			return;
 		}
-		if (password.value !== passwordCheck.value) {
+		if (password !== passwordCheck) {
 			alert("비밀번호가 일치하지 않습니다.");
-			passwordCheck.focus();
+			document.getElementById("passwordCheck").focus();
 			return;
 		}
 		
 		// 주민등록번호 유효성 검사
-		const rrnFront = document.getElementById("rrnFront");
-		const rrnBack = document.getElementById("rrnBack");
-
-		const rrnFrontValue = rrnFront.value.trim();
-		const rrnBackValue = rrnBack.value.trim();
-
 		const rrnRegex6 = /^\d{6}$/;
 		const rrnRegex7 = /^\d{7}$/;
 
-		if (!rrnRegex6.test(rrnFrontValue)) {
+		if (!rrnRegex6.test(rrnFront)) {
 			alert("주민등록번호 앞자리는 6자리 숫자여야 합니다.");
-			rrnFront.focus();
+			document.getElementById("rrnFront").focus();
 			return;
 		}
 
-		if (!rrnRegex7.test(rrnBackValue)) {
+		if (!rrnRegex7.test(rrnBack)) {
 			alert("주민등록번호 뒷자리는 7자리 숫자여야 합니다.");
-			rrnBack.focus();
+			document.getElementById("rrnBack").focus();
 			return;
 		}
 		
-		if (!isValidRRNPartial(rrnFrontValue, rrnBackValue[0])) {
+		if (!isValidRRNPartial(rrnFront, rrnBack[0])) {
 		    alert("유효하지 않은 주민등록번호입니다.");
 		    document.getElementById("rrnFront").focus();
 		    return;
@@ -458,23 +472,76 @@ input::placeholder {
 		}
 		
 		//주소 검사
-		if(!document.getElementById("zipCode").value.trim() || !document.getElementById("address1").value.trim()) {
+		if(!zipCode || !address1) {
 			alert("주소를 입력해주세요.");
 			document.getElementById("zipCode").focus();
 			return;
 		}
-		if(!document.getElementById("address2").value.trim()){			
+		if(!address2){			
 			alert("상세주소를 입력해주세요.");
 			document.getElementById("address2").focus();
 			return;
 		}
 		
-		form.submit();
+		const data = {
+		        name: name,
+		        username: username,
+		        password: password,
+		        passwordCheck: passwordCheck,
+		        rrnFront: rrnFront,
+		        rrnBack: rrnBack,
+		        zipCode: zipCode,
+		        address1: address1,
+		        extraAddress: extraAddress,
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+		        address2: address2
+		    };
+
+		    fetch("/user/api/regist/submit", {
+=======
+=======
+>>>>>>> Stashed changes
+		        address2: address2,
+		        role: role
+		    };
+
+		    fetch("/api/regist/submit", {
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
+		        method: "POST",
+		        headers: {"Content-Type": "application/json"},
+		        body: JSON.stringify(data)
+		    })
+		    .then(response => response.json())
+		    .then(result => {
+		        if(result.success){
+		            alert(result.msg);
+		            window.location.href = "/user/login"; // 로그인 페이지 이동
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+		        }
+		        else {
+=======
+		        } else {
+>>>>>>> Stashed changes
+=======
+		        } else {
+>>>>>>> Stashed changes
+		            alert(result.msg);
+		        }
+		    })
+		    .catch(error => {
+		        console.error("Error:", error);
+		        alert("회원가입 중 오류가 발생했습니다.");
+		    });
 	}
 	
 	function cancelRegist(){
 		if (confirm("회원가입 신청을 취소하시겠습니까?")) {
-	        location.href = "/regist/selectMemberType";
+	        location.href = "/user/regist/selectMemberType";
 	    }
 	}
 	

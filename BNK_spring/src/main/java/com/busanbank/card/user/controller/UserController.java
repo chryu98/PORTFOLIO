@@ -32,33 +32,38 @@ public class UserController {
 	@Autowired
 	private BCryptPasswordEncoder bCryptPasswordEncoder;
 	
+//	@GetMapping("/login")
+//	public String login(HttpServletRequest request,
+//						@RequestParam(name = "error", required = false) String error,
+//						@RequestParam(name = "logout", required = false) String logout,
+//	                    @RequestParam(name = "expired", required = false) String expired,
+//						Model model) {
+//		
+//		//아이디, 비밀번호 확인
+//		if(error != null) {
+//			model.addAttribute("msg", "아이디 또는 비밀번호가 올바르지 않습니다.");
+//		}
+//		
+//		//로그아웃 버튼 눌렀을 때
+//		if(logout != null && expired == null) {
+//			model.addAttribute("msg", "로그아웃 되었습니다.");
+//		}
+//		
+//		//세션 만료
+//		if (expired != null) {
+//	        model.addAttribute("msg", "인증이 만료되어 로그아웃 되었습니다.");
+//	    }
+//		
+//		//중복로그인 방지용
+//		if(request.getAttribute("expired") != null) {
+//			model.addAttribute("msg", "다른 위치에서 로그인되어 로그아웃 되었습니다.");
+//		}
+//		
+//		return "user/userLogin";
+//	}
+	
 	@GetMapping("/login")
-	public String login(HttpServletRequest request,
-						@RequestParam(name = "error", required = false) String error,
-						@RequestParam(name = "logout", required = false) String logout,
-	                    @RequestParam(name = "expired", required = false) String expired,
-						Model model) {
-		
-		//아이디, 비밀번호 확인
-		if(error != null) {
-			model.addAttribute("msg", "아이디 또는 비밀번호가 올바르지 않습니다.");
-		}
-		
-		//로그아웃 버튼 눌렀을 때
-		if(logout != null && expired == null) {
-			model.addAttribute("msg", "로그아웃 되었습니다.");
-		}
-		
-		//세션 만료
-		if (expired != null) {
-	        model.addAttribute("msg", "인증이 만료되어 로그아웃 되었습니다.");
-	    }
-		
-		//중복로그인 방지용
-		if(request.getAttribute("expired") != null) {
-			model.addAttribute("msg", "다른 위치에서 로그인되어 로그아웃 되었습니다.");
-		}
-		
+	public String login() {
 		return "user/userLogin";
 	}
 	

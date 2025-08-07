@@ -1,3 +1,4 @@
+import 'package:bnkandroid/user/LoginPage.dart';
 import 'package:flutter/material.dart';
 import 'user/CardListPage.dart';
 import 'package:bnkandroid/constants/api.dart';
@@ -21,7 +22,15 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
       home: NaverMapPage(),
+=======
+      home: LoginPage(),
+>>>>>>> Stashed changes
+=======
+      home: LoginPage(),
+>>>>>>> Stashed changes
     );
   }
 }

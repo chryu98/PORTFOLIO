@@ -38,9 +38,25 @@ document.addEventListener("DOMContentLoaded", () => {
 		});
 	};
 
-	window.logout = function(){
-		if(confirm("로그아웃 하시겠습니까?")){
-			document.getElementById("logoutForm").submit();
+	window.logout = async function() {
+		if (confirm("로그아웃 하시겠습니까?")) {
+			try {
+				const response = await fetch("/user/api/logout", {
+					method: "POST"
+				});
+
+				const result = await response.json();
+
+				if (response.ok) {
+					alert(result.message);
+					location.href = "/";
+				} else {
+					alert("로그아웃 실패");
+				}
+			} catch (error) {
+				console.error("로그아웃 오류:", error);
+				alert("오류가 발생했습니다.");
+			}
 		}
 	};
 });

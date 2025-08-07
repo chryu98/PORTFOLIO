@@ -149,9 +149,9 @@ class _CardListPageState extends State<CardListPage>
         valueListenable: compareIds,
         builder: (_, Set<String> ids, __) => ids.isNotEmpty
             ? FloatingActionButton.extended(
-          backgroundColor: Colors.red,
-          foregroundColor: Colors.white,
-          icon: const Icon(Icons.compare),
+          backgroundColor: Color(0xFFF4F6FA),
+          foregroundColor: Color(0xFF4E4E4E),
+
           label: Text('비교함 (${ids.length})'),
           onPressed: () => showModalBottomSheet(
               context: context, builder: (_) => _buildCompareModal()),

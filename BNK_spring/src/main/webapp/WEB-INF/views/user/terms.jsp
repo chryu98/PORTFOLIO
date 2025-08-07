@@ -106,7 +106,7 @@ body, html {
     <h2 class="page-title">회원가입</h2>
     <p class="sub-title">약관에 동의해 주세요</p>
 
-    <form id="termsForm" action="/regist/userRegistForm" method="post">
+    <form id="termsForm" onsubmit="event.preventDefault(); submitTerms();">
         <c:forEach var="term" items="${terms}">
             <div class="terms-section">
                 <h3>
@@ -139,22 +139,63 @@ body, html {
         </c:forEach>
 
         <div class="button-group">
-            <button type="submit">다음</button>
+            <button type="button" onclick="submitTerms()">다음</button>
             <button type="button" onclick="cancelRegist()">취소</button>
         </div>
         
-        <input type="hidden" name="role" value="${role}">
+        <!-- <input type="hidden" name="role" value="${role}"> -->
     </form>
 </div>
 <script src="/js/header2.js"></script>
 <script>
-<c:if test="${not empty msg}">
-    alert('<c:out value="${msg}" escapeXml="true"/>');
+<c:if test="${not empty message}">
+    alert('<c:out value="${message}" escapeXml="true"/>');
 </c:if>
+
+async function submitTerms(){
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+	    
+	const termsData = {};
+	
+=======
+	const termsData = {};
+>>>>>>> Stashed changes
+=======
+	const termsData = {};
+>>>>>>> Stashed changes
+    const checkedInputs = document.querySelectorAll("input[type='radio']:checked");
+    checkedInputs.forEach(input => {
+        termsData[input.name] = input.value;
+    });
+
+    try {
+        const response = await fetch("/user/api/regist/terms", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(termsData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            location.href = result.redirectUrl;
+        } else {
+            alert(result.message);
+        }
+
+    } catch (error) {
+        console.error("통신 오류:", error);
+        alert("서버와 통신 중 오류가 발생했습니다.");
+    }
+	
+}
 
 function cancelRegist(){
     if (confirm("회원가입 신청을 취소하시겠습니까?")) {
-        location.href = "/regist/selectMemberType";
+        location.href = "/user/regist/selectMemberType";
     }
 }
 </script>
