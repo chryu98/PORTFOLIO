@@ -90,7 +90,11 @@ public class RegistRestController {
 	    
 	    for (TermDto term : terms) {
 	        if ("Y".equals(term.getIsRequired()) && !"Y".equals(term.getAgreeYn())) {
+<<<<<<< Updated upstream
 	        	response.put("message", "필수 약관에 모두 동의해 주세요.");
+=======
+	        	response.put("message", "필수 약관에 동의해 주세요.");
+>>>>>>> Stashed changes
 	            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
 	        }
 	    }
@@ -149,8 +153,12 @@ public class RegistRestController {
 	
 	//유효성 검사 및 insert
 	@PostMapping("/submit")
+<<<<<<< Updated upstream
 	public ResponseEntity<?> regist(@RequestBody UserJoinDto joinUser,
 									HttpSession session) {
+=======
+	public ResponseEntity<?> regist(@RequestBody UserJoinDto joinUser) {
+>>>>>>> Stashed changes
 		Map<String, Object> response = new HashMap<>();
 		
 		String validationMsg = joinService.validateJoinUser(joinUser);
@@ -189,8 +197,12 @@ public class RegistRestController {
 		user.setAddress1(address1);
 		user.setAddress2(joinUser.getAddress2());
 		
+<<<<<<< Updated upstream
 		String role = (String) session.getAttribute("role");
 		user.setRole(role);
+=======
+		user.setRole(joinUser.getRole());
+>>>>>>> Stashed changes
 		
 		userDao.insertMember(user);
 		
@@ -208,8 +220,11 @@ public class RegistRestController {
 		
 		userDao.insertTermsAgreement(term2Agree);
 		
+<<<<<<< Updated upstream
 		session.removeAttribute("role");
 		
+=======
+>>>>>>> Stashed changes
 		response.put("success", true);
         response.put("msg", "회원가입이 완료되었습니다.");
         return ResponseEntity.ok(response);
