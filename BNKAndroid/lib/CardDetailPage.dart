@@ -680,7 +680,7 @@ class _CardDetailPageState extends State<CardDetailPage> {
                     return FloatingActionButton.extended(
                       backgroundColor: Color(0xFFF4F6FA),
                       foregroundColor: Color(0xFF4E4E4E),
-                      icon: const Icon(Icons.compare_arrows),
+
                       label: Text('비교함 (${ids.length})'),
                       onPressed: _showCompareModal,
                     );
