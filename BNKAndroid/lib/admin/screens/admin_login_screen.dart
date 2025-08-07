@@ -229,9 +229,9 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 }
 
 // ✅ main 함수 추가
-void main() {
-  runApp(const MaterialApp(
-    home: AdminLoginScreen(),
-  ));
-}
+//void main() {
+//  runApp(const MaterialApp(
+//    home: AdminLoginScreen(),
+//  ));
+//}
 

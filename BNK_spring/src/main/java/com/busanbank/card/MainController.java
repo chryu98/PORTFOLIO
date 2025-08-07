@@ -10,8 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import com.busanbank.card.admin.dto.AdminDto;
 import com.busanbank.card.admin.session.AdminSession;
-import com.busanbank.card.card.dto.CardPdfMappingDTO;
-import com.busanbank.card.card.service.CardApplicationService;
+
 import com.busanbank.card.user.dao.IUserDao;
 import com.busanbank.card.user.dto.UserDto;
 import com.busanbank.card.user.service.SessionService;
@@ -27,8 +26,7 @@ public class MainController {
 	private IUserDao userDao;
 	@Autowired
 	private SessionService sessionService;
-	@Autowired
-    private CardApplicationService cardApplicationService;
+
 	
 	@Autowired
 	private AdminSession adminSession;
