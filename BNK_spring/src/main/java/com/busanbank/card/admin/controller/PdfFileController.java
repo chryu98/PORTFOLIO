@@ -18,6 +18,7 @@ import com.busanbank.card.admin.dto.PdfFile;
 import com.busanbank.card.admin.service.PdfFileService;
 import com.busanbank.card.admin.session.AdminSession;
 
+@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/admin")
 public class PdfFileController {
