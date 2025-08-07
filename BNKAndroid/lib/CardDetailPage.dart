@@ -52,8 +52,60 @@ List<String> extractCategories(String text, {int max = 5}) {
   return result.toList();
 }
 
-List<Widget> buildBenefitSummaryWidgets(String text) {
-  const categoryKeywords = {
+Widget buildSimpleBenefitBox(String category, String line, {String? rate}) {
+  return Container(
+    padding: const EdgeInsets.all(12),
+    margin: const EdgeInsets.only(bottom: 12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 6,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (rate != null) ...[
+          Text(rate,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: Color(0xffB91111),
+              )),
+          const SizedBox(width: 12),
+        ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('#$category',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  )),
+              const SizedBox(height: 4),
+              Text(line,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  )),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// ✅ 통문자열 → 요약 박스 리스트로 자동 변환 (퍼센트 강조만)
+List<Widget> buildSummarizedBenefits(String rawText) {
+  final Map<String, List<String>> keywordMap = {
     '커피': ['커피', '스타벅스', '이디야', '카페베네'],
     '편의점': ['편의점', 'GS25', 'CU', '세븐일레븐'],
     '베이커리': ['베이커리', '파리바게뜨', '뚜레쥬르', '던킨'],
@@ -79,50 +131,105 @@ List<Widget> buildBenefitSummaryWidgets(String text) {
     '발렛': ['발렛파킹']
   };
 
-  final lowerText = text.toLowerCase();
+
+  final lines = rawText
+      .split(RegExp(r'\n|(?<!\d)-|•|·|◆|▶|\(\d+\)|(?=\d+\.\s)')) // ✅ 핵심 추가
+      .map((e) => e.trim().replaceFirst(RegExp(r'^(\d+\.|\(\d+\))\s*'), '')) // 숫자/괄호번호 제거
+      .where((e) => e.isNotEmpty)
+      .toList();
+
   final widgets = <Widget>[];
 
-  for (final entry in categoryKeywords.entries) {
-    final category = entry.key;
-    final keywords = entry.value;
-    final matched = keywords.where((k) => lowerText.contains(k.toLowerCase())).toList();
-
-    if (matched.isNotEmpty) {
-      final lines = text.split(RegExp(r'\n|•|-|·')).where((line) {
-        return keywords.any((k) => line.toLowerCase().contains(k.toLowerCase()));
-      }).toList();
-
-      widgets.add(
-        Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('#$category',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
-                      fontSize: 14)),
-              const SizedBox(height: 6),
-              ...lines.map((line) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(line.trim(),
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-              )),
-            ],
-          ),
-        ),
-      );
+  for (final line in lines) {
+    for (final entry in keywordMap.entries) {
+      final category = entry.key;
+      final keywords = entry.value;
+      if (keywords.any((k) => line.contains(k))) {
+        widgets.add(buildCleanBenefitBox(category, line));
+        break;
+      }
     }
   }
 
   return widgets;
 }
+
+Widget buildCleanBenefitBox(String category, String content) {
+  final percentRegex = RegExp(r'(\d{1,2}%|\d{1,2}\.\d+%)');
+  final spans = <TextSpan>[];
+
+  final matches = percentRegex.allMatches(content);
+  int lastIndex = 0;
+
+  for (final match in matches) {
+    final matchStart = match.start;
+    final matchEnd = match.end;
+
+    if (matchStart > lastIndex) {
+      spans.add(TextSpan(text: content.substring(lastIndex, matchStart)));
+    }
+
+    spans.add(TextSpan(
+      text: content.substring(matchStart, matchEnd),
+      style: const TextStyle(
+        fontWeight: FontWeight.bold,
+        color: Colors.red,
+      ),
+    ));
+
+    lastIndex = matchEnd;
+  }
+
+  if (lastIndex < content.length) {
+    spans.add(TextSpan(text: content.substring(lastIndex)));
+  }
+
+  return Center(
+    child: Container(
+      width: 390,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F6FA),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+
+      // 내부는 왼쪽 정렬
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '#$category',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Colors.orange,
+            ),
+            textAlign: TextAlign.left, // optional
+          ),
+          const SizedBox(height: 6),
+          RichText(
+            textAlign: TextAlign.left,
+            text: TextSpan(
+              style: const TextStyle(color: Colors.black, fontSize: 13),
+              children: spans,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+
+
 
 /// 🏷️ 해시태그 형태로 보여줄 때 사용하는 위젯 리스트
 List<Widget> extractCategoriesAsWidget(String text, {int max = 5}) {
@@ -472,10 +579,10 @@ class _CardDetailPageState extends State<CardDetailPage> {
                     ),
                     const SizedBox(height: 6),
                     Align(
-                      alignment: Alignment.centerLeft,
+                      alignment: Alignment.center,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: buildBenefitSummaryWidgets('${card.service}\n${card.sService ?? ''}'),
+                        crossAxisAlignment: CrossAxisAlignment.center, // ✅ 중앙 정렬
+                        children: buildSummarizedBenefits('${card.service}\n${card.sService ?? ''}'),
                       ),
                     ),
                     const SizedBox(height: 30),
