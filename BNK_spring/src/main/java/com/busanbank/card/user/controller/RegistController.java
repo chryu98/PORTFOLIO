@@ -62,6 +62,7 @@ public class RegistController {
 	}
 	
 	@GetMapping("/userRegistForm")
+<<<<<<< Updated upstream
 	public String userRegistForm(HttpSession session, Model model, 
 								 RedirectAttributes rttr) {
 		String username = (String) session.getAttribute("loginUsername");
@@ -76,6 +77,10 @@ public class RegistController {
             return "redirect:/user/regist/selectMemberType";
         }
         
+=======
+	public String userRegistForm() {
+		
+>>>>>>> Stashed changes
 		return "user/userRegistForm";
 	}
 

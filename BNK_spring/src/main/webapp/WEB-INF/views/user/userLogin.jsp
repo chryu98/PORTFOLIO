@@ -106,7 +106,11 @@
 		<input type="text" id="username" name="username" placeholder="아이디를 입력하세요.">
 		<input type="password" id="password" name="password" placeholder="비밀번호를 입력하세요.">
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 		<button type="submit">로그인</button>
+=======
+		<button type="button" onclick="login()">로그인</button>
+>>>>>>> Stashed changes
 =======
 		<button type="button" onclick="login()">로그인</button>
 >>>>>>> Stashed changes
@@ -122,6 +126,7 @@
 		const username = document.getElementById("username").value;
 		const password = document.getElementById("password").value;
 	
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 		if (!username || !password) {
 			alert("아이디와 비밀번호를 모두 입력해주세요.");
@@ -148,6 +153,8 @@
 		}
 	}
 =======
+=======
+>>>>>>> Stashed changes
 		const response = await fetch("/user/api/login", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -164,6 +171,9 @@
 		}
 	}
     }
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 </script>
 <script src="/js/header2.js"></script>

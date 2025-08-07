@@ -154,9 +154,13 @@ body, html {
 
 async function submitTerms(){
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 	    
 	const termsData = {};
 	
+=======
+	const termsData = {};
+>>>>>>> Stashed changes
 =======
 	const termsData = {};
 >>>>>>> Stashed changes

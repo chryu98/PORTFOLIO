@@ -91,7 +91,11 @@ public class RegistRestController {
 	    for (TermDto term : terms) {
 	        if ("Y".equals(term.getIsRequired()) && !"Y".equals(term.getAgreeYn())) {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 	        	response.put("message", "필수 약관에 모두 동의해 주세요.");
+=======
+	        	response.put("message", "필수 약관에 동의해 주세요.");
+>>>>>>> Stashed changes
 =======
 	        	response.put("message", "필수 약관에 동의해 주세요.");
 >>>>>>> Stashed changes
@@ -154,8 +158,12 @@ public class RegistRestController {
 	//유효성 검사 및 insert
 	@PostMapping("/submit")
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 	public ResponseEntity<?> regist(@RequestBody UserJoinDto joinUser,
 									HttpSession session) {
+=======
+	public ResponseEntity<?> regist(@RequestBody UserJoinDto joinUser) {
+>>>>>>> Stashed changes
 =======
 	public ResponseEntity<?> regist(@RequestBody UserJoinDto joinUser) {
 >>>>>>> Stashed changes
@@ -198,8 +206,12 @@ public class RegistRestController {
 		user.setAddress2(joinUser.getAddress2());
 		
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 		String role = (String) session.getAttribute("role");
 		user.setRole(role);
+=======
+		user.setRole(joinUser.getRole());
+>>>>>>> Stashed changes
 =======
 		user.setRole(joinUser.getRole());
 >>>>>>> Stashed changes
@@ -221,8 +233,11 @@ public class RegistRestController {
 		userDao.insertTermsAgreement(term2Agree);
 		
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 		session.removeAttribute("role");
 		
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 		response.put("success", true);

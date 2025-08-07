@@ -2,7 +2,10 @@ package com.busanbank.card.user.controller;
 
 import java.util.HashMap;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import java.util.List;
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 import java.util.Map;
@@ -17,8 +20,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
+=======
+import org.springframework.security.web.authentication.session.SessionAuthenticationException;
+>>>>>>> Stashed changes
 =======
 import org.springframework.security.web.authentication.session.SessionAuthenticationException;
 >>>>>>> Stashed changes
@@ -30,7 +37,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.HttpServletRequest;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import jakarta.servlet.http.HttpSession;
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 
@@ -41,8 +51,11 @@ public class UserRestController {
 	@Autowired
 	private AuthenticationManager authenticationManager;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 	@Autowired
 	private SessionRegistry sessionRegistry;
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 
@@ -60,13 +73,17 @@ public class UserRestController {
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 			response.put("success", true);
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 			response.put("message", "로그인 성공");
 			return ResponseEntity.ok(response);
 
 		} catch (BadCredentialsException e) {
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 			response.put("success", false);
 			response.put("message", "아이디 또는 비밀번호가 올바르지 않습니다.");
@@ -75,6 +92,8 @@ public class UserRestController {
 		} catch (AuthenticationException e) {
 			response.put("success", false);
 =======
+=======
+>>>>>>> Stashed changes
 			response.put("message", "아이디 또는 비밀번호가 올바르지 않습니다.");
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
 
@@ -83,12 +102,16 @@ public class UserRestController {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
 
 		} catch (AuthenticationException e) {
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 			response.put("message", "로그인 실패");
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
 		}
 	}
 
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 	@GetMapping("/session-status")
 	public ResponseEntity<?> sessionStatus(HttpSession session) {
@@ -138,6 +161,8 @@ public class UserRestController {
 //		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(result);
 //	}
 =======
+=======
+>>>>>>> Stashed changes
 	@GetMapping("/session-expired")
 	public ResponseEntity<?> sessionExpired() {
 		Map<String, Object> result = new HashMap<>();
@@ -151,5 +176,8 @@ public class UserRestController {
 		result.put("message", "다른 위치에서 로그인되어 로그아웃 되었습니다.");
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(result);
 	}
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 }

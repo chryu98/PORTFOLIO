@@ -23,7 +23,11 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       home: NaverMapPage(),
+=======
+      home: LoginPage(),
+>>>>>>> Stashed changes
 =======
       home: LoginPage(),
 >>>>>>> Stashed changes
