@@ -331,8 +331,8 @@ class _CardDetailPageState extends State<CardDetailPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('카드 상세정보'),
-        backgroundColor: const Color(0xffB91111),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: Color(0xffB91111),
       ),
       body: FutureBuilder<CardModel>(
         future: _futureCard,
@@ -360,23 +360,35 @@ class _CardDetailPageState extends State<CardDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Center(
+                    Container(
+                      width: double.infinity,
+                      height: 300, // 상단 전체 높이 (배경 포함)
+                      color: const Color(0xFFF4F6FA), // 연한 블루그레이 배경
+                      alignment: Alignment.center,
                       child: RotatedBox(
                         quarterTurns: 1,
                         child: Image.network(
                           imgUrl,
-                          height: 160,
+                          height: 160, // 이미지 자체 높이만 제어
+                          fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 100),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 26),
                     Center(
-                      child: Text(card.cardName,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        card.cardName,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFF4E4E4E),
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 6),
+
+                    const SizedBox(height: 12),
                     Center(
                       child: Text(card.cardSlogan ?? '-',
                           textAlign: TextAlign.center,
@@ -385,7 +397,50 @@ class _CardDetailPageState extends State<CardDetailPage> {
                             fontSize: 15,
                           )),
                     ),
-                    const SizedBox(height: 20),
+
+                    const SizedBox(height: 18),
+
+                    Center(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _toggleCompare(card.cardNo.toString()),
+
+                        label: Text(
+                          isInCompare ? "-   비교함 제거" : "+   비교함 담기",
+                          style: const TextStyle(color: Color(0xFF4E4E4E)),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFFF4F6FA), // 연한 그레이
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+
+                    Align(
+                      alignment: Alignment.center, // ← 생략해도 무방
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center, // ← ✅ start → center
+                        children: [
+                          const SizedBox(height: 18),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center, // ✅ 중심 정렬
+                            children: [
+                              _feeItemWithIcon('assets/overseas_pay_domestic.png', feeDomestic),
+                              const SizedBox(width: 30),
+                              _feeItemWithIcon('assets/overseas_pay_visa.png', feeVisa),
+                              const SizedBox(width: 30),
+                              _feeItemWithIcon('assets/overseas_pay_master.png', feeMaster),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
                     Center(
                       child: Wrap(
                         alignment: WrapAlignment.center,
@@ -403,57 +458,11 @@ class _CardDetailPageState extends State<CardDetailPage> {
                       ),
                     ),
 
-                    Positioned(
-                      bottom: 90, // 비교함 FAB보다 위에 위치
-                      right: 20,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _startCardApplication(card.cardNo.toString()),
-                        icon: const Icon(Icons.credit_card),
-                        label: const Text("카드 발급하기"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black87,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-                    Center(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _toggleCompare(card.cardNo.toString()),
-                        icon: const Icon(Icons.compare),
-                        label: Text(isInCompare ? "비교함 제거" : "비교함 담기"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 22),
 
                     const Divider(),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _sectionTitle('연회비'),
-                          const SizedBox(height: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _feeItemWithIcon('assets/overseas_pay_domestic.png', feeDomestic),
-                              const SizedBox(height: 6),
-                              _feeItemWithIcon('assets/overseas_pay_visa.png', feeVisa),
-                              const SizedBox(height: 6),
-                              _feeItemWithIcon('assets/overseas_pay_master.png', feeMaster),
-                            ],
-                          ),
-                          const SizedBox(height: 16), // ✅ 해시태그 간격
+                    const SizedBox(height: 18),
 
-                        ],
-                      ),
-                    ),
 
 
                     const SizedBox(height: 30),
@@ -484,15 +493,15 @@ class _CardDetailPageState extends State<CardDetailPage> {
                 ),
               ),
               Positioned(
-                bottom: 20,
+                bottom: 10,
                 right: 20,
                 child: ValueListenableBuilder<Set<String>>(
                   valueListenable: widget.compareIds,
                   builder: (context, ids, _) {
                     if (ids.isEmpty) return const SizedBox();
                     return FloatingActionButton.extended(
-                      backgroundColor: Colors.redAccent,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Color(0xFFF4F6FA),
+                      foregroundColor: Color(0xFF4E4E4E),
                       icon: const Icon(Icons.compare_arrows),
                       label: Text('비교함 (${ids.length})'),
                       onPressed: _showCompareModal,
@@ -504,7 +513,35 @@ class _CardDetailPageState extends State<CardDetailPage> {
           );
         },
       ),
+      bottomNavigationBar: FutureBuilder<CardModel>(
+        future: _futureCard,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const SizedBox.shrink();
+          final card = snapshot.data!;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+            color: Colors.white,
+            child: SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () => _startCardApplication(card.cardNo.toString()),
+                icon: const Icon(Icons.credit_card),
+                label: const Text("카드 발급하기"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xffB91111),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
+
   }
 
   Widget _feeItem(String label, String value) => Padding(
