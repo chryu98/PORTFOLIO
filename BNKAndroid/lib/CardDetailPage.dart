@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api.dart';
 import '../user/model/CardModel.dart';
 import '../user/service/CardService.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import 'ApplicationStep1Page.dart';
 
@@ -104,6 +107,8 @@ Widget buildSimpleBenefitBox(String category, String line, {String? rate}) {
 }
 
 /// ✅ 통문자열 → 요약 박스 리스트로 자동 변환 (퍼센트 강조만)
+
+
 List<Widget> buildSummarizedBenefits(String rawText) {
   final Map<String, List<String>> keywordMap = {
     '커피': ['커피', '스타벅스', '이디야', '카페베네'],
@@ -131,21 +136,26 @@ List<Widget> buildSummarizedBenefits(String rawText) {
     '발렛': ['발렛파킹']
   };
 
-
   final lines = rawText
-      .split(RegExp(r'\n|(?<!\d)-|•|·|◆|▶|\(\d+\)|(?=\d+\.\s)')) // ✅ 핵심 추가
-      .map((e) => e.trim().replaceFirst(RegExp(r'^(\d+\.|\(\d+\))\s*'), '')) // 숫자/괄호번호 제거
+      .split(RegExp(r'\n|(?<!\d)-|•|·|◆|▶|\(\d+\)|(?=\d+\.\s)'))
+      .map((e) => e.trim().replaceFirst(RegExp(r'^(\d+\.|\(\d+\))\s*'), ''))
       .where((e) => e.isNotEmpty)
       .toList();
 
   final widgets = <Widget>[];
 
-  for (final line in lines) {
+  for (int i = 0; i < lines.length; i++) {
+    final line = lines[i];
+
     for (final entry in keywordMap.entries) {
       final category = entry.key;
       final keywords = entry.value;
+
       if (keywords.any((k) => line.contains(k))) {
-        widgets.add(buildCleanBenefitBox(category, line));
+        widgets.add(_AnimatedOnVisible(
+          key: Key('benefit_$i'),
+          child: buildCleanBenefitBox(category, line),
+        ));
         break;
       }
     }
@@ -153,6 +163,45 @@ List<Widget> buildSummarizedBenefits(String rawText) {
 
   return widgets;
 }
+
+class _AnimatedOnVisible extends StatefulWidget {
+  final Widget child;
+
+  const _AnimatedOnVisible({Key? key, required this.child}) : super(key: key);
+
+  @override
+  State<_AnimatedOnVisible> createState() => _AnimatedOnVisibleState();
+}
+
+class _AnimatedOnVisibleState extends State<_AnimatedOnVisible> {
+  bool _isVisible = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return VisibilityDetector(
+      key: widget.key ?? UniqueKey(),
+      onVisibilityChanged: (info) {
+        if (info.visibleFraction > 0 && !_isVisible) {
+          setState(() {
+            _isVisible = true;
+          });
+        }
+      },
+      child: AnimatedOpacity(
+        opacity: _isVisible ? 1 : 0,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOut,
+        child: AnimatedSlide(
+          offset: _isVisible ? Offset.zero : const Offset(0, 0.2),
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOut,
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
 
 Widget buildCleanBenefitBox(String category, String content) {
   final percentRegex = RegExp(r'(\d{1,2}%|\d{1,2}\.\d+%)');
@@ -578,14 +627,36 @@ class _CardDetailPageState extends State<CardDetailPage> {
                       child: _sectionTitle('혜택 요약'),
                     ),
                     const SizedBox(height: 6),
-                    Align(
-                      alignment: Alignment.center,
+                  Align(
+                    alignment: Alignment.center,
+                    child: AnimationLimiter(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center, // ✅ 중앙 정렬
-                        children: buildSummarizedBenefits('${card.service}\n${card.sService ?? ''}'),
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: buildSummarizedBenefits('${card.service}\n${card.sService ?? ''}')
+                            .asMap()
+                            .entries
+                            .map(
+                              (entry) => AnimationConfiguration.staggeredList(
+                            position: entry.key,
+                            delay: Duration(milliseconds: (50 * pow(entry.key + 1, 1.2)).toInt()),
+                            duration: const Duration(milliseconds: 300),
+                            child: SlideAnimation(
+                              verticalOffset: 20.0,
+                              curve: Curves.easeOut,
+                              child: FadeInAnimation(
+                                duration: const Duration(milliseconds: 300),
+                                child: entry.value,
+                              ),
+                            ),
+                          ),
+                        )
+                            .toList(),
                       ),
                     ),
-                    const SizedBox(height: 30),
+                  ),
+
+
+                  const SizedBox(height: 30),
                     SectionTile(
                       title: '유의사항',
                       child: Text(
