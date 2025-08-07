@@ -105,15 +105,7 @@
 	<form onsubmit="event.preventDefault(); login();">
 		<input type="text" id="username" name="username" placeholder="아이디를 입력하세요.">
 		<input type="password" id="password" name="password" placeholder="비밀번호를 입력하세요.">
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 		<button type="submit">로그인</button>
-=======
-		<button type="button" onclick="login()">로그인</button>
->>>>>>> Stashed changes
-=======
-		<button type="button" onclick="login()">로그인</button>
->>>>>>> Stashed changes
 	</form>
 	
 	<div class="signup-link">
@@ -125,9 +117,7 @@
 	async function login() {
 		const username = document.getElementById("username").value;
 		const password = document.getElementById("password").value;
-	
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
+
 		if (!username || !password) {
 			alert("아이디와 비밀번호를 모두 입력해주세요.");
 			return;
@@ -152,29 +142,7 @@
 			alert("서버와 통신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
 		}
 	}
-=======
-=======
->>>>>>> Stashed changes
-		const response = await fetch("/user/api/login", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ username, password })
-		});
-	
-		const result = await response.json();
-	
-		if (response.ok) {
-			location.href = "/";
-		}
-		else {
-			alert(result.message);			
-		}
-	}
-    }
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+
 </script>
 <script src="/js/header2.js"></script>
 </body>

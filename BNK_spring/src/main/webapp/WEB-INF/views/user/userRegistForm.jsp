@@ -160,7 +160,6 @@ input::placeholder {
 </head>
 <body>
 <jsp:include page="/WEB-INF/views/fragments/mainheader2.jsp" />
-		</tr>
 
 <div class="content-wrapper">
 	<h2 class="page-title">회원가입</h2>
@@ -218,15 +217,7 @@ input::placeholder {
 				</td>
 			</tr>
 		</table>
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-		<!-- <input type="hidden" name="role" value="${role}"> -->
-=======
-		<input type="hidden" name="role" value="${role}">
->>>>>>> Stashed changes
-=======
-		<input type="hidden" name="role" value="${role}">
->>>>>>> Stashed changes
+
 		<div class="button-group">
 			<button type="button" onclick="validateAndSubmit()">등록</button>
 			<button type="button" onclick="cancelRegist()">취소</button>
@@ -379,20 +370,8 @@ input::placeholder {
 	    const rrnBack = document.getElementById("rrnBack").value.trim();
 	    const zipCode = document.getElementById("zipCode").value.trim();
 	    const address1 = document.getElementById("address1").value.trim();
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 	    const extraAddress = document.getElementById("extraAddress").value;
 	    const address2 = document.getElementById("address2").value.trim();
-=======
-	    const extraAddress = document.getElementById("extraAddress").value.trim();
-	    const address2 = document.getElementById("address2").value.trim();
-	    const role = document.getElementById("role").value;
->>>>>>> Stashed changes
-=======
-	    const extraAddress = document.getElementById("extraAddress").value.trim();
-	    const address2 = document.getElementById("address2").value.trim();
-	    const role = document.getElementById("role").value;
->>>>>>> Stashed changes
 		
 		//성명 유효성 검사
 		const nameRegex = /^[가-힣]{2,20}$/;
@@ -493,24 +472,10 @@ input::placeholder {
 		        zipCode: zipCode,
 		        address1: address1,
 		        extraAddress: extraAddress,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 		        address2: address2
 		    };
 
 		    fetch("/user/api/regist/submit", {
-=======
-=======
->>>>>>> Stashed changes
-		        address2: address2,
-		        role: role
-		    };
-
-		    fetch("/api/regist/submit", {
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 		        method: "POST",
 		        headers: {"Content-Type": "application/json"},
 		        body: JSON.stringify(data)
@@ -520,16 +485,8 @@ input::placeholder {
 		        if(result.success){
 		            alert(result.msg);
 		            window.location.href = "/user/login"; // 로그인 페이지 이동
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 		        }
 		        else {
-=======
-		        } else {
->>>>>>> Stashed changes
-=======
-		        } else {
->>>>>>> Stashed changes
 		            alert(result.msg);
 		        }
 		    })

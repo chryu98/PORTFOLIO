@@ -153,17 +153,9 @@ body, html {
 </c:if>
 
 async function submitTerms(){
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	    
+
 	const termsData = {};
-	
-=======
-	const termsData = {};
->>>>>>> Stashed changes
-=======
-	const termsData = {};
->>>>>>> Stashed changes
+
     const checkedInputs = document.querySelectorAll("input[type='radio']:checked");
     checkedInputs.forEach(input => {
         termsData[input.name] = input.value;
