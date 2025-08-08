@@ -10,6 +10,7 @@
 <!-- ✅ Slick Slider CSS + JS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.css"/>
 <script src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>
+
 <style>
 
 .white-text,
@@ -1470,6 +1471,9 @@ setInterval(() => {
 
 }, 5000); // 5초마다 교체
 </script>
+
+
+
 
 
 <script src="/js/sessionTime.js"></script>

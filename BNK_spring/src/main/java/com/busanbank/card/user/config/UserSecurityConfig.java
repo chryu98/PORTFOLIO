@@ -108,6 +108,7 @@ public class UserSecurityConfig {
                 	session.removeAttribute("loginUsername");
                 	session.removeAttribute("loginMemberNo");
                 	session.removeAttribute("loginRole");
+                	session.removeAttribute("loginRole");
                 }
 
                 // Spring Security 인증 컨텍스트 제거
