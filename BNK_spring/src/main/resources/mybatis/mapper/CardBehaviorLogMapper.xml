@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.busanbank.card.card.dao.CardBehaviorLogMapper">
+
+ <insert id="insertBehavior" parameterType="com.busanbank.card.card.dto.CardBehaviorLogDto">
+  INSERT INTO CARD_BEHAVIOR_LOG (
+    LOG_NO, MEMBER_NO, CARD_NO, BEHAVIOR_TYPE, BEHAVIOR_TIME, DEVICE_TYPE, USER_AGENT, IP_ADDRESS
+  ) VALUES (
+    SEQ_CARD_BEHAVIOR_LOG.NEXTVAL,
+    #{memberNo, jdbcType=NUMERIC},  <!-- 이 부분 중요 -->
+    #{cardNo, jdbcType=NUMERIC},
+    #{behaviorType, jdbcType=VARCHAR},
+    #{behaviorTime, jdbcType=TIMESTAMP},
+    #{deviceType, jdbcType=VARCHAR},
+    #{userAgent, jdbcType=VARCHAR},
+    #{ipAddress, jdbcType=VARCHAR}
+  )
+</insert>
+
+
+</mapper>

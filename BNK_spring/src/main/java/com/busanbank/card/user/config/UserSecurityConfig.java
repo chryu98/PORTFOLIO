@@ -18,7 +18,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
-import org.springframework.security.web.session.SessionInformationExpiredStrategy;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -108,6 +107,7 @@ public class UserSecurityConfig {
                 	session.removeAttribute("SPRING_SECURITY_CONTEXT");
                 	session.removeAttribute("loginUsername");
                 	session.removeAttribute("loginMemberNo");
+                	session.removeAttribute("loginRole");
                 	session.removeAttribute("loginRole");
                 }
 

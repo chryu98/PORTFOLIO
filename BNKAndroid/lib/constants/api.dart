@@ -5,16 +5,9 @@ class API {
 
   // 이 메서드를 앱 시작 시 1회 실행
   static Future<void> initBaseUrl() async {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const fallbackIp = '192.168.100.106'; // 최후 수동 IP (예: 개발자 1번 PC)
-    
-=======
-=======
->>>>>>> Stashed changes
+
     const fallbackIp = '192.168.0.229'; // 최후 수동 IP (예: 개발자 1번 PC)
 
->>>>>>> Stashed changes
     try {
       // fallbackIp를 먼저 사용해서 base-url 얻기
       final response = await http.get(
