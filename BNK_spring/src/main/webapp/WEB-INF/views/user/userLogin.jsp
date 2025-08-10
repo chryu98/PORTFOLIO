@@ -113,6 +113,9 @@
 		<a href="/user/regist/selectMemberType">회원가입</a>
 	</div>
 </div>
+<c:if test="${not empty msg}">
+	    <script>alert("${msg}");</script>
+</c:if>
 <script>
 	async function login() {
 		const username = document.getElementById("username").value;
@@ -136,6 +139,8 @@
 				location.href = "/";
 			} else {
 				alert(result.message);
+				document.getElementById("username").value = "";
+				document.getElementById("password").value = "";
 			}
 		} catch (error) {
 			console.error("로그인 중 오류 발생:", error);
