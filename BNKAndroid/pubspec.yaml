@@ -45,7 +45,5 @@ flutter:
 
 
   assets:
-    - assets/overseas_pay_domestic.png
-    - assets/overseas_pay_visa.png
-    - assets/overseas_pay_master.png
+    - assets/
 

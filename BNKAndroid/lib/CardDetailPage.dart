@@ -11,6 +11,56 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import 'ApplicationStep1Page.dart';
 
+/// 카테고리와 GIF 자산 경로 매핑
+const Map<String, String> kCategoryGifPath = {
+  '놀이공원': 'assets/amusementpark.gif',
+  '베이커리': 'assets/bread.gif',
+  '교통': 'assets/bus.gif',
+  '포인트&캐시백': 'assets/cashback.gif',
+  '커피': 'assets/coffee.gif',
+  '통신': 'assets/communication.gif',
+  '편의점': 'assets/conveniencestore.gif',
+  '배달앱': 'assets/delivery.gif',
+  '교육': 'assets/education.gif',
+  '환경': 'assets/environment.gif',
+  '주유': 'assets/gasstation.gif',
+  '병원': 'assets/hospital.gif',
+  '라운지': 'assets/lounge.gif',
+  '영화': 'assets/movie.gif',
+  '외식': 'assets/restaurant.gif',
+  '쇼핑': 'assets/shopping.gif',
+  '레저&스포츠': 'assets/sport.gif',
+  '구독': 'assets/subscribe.gif',
+  '공공요금': 'assets/bills.gif',
+  '공유모빌리티': 'assets/rent.gif', // 임시 매핑(렌트/카셰어 느낌)
+  '발렛': 'assets/valet.gif', // 파일명이 ballet.gif면 valet.gif로 바꿔 쓰는 걸 권장
+  //'하이패스', '세무지원' 은 GIF 없다면 자동으로 텍스트 표시됨
+};
+
+Widget buildCategoryHeader(String category, {double height = 22}) {
+  final path = kCategoryGifPath[category];
+  if (path == null) {
+    return Text(
+      '#$category',
+      style: const TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 14,
+        color: Colors.orange,
+      ),
+    );
+  }
+  return SizedBox(
+    height: height,                // 기존 텍스트 높이 느낌과 비슷하게
+    child: Image.asset(
+      path,
+      fit: BoxFit.contain,
+      gaplessPlayback: true,       // 깜빡임 줄이기
+      filterQuality: FilterQuality.low,
+    ),
+  );
+}
+
+
 /// 🔍 키워드 기반 카테고리 추출
 List<String> extractCategories(String text, {int max = 5}) {
   const keywords = {
@@ -86,11 +136,10 @@ Widget buildSimpleBenefitBox(String category, String line, {String? rate}) {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('#$category',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  )),
+              Align(
+                alignment: Alignment.center,
+                child: buildCategoryHeader(category, height: 40), // ← 28~34 정도 권장
+              ),
               const SizedBox(height: 4),
               Text(line,
                   style: const TextStyle(
@@ -252,20 +301,14 @@ Widget buildCleanBenefitBox(String category, String content) {
 
       // 내부는 왼쪽 정렬
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center, // ← 가운데 정렬
         children: [
-          Text(
-            '#$category',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: Colors.orange,
-            ),
-            textAlign: TextAlign.left, // optional
+          Center(
+            child: buildCategoryHeader(category, height: 80), // ← 크기 키움 (32~40 추천)
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 16),
           RichText(
-            textAlign: TextAlign.left,
+            textAlign: TextAlign.center, // ← 본문 텍스트 가운데
             text: TextSpan(
               style: const TextStyle(color: Colors.black, fontSize: 13),
               children: spans,
