@@ -306,7 +306,7 @@ Widget buildCleanBenefitBox(String category, String content) {
         crossAxisAlignment: CrossAxisAlignment.center, // ← 가운데 정렬
         children: [
           Center(
-            child: buildCategoryHeader(category, height: 80), // ← 크기 키움 (32~40 추천)
+            child: buildCategoryHeader(category, height: 160), // ← 크기 키움 (32~40 추천)
           ),
           const SizedBox(height: 16),
           RichText(
