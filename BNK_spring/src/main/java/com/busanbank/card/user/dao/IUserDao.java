@@ -18,7 +18,7 @@ public interface IUserDao {
 	@Select("SELECT * FROM member WHERE username = #{username}")
 	UserDto findByUsername(String username);
 
-	@Select("SELECT * FROM member WHERE username = #{memberNo}")
+	@Select("SELECT * FROM member WHERE member_no = #{memberNo}")
 	UserDto findByMemberNo(int memberNo);
 	
 	@Insert("INSERT INTO member (member_no, username, password, rrn_front, rrn_gender, rrn_tail_enc, name, zip_code, address1, address2, role) "

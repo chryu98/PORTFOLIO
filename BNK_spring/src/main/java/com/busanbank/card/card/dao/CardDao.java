@@ -13,6 +13,8 @@ public interface CardDao {
 	
     CardDto selectById(@Param("cardNo") long cardNo); // 카드 1건 조회 (필요 시)
 
+    String selectCardTypeById(@Param("cardNo") long cardNo);
+
     int updateViewCount(@Param("cardNo") long cardNo);  // 조회수  (예시)
     
     List<CardDto> searchByKeyword(

@@ -11,6 +11,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.busanbank.card.card.dao.CardDao;
+import com.busanbank.card.cardapply.dao.ICardApplyDao;
+import com.busanbank.card.cardapply.dto.ApplicationPersonTempDto;
+import com.busanbank.card.cardapply.dto.CardApplicationTempDto;
 import com.busanbank.card.cardapply.dto.UserInputInfoDto;
 import com.busanbank.card.user.dao.IUserDao;
 import com.busanbank.card.user.dto.UserDto;
@@ -24,6 +28,10 @@ public class CardApplyRestController {
 
 	@Autowired
 	private IUserDao userDao;
+	@Autowired
+	private CardDao cardDao;
+	@Autowired
+	private ICardApplyDao cardApplyDao;
 	
 	@PostMapping("/validateInfo")
 	public ResponseEntity<Map<String, Object>> validateInfo(@RequestBody UserInputInfoDto userInputInfo,
@@ -31,7 +39,7 @@ public class CardApplyRestController {
 		Map<String, Object> result = new HashMap<>();
 		
 		//로그인 여부 확인
-        Integer memberNo = (Integer) session.getAttribute("memberNo");
+        Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
         if (memberNo == null) {
             result.put("success", false);
             result.put("message", "로그인이 필요합니다.");
@@ -79,7 +87,52 @@ public class CardApplyRestController {
             return ResponseEntity.ok(result);
         }
 
-        //통과
+        //통과 시 임시 저장 - 카드 발급
+        CardApplicationTempDto cardApplicationTemp = new CardApplicationTempDto();
+        
+        cardApplicationTemp.setMemberNo(memberNo);
+        
+        Long cardNo = userInputInfo.getCardNo();
+        cardApplicationTemp.setCardNo(cardNo);
+        
+        cardApplicationTemp.setStatus("DRAFT");
+        
+        String cardType = cardDao.selectCardTypeById(cardNo);
+        if(cardType.equals("신용")) {
+        	cardApplicationTemp.setIsCreditCard("Y");
+        }
+        else {        	
+        	cardApplicationTemp.setIsCreditCard("N");
+        }
+        
+        //KYC 시점 계좌 보유 여부 임시값 "N"
+        cardApplicationTemp.setHasAccountAtKyc("N");
+        //단기 다수 계좌 여부 임시값 "N"
+        cardApplicationTemp.setIsShortTermMulti("N");   
+        
+        cardApplyDao.insertCardApplicationTemp(cardApplicationTemp);
+        
+        //통과 시 임시 저장 - 신청자 정보
+        ApplicationPersonTempDto personTemp = new ApplicationPersonTempDto();
+        
+        personTemp.setApplicationNo(cardApplicationTemp.getApplicationNo()); // 방금 insert된 값
+        personTemp.setName(userInputInfo.getName());
+        personTemp.setNameEng(userInputInfo.getEngFirstName() + " " + userInputInfo.getEngLastName());
+        
+        personTemp.setRrnFront(userInputInfo.getRrnFront());
+        
+        String rrnBack = userInputInfo.getRrnBack();
+        
+        String rrnGender = rrnBack.substring(0, 1);
+        personTemp.setRrnGender(rrnGender);
+
+        String rrnTail = rrnBack.substring(1);
+        String rrnTailEnc = AESUtil.encrypt(rrnTail);
+        personTemp.setRrnTailEnc(rrnTailEnc);
+        
+        cardApplyDao.insertApplicationPersonTemp(personTemp);
+        
+        //성공 응답
         result.put("success", true);
         result.put("message", "검증 완료");
         return ResponseEntity.ok(result);

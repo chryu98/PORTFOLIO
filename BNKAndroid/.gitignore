@@ -1,45 +1,98 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
+# =========================
+# OS / 편집기 / 기타
+# =========================
 .DS_Store
-.atom/
-.build/
-.buildlog/
+Thumbs.db
+*.log
+*.swp
+*.tmp
+*.bak
+*.class
+*.pyc
 .history
 .svn/
-.swiftpm/
-migrate_working_dir/
-
-# IntelliJ related
+.atom/
+.vscode/
+.idea/
 *.iml
 *.ipr
 *.iws
-.idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# =========================
+# Flutter / Dart / Pub
+# =========================
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+.melos_tool/
 .pub-cache/
 .pub/
-/build/
+.packages
+.migrate_working_dir/
+# 문서/생성물
+**/doc/api/
+# 빌드 아웃풋(루트)
+build/
+# (웹 빌드는 보통 포함해도 됨. 필요 시 아래 주석 해제)
+# web/build/
 
-# Symbolication related
+# 심볼/난독화
 app.*.symbols
-
-# Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# =========================
+# Android
+# =========================
+# Gradle 캐시/빌드
+.gradle/
+android/.gradle/
+.gradle_isolated/
+.gradle_iso_new/
+# 모듈 빌드 아웃풋
+android/build/
+android/**/build/
+android/**/outputs/
+# 앱 변형(디버그/프로파일/릴리즈)
+android/app/debug/
+android/app/profile/
+android/app/release/
+# 로컬 설정/키 파일
+android/local.properties
+**/*.keystore
+**/*.jks
+# 캡쳐/기타
+android/**/captures/
+
+# =========================
+# iOS / macOS
+# =========================
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/.generated/
+# CocoaPods 워크스페이스/유도 파일은 Pod 재생성으로 대체됨
+macos/Pods/
+macos/.symlinks/
+# Xcode 사용자별 설정
+**/*.xcuserstate
+**/*.xcuserdata/
+# 파생 데이터(선택) — Xcode 빌드 캐시
+# ~/Library/Developer/Xcode/DerivedData/
+
+# =========================
+# Windows / Linux / 기타 데스크톱
+# =========================
+windows/**/x64/
+windows/**/x86/
+linux/**/build/
+# CMake/빌드 산출물
+**/CMakeBuilds/
+**/cmake-build-*/
+**/*.obj
+**/*.o
+
+# =========================
+# 유지해야 할 생성 파일 예외
+# =========================
+!**/lib/generated_plugin_registrant.dart
