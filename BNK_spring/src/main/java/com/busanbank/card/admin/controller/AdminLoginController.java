@@ -62,4 +62,22 @@ public class AdminLoginController {
         result.put("message", "로그아웃 되었습니다.");
         return ResponseEntity.ok(result);
     }
+    
+    @GetMapping("/info")
+    public ResponseEntity<?> getAdminInfo(HttpSession session) {
+        AdminDto admin = (AdminDto) session.getAttribute("adminLoginUser"); // ← ✅ 정확한 key
+
+        if (admin == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                 .body(Map.of("message", "세션 없음"));
+        }
+
+        return ResponseEntity.ok(Map.of(
+            "name", admin.getName(),          // Flutter에서 adminName에 표시됨
+            "username", admin.getUsername()
+        ));
+    }
+
+
+
 }

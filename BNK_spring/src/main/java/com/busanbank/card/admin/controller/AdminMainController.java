@@ -116,6 +116,18 @@ public class AdminMainController {
 		}
 		return "admin/adminTerms";
 	}
+	
+	
+	// 고객 정보 관리
+	@GetMapping("/userinfomanagement")
+	public String userinfomanagement() {
+		AdminDto admin = adminSession.getLoginUser();
+		if (admin == null) {
+			// 로그인 안한 경우
+			return "redirect:/admin/adminLoginForm";
+		}
+		return "admin/adminUserInfoManagement";
+	}
 
 	
 	//=========================================

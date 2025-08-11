@@ -1,4 +1,5 @@
 <%@ page contentType="text/html; charset=UTF-8" isELIgnored="true" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <!DOCTYPE html>
 <html>
 <head>
@@ -222,7 +223,7 @@
   <%
     String cardNo = request.getParameter("no"); // URL에서 no 파라미터 받아옴
 %>
-<a href="/application/startForm?cardNo=<%=cardNo%>"
+<a href="/card/apply/customer-info/<%=cardNo%>"
    style="display:inline-block; padding:12px 24px; background:#d44; color:white; font-weight:bold; border-radius:8px; text-decoration:none;">
    카드 발급하기
 </a>
@@ -425,6 +426,36 @@
     el.classList.toggle("active");
   }
 </script>
+<%
+    com.busanbank.card.user.dto.UserDto loginUser = 
+        (com.busanbank.card.user.dto.UserDto) session.getAttribute("loginUser");
+    Long memberNo = (loginUser != null) ? Long.valueOf(loginUser.getMemberNo()) : null;
+%>
+<script>
+const memberNo = <%= memberNo != null ? "'" + memberNo + "'" : "null" %>;
+console.log("🧪 memberNo (from session):", memberNo);
+  
+  if (memberNo !== 'null') {
+    fetch("/api/log/card-behavior", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        memberNo: Number(memberNo),
+        cardNo: Number(cardNo),
+        behaviorType: "VIEW",
+        deviceType: /Mobi|Android/i.test(navigator.userAgent) ? "MOBILE" : "PC",
+        userAgent: navigator.userAgent
+      })
+    }).then(res => {
+      console.log("✅ 로그 저장 응답:", res.status);
+    }).catch(err => {
+      console.error("❌ 로그 저장 에러:", err);
+    });
+  } else {
+    console.warn("⛔ memberNo나 cardNo가 비어 있어서 로그 저장 안 됨");
+  }
+</script>
+
 
 <script>
    let remainingSeconds = <%= request.getAttribute("remainingSeconds") %>;

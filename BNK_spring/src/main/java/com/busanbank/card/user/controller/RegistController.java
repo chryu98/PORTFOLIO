@@ -62,8 +62,20 @@ public class RegistController {
 	}
 	
 	@GetMapping("/userRegistForm")
-	public String userRegistForm() {
-
+	public String userRegistForm(HttpSession session, Model model, 
+								 RedirectAttributes rttr) {
+		String username = (String) session.getAttribute("loginUsername");
+        if (username != null) {
+            rttr.addFlashAttribute("message", "이미 로그인된 사용자입니다.");
+            return "redirect:/";
+        }
+        
+        String role = (String) session.getAttribute("role");
+        if (role == null) {
+            rttr.addFlashAttribute("message", "회원유형이 선택되지 않았습니다.");
+            return "redirect:/user/regist/selectMemberType";
+        }
+        
 		return "user/userRegistForm";
 	}
 

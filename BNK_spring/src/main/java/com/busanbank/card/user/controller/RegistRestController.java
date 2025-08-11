@@ -197,7 +197,6 @@ public class RegistRestController {
 		
 		String role = (String) session.getAttribute("role");
 		user.setRole(role);
-
 		
 		userDao.insertMember(user);
 		
@@ -215,7 +214,6 @@ public class RegistRestController {
 		
 		userDao.insertTermsAgreement(term2Agree);
 		
-
 		session.removeAttribute("role");
 
 		response.put("success", true);
