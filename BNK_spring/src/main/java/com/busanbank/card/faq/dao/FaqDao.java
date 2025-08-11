@@ -125,10 +125,10 @@ public class FaqDao {
 
     private FaqDto mapRow(ResultSet rs) throws SQLException {
         return new FaqDto(
-            (int)rs.getLong("FAQ_NO"),
+            (int) rs.getLong("FAQ_NO"),
             rs.getString("FAQ_QUESTION"),
             rs.getString("FAQ_ANSWER"),
-            rs.getDate("REG_DATE"),
+            rs.getTimestamp("REG_DATE"),   // getDate() → getTimestamp()로 교체
             rs.getString("WRITER"),
             rs.getString("ADMIN"),
             rs.getString("CATTEGORY")
@@ -169,4 +169,59 @@ public class FaqDao {
             likeKeyword
         );
     }
+    
+    public int countFaqsAdvanced(String keyword, String category) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT COUNT(*)
+              FROM FAQ
+             WHERE (FAQ_QUESTION LIKE ? OR FAQ_ANSWER LIKE ?)
+        """);
+        var params = new java.util.ArrayList<Object>();
+        String like = "%" + (keyword == null ? "" : keyword) + "%";
+        params.add(like); params.add(like);
+
+        if (category != null && !category.isBlank() && !"전체".equals(category)) {
+            sql.append(" AND CATTEGORY = ? ");
+            params.add(category);
+        }
+        return jdbcTemplate.queryForObject(sql.toString(), Integer.class, params.toArray());
+    }
+
+    /** sort: "latest" | "popular" (그 외는 popular 처리), 1-based ROWNUM 페이징 유지 */
+    public List<FaqDto> searchFaqsWithPagingAdvanced(
+            String keyword, String category, String sort, int startRow, int endRow) {
+
+        String orderBy = "LATEST".equalsIgnoreCase(sort)
+                ? " REG_DATE DESC "
+                : " NVL(HELPFUL_CNT,0) DESC, REG_DATE DESC "; // popular 기본
+
+        StringBuilder inner = new StringBuilder("""
+            SELECT FAQ_NO, FAQ_QUESTION, FAQ_ANSWER,
+                   REG_DATE, WRITER, ADMIN, CATTEGORY, NVL(HELPFUL_CNT,0) AS HELPFUL_CNT
+              FROM FAQ
+             WHERE (FAQ_QUESTION LIKE ? OR FAQ_ANSWER LIKE ?)
+        """);
+        var params = new java.util.ArrayList<Object>();
+        String like = "%" + (keyword == null ? "" : keyword) + "%";
+        params.add(like); params.add(like);
+
+        if (category != null && !category.isBlank() && !"전체".equals(category)) {
+            inner.append(" AND CATTEGORY = ? ");
+            params.add(category);
+        }
+
+        inner.append(" ORDER BY ").append(orderBy);
+
+        String sql = """
+            SELECT * FROM (
+                SELECT ROWNUM AS rnum, A.* FROM ( %s ) A WHERE ROWNUM <= ?
+            ) WHERE rnum >= ?
+        """.formatted(inner);
+
+        params.add(endRow);
+        params.add(startRow);
+
+        return jdbcTemplate.query(sql, (rs, i) -> mapRow(rs), params.toArray());
+    }
+
 }
