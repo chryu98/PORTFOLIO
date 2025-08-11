@@ -24,6 +24,11 @@
 		SELECT * FROM CARD WHERE CARD_NO = #{cardNo}
 	</select>
 
+	<select id="selectCardTypeById"
+		resultType="String">
+		SELECT CARD_TYPE FROM CARD WHERE CARD_NO = #{cardNo}
+	</select>
+
 
 	<!-- 뷰카운트 -->
 	<update id="updateViewCount">

@@ -4,6 +4,8 @@ import lombok.Data;
 
 @Data
 public class UserInputInfoDto {
+	
+	private Long cardNo;
     private String name;
     private String engFirstName;
     private String engLastName;

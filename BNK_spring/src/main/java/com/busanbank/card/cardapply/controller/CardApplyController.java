@@ -26,7 +26,7 @@ public class CardApplyController {
 							   HttpSession session, Model model,
 							   RedirectAttributes rttr) throws Exception {
 		
-		Integer memberNo = (Integer) session.getAttribute("memberNo");		
+		Integer memberNo = (Integer) session.getAttribute("loginMemberNo");		
 
 		if(memberNo == null) {
 			model.addAttribute("msg", "로그인이 필요한 서비스입니다.");
@@ -40,7 +40,14 @@ public class CardApplyController {
 		
 		model.addAttribute("loginUser", loginUser);
 		model.addAttribute("rrnBack", rrnBack);
+		model.addAttribute("cardNo", cardNo);
 		
-		return "cardapply/CustomerInfo";
+		return "cardapply/customerInfo";
+	}
+	
+	@GetMapping("/addressInfo")
+	public String addressInfo() {
+		
+		return "cardapply/addressInfo";
 	}
 }

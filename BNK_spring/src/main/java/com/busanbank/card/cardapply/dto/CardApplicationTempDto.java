@@ -5,9 +5,9 @@ import java.util.Date;
 import lombok.Data;
 
 @Data
-public class CardApplicationDto {
+public class CardApplicationTempDto {
 	
-	private Integer applicationNo;     // 신청 PK (시퀀스)
+    private Integer applicationNo;     // 신청 PK (시퀀스)
     private Integer memberNo;          // 회원 번호
     private Long cardNo;            // 카드 번호 (상품 ID)
     private String status;             // 신청 상태 (ex: DRAFT)
