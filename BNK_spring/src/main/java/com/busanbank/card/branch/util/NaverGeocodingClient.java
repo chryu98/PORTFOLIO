@@ -30,7 +30,8 @@ public class NaverGeocodingClient {
 
         ResponseEntity<JsonNode> response = restTemplate.getForEntity(builder.toUriString(), JsonNode.class);
         JsonNode body = response.getBody();
-
+        System.out.println("Juso raw: " + body); // ✅ 전체 로그로 entX/entY 존재 여부 확인
+        
         if (body != null && body.has("results")) {
             JsonNode results = body.get("results");
             if (results.has("juso") && results.get("juso").size() > 0) {
