@@ -13,28 +13,30 @@ import 'ApplicationStep1Page.dart';
 
 /// 카테고리와 GIF 자산 경로 매핑
 const Map<String, String> kCategoryGifPath = {
-  '놀이공원': 'assets/amusementpark.gif',
-  '베이커리': 'assets/bread.gif',
-  '교통': 'assets/bus.gif',
-  '포인트&캐시백': 'assets/cashback.gif',
-  '커피': 'assets/coffee.gif',
-  '통신': 'assets/communication.gif',
-  '편의점': 'assets/conveniencestore.gif',
-  '배달앱': 'assets/delivery.gif',
-  '교육': 'assets/education.gif',
-  '환경': 'assets/environment.gif',
-  '주유': 'assets/gasstation.gif',
-  '병원': 'assets/hospital.gif',
-  '라운지': 'assets/lounge.gif',
-  '영화': 'assets/movie.gif',
-  '외식': 'assets/restaurant.gif',
-  '쇼핑': 'assets/shopping.gif',
-  '레저&스포츠': 'assets/sport.gif',
-  '구독': 'assets/subscribe.gif',
-  '공공요금': 'assets/bills.gif',
-  '공유모빌리티': 'assets/rent.gif', // 임시 매핑(렌트/카셰어 느낌)
-  '발렛': 'assets/valet.gif', // 파일명이 ballet.gif면 valet.gif로 바꿔 쓰는 걸 권장
+  '놀이공원': 'assets/amusementpark.png',
+  '베이커리': 'assets/bread.png',
+  '교통': 'assets/bus.png',
+  '포인트&캐시백': 'assets/cashback.png',
+  '커피': 'assets/coffee.png',
+  '통신': 'assets/communication.png',
+  '편의점': 'assets/conveniencestore.png',
+  '배달앱': 'assets/delivery.png',
+  '교육': 'assets/education.png',
+  '환경': 'assets/environment.png',
+  '주유': 'assets/gasstation.png',
+  '병원': 'assets/hospital.png',
+  '라운지': 'assets/lounge.png',
+  '영화': 'assets/movie.png',
+  '외식': 'assets/restaurant.png',
+  '쇼핑': 'assets/shopping.png',
+  '레저&스포츠': 'assets/sport.png',
+  '구독': 'assets/subscribe.png',
+  '공공요금': 'assets/bills.png',
+  '공유모빌리티': 'assets/rent.png', // 임시 매핑(렌트/카셰어 느낌)
+  '발렛': 'assets/valet.png', // 파일명이 ballet.gif면 valet.gif로 바꿔 쓰는 걸 권장
   //'하이패스', '세무지원' 은 GIF 없다면 자동으로 텍스트 표시됨
+  '하이패스' : 'assets/highpass.png',
+  '세무지원' : 'assets/taxsupport.png',
 };
 
 Widget buildCategoryHeader(String category, {double height = 22}) {
