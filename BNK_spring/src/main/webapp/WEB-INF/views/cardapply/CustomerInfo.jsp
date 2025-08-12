@@ -49,7 +49,7 @@
       const result = await response.json();
 
       if (result.success) {
-        location.href = '/card/apply/addressInfo';
+        location.href = '/card/apply/contactInfo?applicationNo=' + encodeURIComponent(result.applicationNo);
       }
       else {
         alert(result.message);

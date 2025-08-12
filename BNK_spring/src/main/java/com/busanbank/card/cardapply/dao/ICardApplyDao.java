@@ -3,9 +3,12 @@ package com.busanbank.card.cardapply.dao;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.SelectKey;
+import org.apache.ibatis.annotations.Update;
 
 import com.busanbank.card.cardapply.dto.ApplicationPersonTempDto;
 import com.busanbank.card.cardapply.dto.CardApplicationTempDto;
+import com.busanbank.card.cardapply.dto.ContactInfoDto;
+import com.busanbank.card.cardapply.dto.JobInfoDto;
 
 @Mapper
 public interface ICardApplyDao {
@@ -24,4 +27,15 @@ public interface ICardApplyDao {
 	          + "VALUES (APPLICATION_PERSON_TEMP_SEQ.NEXTVAL, #{applicationNo}, #{name}, #{nameEng}, "
 	          + "#{rrnFront}, #{rrnGender}, #{rrnTailEnc}, SYSDATE)")
 	int insertApplicationPersonTemp(ApplicationPersonTempDto personTemp);
+
+	@Update("UPDATE APPLICATION_PERSON_TEMP "
+		      + "SET EMAIL = #{email}, PHONE = #{phone} "
+		      + "WHERE APPLICATION_NO = #{applicationNo}")
+	int updateApplicationContactTemp(ContactInfoDto contactInfo);
+
+	@Update("UPDATE APPLICATION_PERSON_TEMP "
+			+ "SET JOB = #{job}, PURPOSE = #{purpose}, FUND_SOURCE = #{fundSource} "
+			+ "WHERE APPLICATION_NO = #{applicationNo}")
+	int updateApplicationJobTemp(JobInfoDto jobInfo);
+	
 }

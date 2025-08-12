@@ -14,6 +14,8 @@ import com.busanbank.card.card.dao.CardDao;
 import com.busanbank.card.cardapply.dao.ICardApplyDao;
 import com.busanbank.card.cardapply.dto.ApplicationPersonTempDto;
 import com.busanbank.card.cardapply.dto.CardApplicationTempDto;
+import com.busanbank.card.cardapply.dto.ContactInfoDto;
+import com.busanbank.card.cardapply.dto.JobInfoDto;
 import com.busanbank.card.cardapply.dto.UserInputInfoDto;
 import com.busanbank.card.user.dao.IUserDao;
 import com.busanbank.card.user.dto.UserDto;
@@ -184,4 +186,85 @@ public class CardApplyRestController {
         char genderCode = rrnBack.charAt(0);
         return genderCode >= '1' && genderCode <= '4';
     }
+    
+    @PostMapping("/validateContact")
+    public ResponseEntity<Map<String, Object>> validateContact(@RequestBody ContactInfoDto contactInfo) {
+        Map<String, Object> result = new HashMap<>();
+
+        if (isNullOrEmpty(contactInfo.getEmail())) {
+            return fail(result, "이메일을 입력해주세요.");
+        }
+        if (isNullOrEmpty(contactInfo.getPhone())) {
+            return fail(result, "연락처를 입력해주세요.");
+        }
+        
+        if (!isValidEmail(contactInfo.getEmail())) {
+            return fail(result, "유효한 이메일 형식이 아닙니다.");
+        }
+        if (!isValidPhone(contactInfo.getPhone())) {
+            return fail(result, "유효한 연락처 형식이 아닙니다. (예: 010-1234-5678)");
+        }
+
+        // DB에 저장 (임시 테이블 업데이트)
+        int updated = cardApplyDao.updateApplicationContactTemp(contactInfo);
+        if (updated == 0) {
+            return fail(result, "임시 신청 정보를 찾을 수 없습니다.");
+        }
+
+        result.put("success", true);
+        //result.put("message", "연락처 정보가 저장되었습니다.");
+        result.put("applicationNo", contactInfo.getApplicationNo());
+        return ResponseEntity.ok(result);
+    }
+    
+    private ResponseEntity<Map<String, Object>> fail(Map<String, Object> result, String message) {
+        result.put("success", false);
+        result.put("message", message);
+        return ResponseEntity.ok(result);
+    }
+    
+    private boolean isValidEmail(String email) {
+    	return email != null && email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
+    }
+    
+    private boolean isValidPhone(String phone) {
+    	return phone != null && phone.matches("^010-[0-9]{4}-[0-9]{4}$");
+    }
+    
+    @PostMapping("/saveJobInfo")
+    public ResponseEntity<Map<String, Object>> saveJobInfo(@RequestBody JobInfoDto jobInfo) {
+        Map<String, Object> result = new HashMap<>();
+
+        if (jobInfo.getJob() == null || jobInfo.getJob().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "직업을 선택하세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        if (jobInfo.getPurpose() == null || jobInfo.getPurpose().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "거래 목적을 선택하세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        if (jobInfo.getFundSource() == null || jobInfo.getFundSource().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "자금 출처를 선택하세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        int updated = cardApplyDao.updateApplicationJobTemp(jobInfo);
+        
+        if (updated == 0) {
+            result.put("success", false);
+            result.put("message", "정보 저장에 실패했습니다.");
+            return ResponseEntity.ok(result);
+        }
+        
+        result.put("success", true);
+        result.put("applicationNo", jobInfo.getApplicationNo());
+        return ResponseEntity.ok(result);
+    }
 }
+
+

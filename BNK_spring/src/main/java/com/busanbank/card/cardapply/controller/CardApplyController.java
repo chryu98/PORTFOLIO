@@ -6,6 +6,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.busanbank.card.user.dao.IUserDao;
@@ -45,9 +46,24 @@ public class CardApplyController {
 		return "cardapply/customerInfo";
 	}
 	
+	@GetMapping("/contactInfo")
+	public String contactInfo(@RequestParam("applicationNo") Integer applicationNo,
+							  Model model) {
+		model.addAttribute("applicationNo", applicationNo);
+		return "cardapply/contactInfo";
+	}
+
+	@GetMapping("/jobInfo")
+	public String jobInfo(@RequestParam("applicationNo") Integer applicationNo,
+			  			  Model model) {		
+		model.addAttribute("applicationNo", applicationNo);
+		return "cardapply/jobInfo";
+	}
+
 	@GetMapping("/addressInfo")
-	public String addressInfo() {
-		
+	public String addressInfo(@RequestParam("applicationNo") Integer applicationNo,
+			Model model) {		
+		model.addAttribute("applicationNo", applicationNo);
 		return "cardapply/addressInfo";
 	}
 }
