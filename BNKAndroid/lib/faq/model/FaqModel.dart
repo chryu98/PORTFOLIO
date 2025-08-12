@@ -1,46 +1,44 @@
 // lib/faq/model/FaqModel.dart
 class FaqModel {
   final int faqNo;
-  final String question;
-  final String answer;
-  final String category;
+  final String faqQuestion;
+  final String faqAnswer;
   final DateTime? regDate;
-  final String? writer;
-  final String? admin;
+  final String writer;
+  final String admin;
+  final String category; // 서버는 cattegory(오타)지만 내부에선 category로 통일
 
   FaqModel({
     required this.faqNo,
-    required this.question,
-    required this.answer,
+    required this.faqQuestion,
+    required this.faqAnswer,
+    required this.regDate,
+    required this.writer,
+    required this.admin,
     required this.category,
-    this.regDate,
-    this.writer,
-    this.admin,
   });
 
   factory FaqModel.fromJson(Map<String, dynamic> j) {
-    final cat = (j['category'] ?? j['cattegory'] ?? '기타').toString();
-    final raw = j['regDate']?.toString();
-    DateTime? dt;
-    if (raw != null && raw.isNotEmpty) {
-      dt = DateTime.tryParse(raw) ?? _tryParseYMDHMS(raw);
+    // 날짜: "yyyy-MM-dd HH:mm:ss"일 수 있으니 공백을 T로 바꿔 시도
+    DateTime? parsed;
+    final raw = (j['regDate'] ?? '').toString().trim();
+    if (raw.isNotEmpty) {
+      parsed = DateTime.tryParse(raw.replaceFirst(' ', 'T'));
     }
-    return FaqModel(
-      faqNo: (j['faqNo'] ?? j['id']) as int,
-      question: j['faqQuestion']?.toString() ?? '',
-      answer: j['faqAnswer']?.toString() ?? '',
-      category: cat,
-      regDate: dt,
-      writer: j['writer']?.toString(),
-      admin: j['admin']?.toString(),
-    );
-  }
 
-  static DateTime? _tryParseYMDHMS(String s) {
-    try {
-      final p = s.split(RegExp(r'[\s:-]')).map(int.parse).toList();
-      if (p.length >= 6) return DateTime(p[0], p[1], p[2], p[3], p[4], p[5]);
-    } catch (_) {}
-    return null;
+    return FaqModel(
+      faqNo: (j['faqNo'] ?? 0) is int
+          ? (j['faqNo'] as int)
+          : int.tryParse(j['faqNo']?.toString() ?? '0') ?? 0,
+
+      // 문자열은 전부 toString()으로 널 방어
+      faqQuestion: (j['faqQuestion'] ?? '').toString(),
+      faqAnswer: (j['faqAnswer'] ?? '').toString(),
+      regDate: parsed,
+      writer: (j['writer'] ?? '').toString(),
+      admin: (j['admin'] ?? '').toString(),
+      // cattegory(오타) or category 둘 다 흡수, 기본값 '기타'
+      category: (j['cattegory'] ?? j['category'] ?? '기타').toString(),
+    );
   }
 }
