@@ -11,6 +11,9 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import 'ApplicationStep1Page.dart';
 
+//혜택 png크기 조절
+const double kBenefitIconHeight = 150; // 120~160 맘에 드는 값
+
 /// 카테고리와 GIF 자산 경로 매핑
 const Map<String, String> kCategoryGifPath = {
   '놀이공원': 'assets/amusementpark.png',
@@ -61,6 +64,88 @@ Widget buildCategoryHeader(String category, {double height = 22}) {
     ),
   );
 }
+
+bool _looksLikeDetail(String s) {
+  final t = s.trim();
+
+  // 숫자·금액·제한어가 있으면 디테일로 간주
+  final hasNumberOrUnit = RegExp(r'(\d+[%원]|[0-9,]+|월|최대|이상|이하)').hasMatch(t);
+
+  // 디테일성 키워드 확장 (포함/제외/가능/지원/제공/적용/환급/수수료 등)
+  final hasDetailWord = RegExp(
+      r'(무료|무제한|청구|적립|캐시백|면제|추가|포인트|포함|제외|가능|지원|제공|적용|환급|수수료|라운지|발급|이용)'
+  ).hasMatch(t);
+
+  // 아주 짧은 제목(숫자 없고, 끝이 할인/서비스/혜택)만 제목으로 판단
+  final looksLikeShortTitle =
+      t.length <= 14 &&
+          !hasNumberOrUnit &&
+          RegExp(r'(혜택|할인|서비스)\s*$').hasMatch(t);
+
+  // 괄호가 있으면 보통 설명문이므로 포함
+  final hasParen = t.contains('(') || t.contains(')');
+
+  return (hasNumberOrUnit || hasDetailWord || hasParen) && !looksLikeShortTitle;
+}
+
+
+String? _categoryOf(String line, Map<String, List<String>> keywordMap) {
+  final src = line.toLowerCase();
+  for (final e in keywordMap.entries) {
+    for (final k in e.value) {
+      if (src.contains(k.toLowerCase())) return e.key;
+    }
+  }
+  return null;
+}
+
+List<TextSpan> _percentHighlight(String content) {
+  final regex = RegExp(r'(\d{1,2}(?:\.\d+)?%|[0-9,]+원)');
+  final spans = <TextSpan>[];
+  var last = 0;
+  for (final m in regex.allMatches(content)) {
+    if (m.start > last) spans.add(TextSpan(text: content.substring(last, m.start)));
+    spans.add(TextSpan(
+      text: content.substring(m.start, m.end),
+      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xffB91111)),
+    ));
+    last = m.end;
+  }
+  if (last < content.length) spans.add(TextSpan(text: content.substring(last)));
+  return spans;
+}
+
+Widget buildGroupedBenefitBox(String category, List<String> details) {
+  return Center(
+    child: Container(
+      width: 390,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+
+        borderRadius: BorderRadius.circular(12),
+
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // ⬇️ 여기만 바꾸면 바로 커짐
+          buildCategoryHeader(category, height: kBenefitIconHeight),
+          const SizedBox(height: 12),
+          ...details.map((d) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(style: const TextStyle(color: Colors.black, fontSize: 13),
+                  children: _percentHighlight(d)),
+            ),
+          )),
+        ],
+      ),
+    ),
+  );
+}
+
 
 
 /// 🔍 키워드 기반 카테고리 추출
@@ -158,8 +243,6 @@ Widget buildSimpleBenefitBox(String category, String line, {String? rate}) {
 }
 
 /// ✅ 통문자열 → 요약 박스 리스트로 자동 변환 (퍼센트 강조만)
-
-
 List<Widget> buildSummarizedBenefits(String rawText) {
   final Map<String, List<String>> keywordMap = {
     '커피': ['커피', '스타벅스', '이디야', '카페베네'],
@@ -188,32 +271,45 @@ List<Widget> buildSummarizedBenefits(String rawText) {
   };
 
   final lines = rawText
-      .split(RegExp(r'\n|(?<!\d)-|•|·|◆|▶|\(\d+\)|(?=\d+\.\s)'))
-      .map((e) => e.trim().replaceFirst(RegExp(r'^(\d+\.|\(\d+\))\s*'), ''))
+      .split(RegExp(r'[\r\n]+|•|·|◆|▶|▪|●'))
+      .map((e) => e.trim())
       .where((e) => e.isNotEmpty)
       .toList();
 
-  final widgets = <Widget>[];
+  // 카테고리 → 상세문장들
+  final Map<String, List<String>> groups = {};
+  String? lastCat;
 
-  for (int i = 0; i < lines.length; i++) {
-    final line = lines[i];
+  for (final line in lines) {
+    // 현재 줄에서 카테고리 감지 (없으면 직전 카테고리 유지)
+    final detected = _categoryOf(line, keywordMap);
+    final cat = detected ?? lastCat;
 
-    for (final entry in keywordMap.entries) {
-      final category = entry.key;
-      final keywords = entry.value;
+    // 제목처럼 보이면(짧은 "커피 할인" 등) → 카테고리만 기억하고 건너뛰기
+    if (!_looksLikeDetail(line)) {
+      if (detected != null) lastCat = detected;
+      continue;
+    }
 
-      if (keywords.any((k) => line.contains(k))) {
-        widgets.add(_AnimatedOnVisible(
-          key: Key('benefit_$i'),
-          child: buildCleanBenefitBox(category, line),
-        ));
-        break;
-      }
+    // 카테고리 하나라도 잡히면 동일 블록으로 묶기
+    if (cat != null) {
+      groups.putIfAbsent(cat, () => <String>[]).add(line);
+      lastCat = cat;
     }
   }
 
+  // 그룹 박스 위젯으로 변환
+  final widgets = <Widget>[];
+  var idx = 0;
+  for (final entry in groups.entries) {
+    widgets.add(_AnimatedOnVisible(
+      key: Key('benefit_group_${idx++}'),
+      child: buildGroupedBenefitBox(entry.key, entry.value),
+    ));
+  }
   return widgets;
 }
+
 
 class _AnimatedOnVisible extends StatefulWidget {
   final Widget child;
