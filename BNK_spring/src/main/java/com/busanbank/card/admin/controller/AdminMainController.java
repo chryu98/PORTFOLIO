@@ -128,6 +128,17 @@ public class AdminMainController {
 		}
 		return "admin/adminUserInfoManagement";
 	}
+	
+	// 추천 상품 관리
+	@GetMapping("recommenproducts")
+	public String recommentproducts() {
+		AdminDto admin = adminSession.getLoginUser();
+		if (admin == null) {
+			// 로그인 안한 경우
+			return "redirect:/admin/adminLoginForm";
+		}
+		return "admin/adminRecommenProducts";
+	}
 
 	
 	//=========================================
