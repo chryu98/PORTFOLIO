@@ -150,27 +150,45 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
               // 세그먼트(전체/신용/체크) - 그대로
               ValueListenableBuilder(
                 valueListenable: selType,
-                builder: (_, String cur, __) => Row(
+                builder: (context, String cur, __) => Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: ['전체','신용','체크'].map((t) {
+                  children: ['전체', '신용', '체크'].map((t) {
                     final on = cur == t;
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: ChoiceChip(
-                        selected: on,
-                        label: Text(t == '신용' ? '신용카드' : t == '체크' ? '체크카드' : '전체'),
-                        selectedColor: const Color(0xffB91111),
-                        backgroundColor: Colors.white, // 비선택 배경
-                        labelStyle: TextStyle(color: on ? Colors.white : Colors.black87),
-                        onSelected: (_) {
-                          selType.value = t;
-                          if (_keyword.isNotEmpty || _selectedTags.isNotEmpty) _performSearch();
-                        },
+                      child: Theme(
+                        // ✅ 체크표시 색만 흰색으로
+                        data: Theme.of(context).copyWith(
+                          chipTheme: Theme.of(context).chipTheme.copyWith(
+                            checkmarkColor: Colors.white,
+                          ),
+                        ),
+                        child: ChoiceChip(
+                          selected: on,
+                          showCheckmark: true, // 기본값이지만 명시해둠
+                          label: Text(t == '신용' ? '신용카드' : t == '체크' ? '체크카드' : '전체'),
+                          selectedColor: const Color(0xffB91111),   // 선택 시 빨강
+                          backgroundColor: Colors.white,            // 비선택 배경
+                          labelStyle: TextStyle(
+                            color: on ? Colors.white : Colors.black87, // 선택 시 글자 흰색
+                            fontWeight: FontWeight.w600,
+                          ),
+                          side: on
+                              ? BorderSide.none
+                              : const BorderSide(color: Color(0x22000000)), // 비선택 테두리 살짝
+                          onSelected: (_) {
+                            selType.value = t;
+                            if (_keyword.isNotEmpty || _selectedTags.isNotEmpty) {
+                              _performSearch();
+                            }
+                          },
+                        ),
                       ),
                     );
                   }).toList(),
                 ),
               ),
+
               const SizedBox(height: 8),
 
               // 검색창: 배경은 다시 연회색 그대로

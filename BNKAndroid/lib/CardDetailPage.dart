@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:bnkandroid/user/service/Card_Apply_Service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api.dart';
@@ -483,37 +484,48 @@ class _CardDetailPageState extends State<CardDetailPage> {
     setState(() {});
   }
 
-  Future<void> _startCardApplication(String cardNo) async {
-    try {
-      final url = '${API.baseUrl}/api/application/start';
-      final res = await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'cardNo': cardNo}),
+  Future<void> _startCardApplication(String cardNoStr) async {
+    // 1) cardNo 파싱/검증
+    final cardNo = int.tryParse(cardNoStr);
+    if (cardNo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('잘못된 카드 번호입니다.')),
       );
+      return;
+    }
 
-      if (res.statusCode == 200) {
-        final jsonData = json.decode(utf8.decode(res.bodyBytes));
-        final applicationNo = jsonData['applicationNo'];
-        final isCreditCard = jsonData['isCreditCard']?.toString();
+    try {
+      // 2) /card/apply/api/start 호출 (서비스 사용)
+      debugPrint('▶ start apply: cardNo=$cardNo');
+      final start = await CardApplyService.start(cardNo: cardNo);
 
-        // Step 1 페이지로 이동
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ApplicationStep1Page(
-              applicationNo: applicationNo,
-              isCreditCard: isCreditCard == 'Y',
-            ),
+      // 3) Step1로 이동 (필수 파라미터 전달!)
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ApplicationStep1Page(
+            cardNo: cardNo,                          // ✅ 필수
+            applicationNo: start.applicationNo,      // /start 응답
+            isCreditCard: start.isCreditCard,        // /start 응답
           ),
-        );
-      } else {
-        print('❌ 서버 응답 실패: ${res.statusCode}');
-      }
+        ),
+      );
+    } on ApiException catch (e) {
+      // 서비스에서 던지는 API 예외 처리
+      if (!mounted) return;
+      final msg = e.body?['message']?.toString() ?? e.message;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('발급 시작 실패: $msg')),
+      );
     } catch (e) {
-      print('❌ 카드 신청 오류: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('발급 시작 오류: $e')),
+      );
     }
   }
+
 
 
   void _showCompareModal() {
@@ -629,7 +641,7 @@ class _CardDetailPageState extends State<CardDetailPage> {
       appBar: AppBar(
         title: const Text('카드 상세정보'),
         backgroundColor: Colors.white,
-        foregroundColor: Color(0xffB91111),
+        foregroundColor: Color(0xFF4E4E4E),
       ),
       body: FutureBuilder<CardModel>(
         future: _futureCard,
