@@ -160,7 +160,7 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
                         selected: on,
                         label: Text(t == '신용' ? '신용카드' : t == '체크' ? '체크카드' : '전체'),
                         selectedColor: const Color(0xffB91111),
-                        backgroundColor: const Color(0xFFF4F6FA), // 비선택 배경
+                        backgroundColor: Colors.white, // 비선택 배경
                         labelStyle: TextStyle(color: on ? Colors.white : Colors.black87),
                         onSelected: (_) {
                           selType.value = t;
@@ -294,11 +294,11 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 제목
+                            // 제목 (전체 = 개수 숨김, 신용/체크 = 개수 표시)
                             Padding(
                               padding: const EdgeInsets.only(top: 10, bottom: 6, left: 4),
                               child: Text(
-                                titleText,
+                                (cur == '전체') ? '전체카드' : '$cur카드 • ${list.length}개',
                                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                               ),
                             ),
@@ -318,39 +318,45 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
                                 itemCount: list.length,
                                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
-                                  mainAxisSpacing: 18,
-                                  crossAxisSpacing: 12,
-                                  childAspectRatio: _GRID_CHILD_ASPECT,
+                                  mainAxisSpacing: 20,   // 기존 18 → 22
+                                  crossAxisSpacing: 13,  // 기존 12 → 14
+                                  childAspectRatio: _GRID_CHILD_ASPECT, // 기존값 유지
                                 ),
                                 itemBuilder: (context, i) {
                                   final card = list[i];
-                                  return ValueListenableBuilder<Set<String>>(
-                                    valueListenable: compareIds,
-                                    builder: (_, ids, __) => CardGridTile(
-                                      card: card,
-                                      selected: ids.contains(card.cardNo.toString()),
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => CardDetailPage(
-                                              cardNo: card.cardNo.toString(),
-                                              compareIds: compareIds,
-                                              onCompareChanged: _saveCompare,
+                                  return FractionallySizedBox(
+                                    widthFactor: 0.92,   // ← 0.85~0.95 사이로 취향대로 조절
+                                    heightFactor: 0.92,  // ← widthFactor와 동일하게 맞추면 비율 유지
+                                    child: ValueListenableBuilder<Set<String>>(
+                                      valueListenable: compareIds,
+                                      builder: (_, ids, __) => CardGridTile(
+                                        card: card,
+                                        selected: ids.contains(card.cardNo.toString()),
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => CardDetailPage(
+                                                cardNo: card.cardNo.toString(),
+                                                compareIds: compareIds,
+                                                onCompareChanged: _saveCompare,
+                                              ),
                                             ),
-                                          ),
-                                        );
-                                      },
-                                      onToggleCompare: _toggleCompare,
+                                          );
+                                        },
+                                        onToggleCompare: _toggleCompare,
+                                      ),
                                     ),
                                   );
                                 },
+
                               ),
 
                             const SizedBox(height: 140), // FAB 공간
                           ],
                         ),
                       );
+
                     },
                   ),
                 ),
@@ -575,65 +581,86 @@ class CardGridTile extends StatelessWidget {
     required this.selected,
   });
 
+
+
   @override
   Widget build(BuildContext context) {
-    final imgUrl = '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(card.cardUrl)}';
+    final imgUrl =
+        '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(card.cardUrl)}';
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Card(
-        elevation: 1,
+        color: Colors.white,                      // ← 핑크 틴트 방지
+        surfaceTintColor: Colors.transparent,     // ← 핑크 틴트 방지
+        elevation: 5,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
-            // 이미지 영역
+            // 1) 이미지 영역: 하단 여백 ↑ (54 → 70) 선에 안 닿게
             Positioned.fill(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 54),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 70),
                 child: RotatedBox(
                   quarterTurns: 1,
                   child: Image.network(
                     imgUrl,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+                    errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.broken_image),
                   ),
                 ),
               ),
             ),
-            // 하단 정보 바
+
+            // 2) 하단 정보 바: 가운데 정렬 + 슬로건 2줄
             Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
+              left: 0, right: 0, bottom: 0,
               child: Container(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
                 decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: Color(0x11000000))),
+                  color: Color(0xFFF4F6FA),                         // ✅ 원하는 연회색
+                  // 경계선도 살짝 밝게 바꾸면 더 자연스러워요(선택)
+                  border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+
                 ),
+
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,   // ← 가운데 정렬
                   children: [
                     Text(
                       card.cardName,
+                      textAlign: TextAlign.center,                 // ← 가운데 정렬
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
                     ),
-                    if (card.cardSlogan?.isNotEmpty ?? false)
+                    if (card.cardSlogan?.isNotEmpty ?? false) ...[
+                      const SizedBox(height: 2),
                       Text(
                         card.cardSlogan!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11, color: Colors.black54),
+                        textAlign: TextAlign.center,               // ← 가운데 정렬
+                        maxLines: 2,                               // ← 두 줄까지
+                        overflow: TextOverflow.ellipsis,           // 넘치면 …
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.black54,
+                          height: 1.2,                             // 줄간격 살짝
+                        ),
                       ),
+                    ],
                   ],
                 ),
               ),
             ),
-            // 비교 토글 배지
+
+            // 비교 토글 배지(그대로)
             Positioned(
               top: 6,
               right: 6,
