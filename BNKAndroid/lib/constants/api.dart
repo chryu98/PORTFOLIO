@@ -3,17 +3,12 @@ import 'package:http/http.dart' as http;
 class API {
   static String? baseUrl;
 
-  // 이 메서드를 앱 시작 시 1회 실행
   static Future<void> initBaseUrl() async {
-
-    const fallbackIp = '192.168.0.5'; // 최후 수동 IP (예: 개발자 1번 PC)
-
+    const fallbackIp = '192.168.100.106';
     try {
-      // fallbackIp를 먼저 사용해서 base-url 얻기
-      final response = await http.get(
-          Uri.parse('http://$fallbackIp:8090/api/config/base-url'));
-      if (response.statusCode == 200) {
-        baseUrl = response.body.trim();
+      final r = await http.get(Uri.parse('http://$fallbackIp:8090/api/config/base-url'));
+      if (r.statusCode == 200) {
+        baseUrl = r.body.trim(); // 예: http://192.168.100.106:8090[/컨텍스트]
         print('[API] baseUrl 세팅됨: $baseUrl');
       } else {
         throw Exception("base-url 응답 실패");
@@ -24,27 +19,29 @@ class API {
     }
   }
 
-  // endpoint getter
-  static String get cards => '$baseUrl/api/cards';
+  // --- 공용 path join (슬래시 중복 방지)
+  static String _j(String p) {
+    final b = baseUrl ?? '';
+    return b.endsWith('/') ? '$b${p.startsWith('/') ? p.substring(1) : p}'
+        : '$b${p.startsWith('/') ? p : '/$p'}';
+  }
 
-  static String cardDetail(int id) => '$baseUrl/api/cards/detail/$id';
-
-  /// 카드 비교용 상세 정보
-  static String compareCardDetail(dynamic id) => '$baseUrl/api/cards/$id';
-
-  static String get popularCards => '$baseUrl/api/cards/popular';
-
+  // 기존 카드 API
+  static String get cards => _j('/api/cards');
+  static String cardDetail(int id) => _j('/api/cards/detail/$id');
+  static String compareCardDetail(dynamic id) => _j('/api/cards/$id');
+  static String get popularCards => _j('/api/cards/popular');
   static String searchCards(String keyword, String type, List<String> tags) {
     final params = <String, String>{};
     if (keyword.isNotEmpty) params['q'] = keyword;
     if (type.isNotEmpty && type != '전체') params['type'] = type;
     if (tags.isNotEmpty) params['tags'] = tags.join(',');
-
-    final query = Uri(queryParameters: params).query;
-    return '$baseUrl/api/cards/search?$query';
+    final q = Uri(queryParameters: params).query;
+    return _j('/api/cards/search?$q');
   }
+
+  // 🔴 발급/검증 엔드포인트 추가
+  static String get applyStart        => _j('/card/apply/api/start');
+  static String get applyValidateInfo => _j('/card/apply/api/validateInfo');
+// (선택) 프리필: static String applyPrefill() => _j('/card/apply/api/prefill');
 }
-
-
-
-//ㅇ이게되네?
