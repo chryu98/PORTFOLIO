@@ -1,26 +1,35 @@
-// query/page/size만 보냄
+// lib/constants/faq_api.dart
 class FAQApi {
-  static String? baseUrl;
+  static late String baseUrl;     // 예: http://192.168.0.5:8090
+  static String pathPrefix = '';  // 예: '', '/api'
 
-  static Future<void> initBaseUrl() async { /* 지금 쓰던 그대로 */ }
-
-  static String faqList({
-    int page = 0,
-    int size = 20,
-    String query = '',
-  }) {
-    if (baseUrl == null || baseUrl!.isEmpty) {
-      throw StateError('FAQApi.baseUrl 비어있음. initBaseUrl() 먼저 호출');
-    }
-    final params = <String, String>{
-      'page': '$page',
-      'size': '$size',
-      if (query.isNotEmpty) 'query': query,
-    };
-    final qs = Uri(queryParameters: params).query;
-    return '$baseUrl/api/faq?$qs';
+  /// 반드시 앱 시작 시 한 번 호출해서 LAN IP로 고정
+  static void useLan({required String ip, int port = 8090, String scheme = 'http'}) {
+    baseUrl = '$scheme://$ip:$port';
   }
 
-  // 도움돼요 기능 안 쓰면 이 메서드는 지워도 됨
-  static String faqHelpful(int faqNo) => '$baseUrl/api/faq/$faqNo/helpful';
+  /// 서버의 context-path 지정 ('', '/', '/api' 중 하나)
+  static void setPathPrefix(String prefix) {
+    if (prefix.isEmpty || prefix == '/') {
+      pathPrefix = '';
+    } else {
+      pathPrefix = prefix.startsWith('/') ? prefix : '/$prefix';
+    }
+  }
+
+  static Uri _uri(String path, {Map<String, String>? params}) {
+    final base = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final pfx  = pathPrefix; // '', '/api'
+    final p    = path.startsWith('/') ? path : '/$path';
+    final url  = '$base$pfx$p';
+    return Uri.parse(url).replace(queryParameters: params);
+  }
+
+  // Endpoints
+  static Uri faqList({int page = 0, int size = 20, String query = ''}) =>
+      _uri('/faq', params: {'page':'$page','size':'$size', if (query.isNotEmpty) 'query':query});
+
+  static Uri ping() => _uri('/faq/ping');
+
+  static Uri faqHelpful(int faqNo) => _uri('/faq/$faqNo/helpful');
 }

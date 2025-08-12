@@ -1,10 +1,11 @@
 // lib/card_list_page.dart
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+
 import 'package:bnkandroid/constants/api.dart';
 import 'package:bnkandroid/user/service/CardService.dart';
 import '../CardDetailPage.dart';
@@ -18,10 +19,10 @@ class CompareCard {
     required this.cardName,
     required this.cardUrl,
   });
-  factory CompareCard.fromCardModel(CardModel c) => CompareCard(
-      cardNo: c.cardNo.toString(), cardName: c.cardName, cardUrl: c.cardUrl);
-  factory CompareCard.fromJson(Map<String, dynamic> j) => CompareCard(
-      cardNo: j['cardNo'], cardName: j['cardName'] ?? '', cardUrl: j['cardUrl'] ?? '');
+  factory CompareCard.fromCardModel(CardModel c) =>
+      CompareCard(cardNo: c.cardNo.toString(), cardName: c.cardName, cardUrl: c.cardUrl);
+  factory CompareCard.fromJson(Map<String, dynamic> j) =>
+      CompareCard(cardNo: j['cardNo'], cardName: j['cardName'] ?? '', cardUrl: j['cardUrl'] ?? '');
   Map<String, dynamic> toJson() => {'cardNo': cardNo, 'cardName': cardName, 'cardUrl': cardUrl};
 }
 
@@ -35,10 +36,11 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
-  Widget build(BuildContext ctx) =>
-      MaterialApp(debugShowCheckedModeBanner: false,  theme: ThemeData(
-          scaffoldBackgroundColor: Colors.white,),
-          home: CardListPage());
+  Widget build(BuildContext ctx) => MaterialApp(
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData(scaffoldBackgroundColor: Colors.white),
+    home: CardListPage(),
+  );
 }
 
 /* ───────────────── Main Page ───────────────── */
@@ -47,13 +49,12 @@ class CardListPage extends StatefulWidget {
   State<CardListPage> createState() => _CardListPageState();
 }
 
-class _CardListPageState extends State<CardListPage>
-    with AutomaticKeepAliveClientMixin {
+class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
   /* reactive state */
-  final selType    = ValueNotifier<String>('전체');   // 전체/신용/체크
+  final selType = ValueNotifier<String>('전체'); // 전체/신용/체크
   final compareIds = ValueNotifier<Set<String>>({}); // cardNo 집합
 
   /* async sources */
@@ -63,20 +64,14 @@ class _CardListPageState extends State<CardListPage>
   final _scrollCtl = ScrollController();
   final _searchCtl = TextEditingController();
   List<CardModel> _searchResults = [];
-  List<String>    _selectedTags  = [];
+  List<String> _selectedTags = [];
   String _keyword = '';
-  bool   _loading = false;
-
-  /* layout */
-  static const _CARD_ASPECT = 4 / 5;
-  static const _GRID_RATIO  = 0.60; // overflow 방지
-  static const _MAIN_SPAC   = 22.0;
-  static const _CELL_PAD    = 6.0;
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    _fCards   = CardService.fetchCards();
+    _fCards = CardService.fetchCards();
     _fPopular = CardService.fetchPopularCards();
     _restoreCompare();
   }
@@ -86,35 +81,34 @@ class _CardListPageState extends State<CardListPage>
     selType.dispose();
     compareIds.dispose();
     _scrollCtl.dispose();
+    _searchCtl.dispose();
     super.dispose();
   }
 
   /* ───── compare persistence ───── */
   Future<void> _restoreCompare() async {
-    final p   = await SharedPreferences.getInstance();
+    final p = await SharedPreferences.getInstance();
     final raw = p.getStringList('compareCards') ?? [];
-    compareIds.value =
-        raw.map((e) => jsonDecode(e)['cardNo'] as String).toSet();
+    compareIds.value = raw.map((e) => jsonDecode(e)['cardNo'] as String).toSet();
   }
 
   Future<void> _saveCompare() async {
     final p = await SharedPreferences.getInstance();
     p.setStringList(
-        'compareCards',
-        compareIds.value
-            .map((id) => jsonEncode({'cardNo': id}))
-            .toList());
+      'compareCards',
+      compareIds.value.map((id) => jsonEncode({'cardNo': id})).toList(),
+    );
   }
 
   void _toggleCompare(CardModel c) {
     final s = compareIds.value.toSet();
-    if (s.contains(c.cardNo.toString())) {
-      s.remove(c.cardNo.toString());
+    final id = c.cardNo.toString();
+    if (s.contains(id)) {
+      s.remove(id);
     } else if (s.length < 2) {
-      s.add(c.cardNo.toString());
+      s.add(id);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('최대 2개까지만 비교')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('최대 2개까지만 비교')));
     }
     compareIds.value = s;
     _saveCompare();
@@ -128,8 +122,7 @@ class _CardListPageState extends State<CardListPage>
     }
     setState(() => _loading = true);
     try {
-      final r = await http
-          .get(Uri.parse(API.searchCards(_keyword, selType.value, _selectedTags)));
+      final r = await http.get(Uri.parse(API.searchCards(_keyword, selType.value, _selectedTags)));
       if (r.statusCode == 200) {
         final l = json.decode(utf8.decode(r.bodyBytes)) as List;
         setState(() => _searchResults =
@@ -140,24 +133,153 @@ class _CardListPageState extends State<CardListPage>
     }
   }
 
+  /* ───── UI: 핀 고정 헤더(필터+검색+비교함바) ───── */
+  SliverAppBar _buildPinnedSearchAndFilter({required bool showCompareBar}) {
+    final double baseHeight = 140;     // 비교함 바 없을 때
+    final double withBarHeight = 176;  // 비교함 바 있을 때
+
+    return SliverAppBar(
+      pinned: true,
+      backgroundColor: Colors.white,
+      elevation: 0,
+      toolbarHeight: showCompareBar ? withBarHeight : baseHeight,
+      collapsedHeight: showCompareBar ? withBarHeight : baseHeight,
+      flexibleSpace: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ───── 세그먼트(전체/신용/체크) ─────
+              ValueListenableBuilder<String>(
+                valueListenable: selType,
+                builder: (context, cur, __) => Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: ['전체', '신용', '체크'].map((t) {
+                    final on = cur == t;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          chipTheme: Theme.of(context).chipTheme.copyWith(
+                            checkmarkColor: Colors.white,
+                          ),
+                        ),
+                        child: ChoiceChip(
+                          selected: on,
+                          showCheckmark: true,
+                          label: Text(t == '신용' ? '신용카드' : t == '체크' ? '체크카드' : '전체'),
+                          selectedColor: const Color(0xffB91111),
+                          backgroundColor: Colors.white,
+                          labelStyle: TextStyle(
+                            color: on ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          side: on ? BorderSide.none : const BorderSide(color: Color(0x22000000)),
+                          onSelected: (_) {
+                            selType.value = t;
+                            if (_keyword.isNotEmpty || _selectedTags.isNotEmpty) {
+                              _performSearch();
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // ───── 검색창 + 필터 버튼 ─────
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 44,
+                      child: TextField(
+                        controller: _searchCtl,
+                        onSubmitted: (v) {
+                          _keyword = v.trim();
+                          _performSearch();
+                        },
+                        onChanged: (v) {
+                          if (v.trim().isEmpty) {
+                            setState(() => _keyword = '');
+                          }
+                        },
+                        decoration: InputDecoration(
+                          hintText: '카드이름, 혜택으로 검색',
+                          prefixIcon: const Icon(Icons.search),
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                          filled: true,
+                          fillColor: const Color(0xFFF4F6FA),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.tune),
+                    onPressed: () => showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) => TagFilterModal(
+                        selectedTags: _selectedTags,
+                        onConfirm: (tags) {
+                          setState(() => _selectedTags = tags);
+                          _performSearch();
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              // ───── 비교함 바: 아이템 있을 때만 ─────
+              if (showCompareBar)
+                ValueListenableBuilder<Set<String>>(
+                  valueListenable: compareIds,
+                  builder: (context, ids, __) => CompareDockBar(
+                    count: ids.length,
+                    onOpen: _openCompareSheet,
+                    onClear: () {
+                      compareIds.value = {};
+                      _saveCompare();
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  void _openCompareSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _buildCompareSheet(),
+    );
+  }
+
   /* ───── build ───── */
   @override
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      floatingActionButton: ValueListenableBuilder(
-        valueListenable: compareIds,
-        builder: (_, Set<String> ids, __) => ids.isNotEmpty
-            ? FloatingActionButton.extended(
-          backgroundColor: Color(0xFFF4F6FA),
-          foregroundColor: Color(0xFF4E4E4E),
-
-          label: Text('비교함 (${ids.length})'),
-          onPressed: () => showModalBottomSheet(
-              context: context, builder: (_) => _buildCompareModal()),
-        )
-            : const SizedBox.shrink(),
-      ),
+      // FAB 제거: 비교함 바를 사용
       body: SafeArea(
         child: FutureBuilder(
           future: Future.wait([_fCards, _fPopular]),
@@ -169,27 +291,28 @@ class _CardListPageState extends State<CardListPage>
               return const Center(child: Text('카드가 없습니다.'));
             }
 
-            final all     = snap.data![0] as List<CardModel>;
+            final all = snap.data![0] as List<CardModel>;
             final popular = snap.data![1] as List<CardModel>;
 
             return CustomScrollView(
               key: const PageStorageKey('cardScroll'),
               controller: _scrollCtl,
               slivers: [
-                const SliverAppBar(
-                    toolbarHeight: 20,
-                    backgroundColor: Colors.white,
-                    elevation: 0,
-                    pinned: false),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                ValueListenableBuilder<Set<String>>(
+                  valueListenable: compareIds,
+                  builder: (_, ids, __) => _buildPinnedSearchAndFilter(showCompareBar: ids.isNotEmpty),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
                 SliverToBoxAdapter(child: _buildCarousel(popular)),
-                SliverToBoxAdapter(child: _buildTypeFilter()),
-                SliverToBoxAdapter(child: _buildSearchBar()),
-                /* 목록 영역 – 부분 빌드 */
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                // 카드 목록
                 SliverToBoxAdapter(
-                  child: ValueListenableBuilder(
+                  child: ValueListenableBuilder<String>(
                     valueListenable: selType,
                     builder: (_, String cur, __) {
-                      /* 필터링 */
+                      // 리스트 필터링
                       List<CardModel> list = all;
                       if (_keyword.isNotEmpty || _selectedTags.isNotEmpty) {
                         list = _searchResults;
@@ -204,35 +327,70 @@ class _CardListPageState extends State<CardListPage>
                             .toList();
                       }
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (cur != '전체')
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Padding(
-                              padding: const EdgeInsets.only(
-                                  left: 24, top: 10, bottom: 4),
-                              child: Text('$cur카드 목록',
-                                  style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold)),
+                              padding: const EdgeInsets.only(top: 10, bottom: 6, left: 4),
+                              child: Text(
+                                (cur == '전체') ? '전체카드' : '$cur카드 • ${list.length}개',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
                             ),
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            padding:
-                            const EdgeInsets.symmetric(horizontal: 24),
-                            itemCount: list.length,
-                            gridDelegate:
-                            SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3,
-                              mainAxisSpacing: _MAIN_SPAC,
-                              crossAxisSpacing: 0,
-                              childAspectRatio: _GRID_RATIO,
-                            ),
-                            itemBuilder: (c, i) => _buildGridItem(list[i]),
-                          ),
-                          const SizedBox(height: 140), // FAB 공간
-                        ],
+
+                            if (list.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 40),
+                                child: Center(
+                                  child:
+                                  Text('검색 결과가 없어요', style: TextStyle(color: Colors.black54)),
+                                ),
+                              )
+                            else
+                              GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: list.length,
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 13,
+                                  mainAxisSpacing: 20,
+                                  mainAxisExtent: 280, // 고정 높이(필요시 250~280 조절)
+                                ),
+                                itemBuilder: (context, i) {
+                                  final card = list[i];
+                                  return FractionallySizedBox(
+                                    widthFactor: 0.92,
+                                    heightFactor: 0.92,
+                                    child: ValueListenableBuilder<Set<String>>(
+                                      valueListenable: compareIds,
+                                      builder: (_, ids, __) => CardGridTile(
+                                        card: card,
+                                        selected: ids.contains(card.cardNo.toString()),
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => CardDetailPage(
+                                                cardNo: card.cardNo.toString(),
+                                                compareIds: compareIds,
+                                                onCompareChanged: _saveCompare,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        onToggleCompare: _toggleCompare,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+
+                            const SizedBox(height: 60),
+                          ],
+                        ),
                       );
                     },
                   ),
@@ -264,7 +422,8 @@ class _CardListPageState extends State<CardListPage>
         viewportFraction: 0.9,
       ),
       items: list.map((c) {
-        final url = '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(c.popularImgUrl ?? c.cardUrl)}';
+        final url =
+            '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(c.popularImgUrl ?? c.cardUrl)}';
 
         return GestureDetector(
           onTap: () {
@@ -272,9 +431,9 @@ class _CardListPageState extends State<CardListPage>
               context,
               MaterialPageRoute(
                 builder: (_) => CardDetailPage(
-                  cardNo: c.cardNo.toString(),        // ✅ 카드번호
-                  compareIds: compareIds,             // ✅ 비교 상태 넘김
-                  onCompareChanged: _saveCompare,     // ✅ 저장 콜백
+                  cardNo: c.cardNo.toString(),
+                  compareIds: compareIds,
+                  onCompareChanged: _saveCompare,
                 ),
               ),
             );
@@ -319,10 +478,7 @@ class _CardListPageState extends State<CardListPage>
                             c.cardSlogan!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
+                            style: const TextStyle(color: Colors.white, fontSize: 12),
                           ),
                       ],
                     ),
@@ -336,301 +492,293 @@ class _CardListPageState extends State<CardListPage>
     );
   }
 
+  /// 스크롤 가능한 비교 시트
+  Widget _buildCompareSheet() {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.50,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollCtl) {
+        return ValueListenableBuilder<Set<String>>(
+          valueListenable: compareIds,
+          builder: (_, ids, __) {
+            if (ids.isEmpty) return const SizedBox.shrink();
+            final list = ids.toList();
 
+            return Material(
+              color: Colors.white,
+              child: SingleChildScrollView(
+                controller: scrollCtl,
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: list.map((id) {
+                    return Expanded(
+                      child: FutureBuilder<CardModel>(
+                        future: CardService.fetchCompareCardDetail(id),
+                        builder: (ctx, snap) {
+                          if (!snap.hasData) {
+                            return const SizedBox(
+                              height: 180,
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
 
+                          final c = snap.data!;
+                          final brand = (c.cardBrand ?? '').toUpperCase();
+                          final fee = '${c.annualFee ?? 0}원';
+                          final feeDom =
+                          (brand.contains('LOCAL') || brand.contains('BC')) ? fee : '없음';
+                          final feeVisa = brand.contains('VISA') ? fee : '없음';
+                          final feeMaster = brand.contains('MASTER') ? fee : '없음';
 
-
-  Widget _buildTypeFilter() => ValueListenableBuilder(
-    valueListenable: selType,
-    builder: (_, String cur, __) => Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: ['전체', '신용', '체크'].map((t) {
-          final sel = cur == t;
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 18, vertical: 11),
-                  backgroundColor:
-                  sel ? const Color(0xffB91111) : Colors.white,
-                  foregroundColor: sel ? Colors.white : Colors.black87,
-                  side: sel
-                      ? BorderSide.none
-                      : BorderSide(color: Colors.grey.shade400),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16))),
-              onPressed: () {
-                selType.value = t;
-                if (_keyword.isNotEmpty ||
-                    _selectedTags.isNotEmpty) _performSearch();
-              },
-              child: Text(
-                  t == '신용'
-                      ? '신용카드'
-                      : t == '체크'
-                      ? '체크카드'
-                      : '전체',
-                  style: const TextStyle(fontSize: 13)),
-            ),
-          );
-        }).toList(),
-      ),
-    ),
-  );
-
-  Widget _buildSearchBar() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-    child: Row(children: [
-      Expanded(
-          child: TextField(
-            controller: _searchCtl,
-            onSubmitted: (v) {
-              _keyword = v.trim();
-              _performSearch();
-            },
-            onChanged: (v) {
-              if (v.trim().isEmpty) setState(() => _keyword = '');
-            },
-            decoration: InputDecoration(
-              hintText: '카드이름, 혜택으로 검색',
-              hintStyle: TextStyle(color: Colors.grey[600]),
-              border: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey.shade400)),
-              focusedBorder: const UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.black87)),
-              contentPadding: const EdgeInsets.only(bottom: 4),
-            ),
-          )),
-      const SizedBox(width: 8),
-      const Icon(Icons.search, size: 20),
-      IconButton(
-          icon: const Icon(Icons.tune),
-          onPressed: () => showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => TagFilterModal(
-              selectedTags: _selectedTags,
-              onConfirm: (tags) {
-                setState(() => _selectedTags = tags);
-                _performSearch();
-              },
-            ),
-          ))
-    ]),
-  );
-
-  Widget _buildGridItem(CardModel c) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: _CELL_PAD),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // 🔹 카드 이미지 클릭 시 상세 페이지 이동
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CardDetailPage(
-                  cardNo: c.cardNo.toString(),
-                  compareIds: compareIds, // ✅ 상태 공유
-                  onCompareChanged: _saveCompare, // ✅ 저장 콜백 전달
-                ),
-              ),
-            );
-          },
-          child: AspectRatio(
-            aspectRatio: _CARD_ASPECT,
-            child: _buildImageCard(c.cardUrl, rotate: true),
-          ),
-        ),
-
-        const SizedBox(height: 4),
-
-        // 🔹 카드 이름 클릭 시 상세 페이지 이동
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CardDetailPage(
-                  cardNo: c.cardNo.toString(),
-                  compareIds: compareIds, // ✅ 상태 공유
-                  onCompareChanged: _saveCompare, // ✅ 저장 콜백 전달
-                ),
-              ),
-            );
-          },
-          child: Text(
-            c.cardName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12),
-          ),
-        ),
-
-        // ✅ 비교함 버튼도 그대로 유지
-        GestureDetector(
-          onTap: () => _toggleCompare(c),
-          child: ValueListenableBuilder(
-            valueListenable: compareIds,
-            builder: (_, Set<String> cur, __) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Checkbox(
-                  value: cur.contains(c.cardNo.toString()),
-                  onChanged: null,
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                const Text('비교함 담기', style: TextStyle(fontSize: 11))
-              ],
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-
-  Widget _buildImageCard(String url, {bool rotate = false}) {
-    final prox =
-        '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(url)}';
-    final img = Image.network(
-      prox,
-      fit: BoxFit.contain,
-      loadingBuilder: (_, child, p) =>
-      p == null ? child : const Center(child: CircularProgressIndicator()),
-      errorBuilder: (_, __, ___) =>
-      const Center(child: Icon(Icons.broken_image)),
-    );
-    return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: rotate ? Transform.rotate(angle: pi / 2, child: img) : img);
-  }
-
-  Widget _buildCompareModal() => ValueListenableBuilder(
-    valueListenable: compareIds,
-    builder: (_, Set<String> ids, __) {
-      if (ids.isEmpty) return const SizedBox.shrink();
-      return Container(
-        padding: const EdgeInsets.all(16),
-        color: Colors.white,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: ids.map((id) {
-            return FutureBuilder<CardModel>(
-              future: CardService.fetchCompareCardDetail(id),
-              builder: (ctx, snap) {
-                if (!snap.hasData) {
-                  return const SizedBox(
-                    width: 80,
-                    height: 120,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
-                final c = snap.data!;
-                final brand = (c.cardBrand ?? '').toUpperCase();
-                final fee = '${c.annualFee ?? 0}원';
-                final feeDom = brand.contains('LOCAL') || brand.contains('BC') ? fee : '없음';
-                final feeVisa = brand.contains('VISA') ? fee : '없음';
-                final feeMaster = brand.contains('MASTER') ? fee : '없음';
-
-                return Flexible(
-                  child: Container(
-                    margin: const EdgeInsets.all(8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center, // ✅ 중앙 정렬
-                      children: [
-                        Image.network(
-                          '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(c.cardUrl)}',
-                          width: 80,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 80),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          c.cardName,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          c.cardSlogan ?? '-',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text('🔖 요약 혜택',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: extractCategories('${c.service}\n${c.sService ?? ''}')
-                              .map((tag) => Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          return Container(
+                            margin: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: Colors.red),
                             ),
-                            child: Text(
-                              '#$tag',
-                              style: const TextStyle(color: Colors.red, fontSize: 13),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Image.network(
+                                  '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(c.cardUrl)}',
+                                  width: 80,
+                                  errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.broken_image, size: 80),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  c.cardName,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  c.cardSlogan ?? '-',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text('🔖 요약 혜택',
+                                    style: TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 6),
+
+                                Wrap(
+                                  alignment: WrapAlignment.center,
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: extractCategories(
+                                    '${c.service}\n${c.sService ?? ''}',
+                                    max: 6,
+                                  ),
+                                ),
+
+                                const SizedBox(height: 8),
+                                _feeItemWithIcon('assets/overseas_pay_domestic.png', feeDom),
+                                const SizedBox(height: 4),
+                                _feeItemWithIcon('assets/overseas_pay_visa.png', feeVisa),
+                                const SizedBox(height: 4),
+                                _feeItemWithIcon('assets/overseas_pay_master.png', feeMaster),
+                              ],
                             ),
-                          ))
-                              .toList(),
-                        ),
-                        const SizedBox(height: 6),
-                        _feeItemWithIcon('assets/overseas_pay_domestic.png', feeDom),
-                        const SizedBox(height: 4),
-                        _feeItemWithIcon('assets/overseas_pay_visa.png', feeVisa),
-                        const SizedBox(height: 4),
-                        _feeItemWithIcon('assets/overseas_pay_master.png', feeMaster),
-                      ],
+                          );
+                        },
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/* ───────────────── Card Tile ───────────────── */
+
+class CardGridTile extends StatelessWidget {
+  final CardModel card;
+  final VoidCallback onTap;
+  final void Function(CardModel) onToggleCompare;
+  final bool selected;
+
+  const CardGridTile({
+    super.key,
+    required this.card,
+    required this.onTap,
+    required this.onToggleCompare,
+    required this.selected,
+  });
+
+  // 슬로건 영역 고정 높이(최대 2줄 + 여유)
+  static const double _sloganBoxH = 36.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final imgUrl =
+        '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(card.cardUrl)}';
+
+    return InkWell(
+      onTap: onTap,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 이미지 (상자/그림자 없음)
+          AspectRatio(
+            aspectRatio: 1.6,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: RotatedBox(
+                      quarterTurns: 1,
+                      child: Image.network(
+                        imgUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                        const Center(child: Icon(Icons.broken_image, size: 40)),
+                      ),
                     ),
                   ),
-                );
-              },
-            );
-          }).toList(),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // 카드명
+          Text(
+            card.cardName,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: Color(0xFF333333),
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          // 슬로건(없어도 고정 높이 확보 → 버튼 위치 항상 동일)
+          SizedBox(
+            height: _sloganBoxH,
+            child: (card.cardSlogan ?? '').isEmpty
+                ? const SizedBox.shrink()
+                : Text(
+              card.cardSlogan!,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.25,
+                color: Color(0xFF8A8A8A),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          _CompareToggle(
+            selected: selected,
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              onToggleCompare(card);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "비교함 담기" / "✓ 비교함에 추가됨" 캡슐 토글
+class _CompareToggle extends StatelessWidget {
+  final bool selected;
+  final VoidCallback onPressed;
+  const _CompareToggle({required this.selected, required this.onPressed});
+
+  static const _green = Color(0xFF2E7D32);
+  static const _greenBg = Color(0xFFE8F5E9);
+  static const _pillPad = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+
+  @override
+  Widget build(BuildContext context) {
+    if (selected) {
+      return InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: _pillPad,
+          decoration: BoxDecoration(
+            color: _greenBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _green.withOpacity(0.3)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check, size: 16, color: _green),
+              SizedBox(width: 6),
+              Text(
+                '비교함에 추가됨',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _green,
+                ),
+              ),
+            ],
+          ),
         ),
       );
-    },
-  );
+    }
 
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: _pillPad,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Color(0xFFDDDDDD)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add, size: 16, color: Color(0xFF555555)),
+            SizedBox(width: 6),
+            Text(
+              '비교함 담기',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF555555),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-Widget _feeItemWithIcon(String assetPath, String feeText) {
-  return Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Image.asset(
-        assetPath,
-        width: 24,
-        height: 24,
-      ),
-      const SizedBox(width: 4),
-      Text(
-        feeText,
-        style: const TextStyle(fontSize: 14),
-      ),
-    ],
-  );
-}
+/* ───────────────── util widgets (태그, 모달) ───────────────── */
 
-/* ───────────────── util widgets (태그, 모달) ↓ 그대로 ───────────────── */
-
-List<Widget> extractCategoriesAsWidget(String text, {int max = 5}) {
+List<Widget> extractCategories(String text, {int max = 5}) {
   const keys = {
     '커피': ['커피', '스타벅스', '이디야', '카페베네'],
     '편의점': ['편의점', 'GS25', 'CU', '세븐일레븐'],
@@ -658,22 +806,20 @@ List<Widget> extractCategoriesAsWidget(String text, {int max = 5}) {
   };
   final lower = text.toLowerCase();
   final found = <String>{
-    for (final e in keys.entries)
-      if (e.value.any((k) => lower.contains(k.toLowerCase()))) e.key
+    for (final e in keys.entries) if (e.value.any((k) => lower.contains(k.toLowerCase()))) e.key
   }.take(max);
   return found
       .map((t) => Padding(
     padding: const EdgeInsets.only(top: 4),
     child: Container(
-        padding:
-        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-            color: Colors.red.shade50,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.red.shade200)),
-        child: Text('#$t',
-            style:
-            const TextStyle(fontSize: 12, color: Colors.red))),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Text('#$t', style: const TextStyle(fontSize: 12, color: Colors.red)),
+    ),
   ))
       .toList();
 }
@@ -681,40 +827,16 @@ List<Widget> extractCategoriesAsWidget(String text, {int max = 5}) {
 class TagFilterModal extends StatefulWidget {
   final List<String> selectedTags;
   final Function(List<String>) onConfirm;
-  const TagFilterModal(
-      {super.key, required this.selectedTags, required this.onConfirm});
+  const TagFilterModal({super.key, required this.selectedTags, required this.onConfirm});
   @override
   State<TagFilterModal> createState() => _TagFilterModalState();
 }
 
 class _TagFilterModalState extends State<TagFilterModal> {
   static const tags = [
-    '커피',
-    '편의점',
-    '베이커리',
-    '영화',
-    '쇼핑',
-    '외식',
-    '교통',
-    '통신',
-    '교육',
-    '레저',
-    '스포츠',
-    '구독',
-    '병원',
-    '약국',
-    '공공요금',
-    '주유',
-    '하이패스',
-    '배달앱',
-    '환경',
-    '공유모빌리티',
-    '세무지원',
-    '포인트',
-    '캐시백',
-    '놀이공원',
-    '라운지',
-    '발렛'
+    '커피', '편의점', '베이커리', '영화', '쇼핑', '외식', '교통', '통신', '교육', '레저', '스포츠', '구독',
+    '병원', '약국', '공공요금', '주유', '하이패스', '배달앱', '환경', '공유모빌리티', '세무지원', '포인트',
+    '캐시백', '놀이공원', '라운지', '발렛'
   ];
   late List<String> sel;
   @override
@@ -739,18 +861,18 @@ class _TagFilterModalState extends State<TagFilterModal> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 40),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 40),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('원하는 혜택을 고르세요 (최대 5개)',
-                  style: TextStyle(fontWeight: FontWeight.bold))),
+            alignment: Alignment.centerLeft,
+            child: Text('원하는 혜택을 고르세요 (최대 5개)', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
           const SizedBox(height: 16),
           Wrap(
             spacing: 10,
@@ -760,17 +882,18 @@ class _TagFilterModalState extends State<TagFilterModal> {
               return GestureDetector(
                 onTap: () => _toggle(t),
                 child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                        color: on ? const Color(0xfffdeeee) : Colors.grey[200],
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: on ? Colors.red : Colors.grey.shade300)),
-                    child: Text('#$t',
-                        style: TextStyle(
-                            color: on ? Colors.red : Colors.black87,
-                            fontWeight: FontWeight.w500))),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: on ? const Color(0xfffdeeee) : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: on ? Colors.red : Colors.grey.shade300),
+                  ),
+                  child: Text(
+                    '#$t',
+                    style: TextStyle(
+                        color: on ? Colors.red : Colors.black87, fontWeight: FontWeight.w500),
+                  ),
+                ),
               );
             }).toList(),
           ),
@@ -779,8 +902,9 @@ class _TagFilterModalState extends State<TagFilterModal> {
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFB91111),
-                  foregroundColor: Colors.white),
+                backgroundColor: const Color(0xFFB91111),
+                foregroundColor: Colors.white,
+              ),
               onPressed: () {
                 widget.onConfirm(sel);
                 Navigator.pop(context);
@@ -793,3 +917,91 @@ class _TagFilterModalState extends State<TagFilterModal> {
     );
   }
 }
+
+Widget _feeItemWithIcon(String assetPath, String feeText) {
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Image.asset(assetPath, width: 24, height: 24),
+      const SizedBox(width: 4),
+      Text(feeText, style: const TextStyle(fontSize: 14)),
+    ],
+  );
+}
+
+/* ───────────────── 비교함 바(Top-level 위젯) ───────────────── */
+
+class CompareDockBar extends StatelessWidget {
+  final int count;
+  final VoidCallback onOpen;
+  final VoidCallback onClear;
+  const CompareDockBar({
+    super.key,
+    required this.count,
+    required this.onOpen,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // 안전장치: 혹시 count==0이면 렌더하지 않음
+    if (count == 0) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEFF1F4)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F000000), // 아주 은은한 섀도우
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // 상태(왼쪽)
+          const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 18),
+          const SizedBox(width: 8),
+          Text(
+            '비교함 $count개 담김',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111111),
+            ),
+          ),
+          const Spacer(),
+          // 비우기(보조)
+          TextButton(
+            onPressed: onClear,
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF6B7280),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              minimumSize: Size.zero,
+            ),
+            child: const Text('비우기'),
+          ),
+          const SizedBox(width: 8),
+          // 비교하기(주 버튼)
+          ElevatedButton(
+            onPressed: onOpen,
+            style: ElevatedButton.styleFrom(
+              elevation: 0,
+              backgroundColor: const Color(0xFF111827), // 딥 그레이(핀테크 느낌)
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('비교하기', style: const TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
