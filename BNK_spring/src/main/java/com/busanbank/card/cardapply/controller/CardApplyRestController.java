@@ -148,6 +148,12 @@ public class CardApplyRestController {
                               : "뒤6 불일치";
             return fail(result, "입력한 정보가 회원 정보와 일치하지 않습니다. ("+reason+")");
         }
+        
+        
+        String enc = "aXK4QxRiQqnsoaiushyuLg==";
+        String tail = AESUtil.decrypt(enc);
+        System.out.println("TAIL=" + tail + " len=" + (tail==null?0:tail.length()));
+        System.out.println("digits=" + (tail != null && tail.matches("\\d{6}")));
 
         // ----- 임시 저장: 헤더 -----
         Long cardNo = in.getCardNo();
