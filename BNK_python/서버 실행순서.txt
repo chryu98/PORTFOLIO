@@ -1,12 +1,13 @@
 성훈 - cd C:\java_class\CP\bnkcard
 대영 - cd C:\Users\GGG\Documents\GitHub\bnkcard\BNK_python
 
+ cd C:\java_class\CP\bnkcard
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\venv\Scripts\Activate.ps1
 cd .\BNK_python
 
 최초 1회실행
-python -m venv 
+python -m venv venv
 
 pip install -r .\BNK_python\requirements.txt
 

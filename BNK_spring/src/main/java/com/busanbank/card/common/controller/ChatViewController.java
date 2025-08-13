@@ -13,7 +13,6 @@ public class ChatViewController {
         return "user/userChat";
     }
 
-    @GetMapping("/admin")
     public String adminChatPage() {
         return "admin/adminChat";
     }
