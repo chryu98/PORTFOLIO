@@ -178,4 +178,32 @@
     OFFSET #{offset} ROWS FETCH NEXT #{pageSize} ROWS ONLY
   </select>
 
+
+<select id="findTopCardNoByName" parameterType="map" resultType="long">
+  <![CDATA[
+  WITH score AS (
+    SELECT l.card_no,
+           SUM(CASE
+                 WHEN l.behavior_type='VIEW'  THEN 1
+                 WHEN l.behavior_type='CLICK' THEN 4
+                 WHEN l.behavior_type LIKE 'APPLY%' THEN 12
+                 ELSE 0
+               END) AS s
+    FROM CARD_BEHAVIOR_LOG l
+    WHERE l.behavior_time >= (SYSDATE - NVL(#{days}, 90))
+      AND NVL(l.member_no,0) != 0
+    GROUP BY l.card_no
+  )
+  SELECT card_no FROM (
+    SELECT c.card_no,
+           NVL(sc.s, 0) AS score
+    FROM CARD c
+    LEFT JOIN score sc ON sc.card_no = c.card_no
+    WHERE c.card_name LIKE '%' || #{name} || '%'
+      /* 필요시 상태 필터: AND c.is_active = 'Y' */
+    ORDER BY NVL(sc.s,0) DESC, c.card_no ASC
+  )
+  WHERE ROWNUM = 1
+  ]]>
+</select>
 </mapper>

@@ -83,22 +83,22 @@
 
   <!-- 유사 카드 -->
   <div class="box">
-    <h2>유사 혜택 카드 추천</h2>
-    <div class="row">
-      <div>
-        <label>기준 카드번호</label>
-        <input type="number" id="similarCardNo" placeholder="예) 1001" />
-      </div>
-      <div>
-        <label>조회 기간(일)</label>
-        <input type="number" id="similarDays" value="30" min="1" />
-      </div>
-      <div>
-        <label>개수</label>
-        <input type="number" id="similarLimit" value="10" min="1" />
-      </div>
-      <button id="btnLoadSimilar">유사카드 조회</button>
+  <h2>유사 혜택 카드 추천</h2>
+  <div class="row">
+    <div>
+      <label>기준 카드(번호 또는 이름)</label>
+      <input type="text" id="similarKey" placeholder="예) 1001 또는 커피 혜택 카드" />
     </div>
+    <div>
+      <label>조회 기간(일)</label>
+      <input type="number" id="similarDays" value="30" min="1" />
+    </div>
+    <div>
+      <label>개수</label>
+      <input type="number" id="similarLimit" value="10" min="1" />
+    </div>
+    <button id="btnLoadSimilar">유사카드 조회</button>
+  </div>
     <table>
       <thead>
         <tr>
@@ -182,6 +182,61 @@
     const pct = (n) => (n == null ? '-' : (Number(n) * 100).toFixed(1) + '%');
     const cut10 = (s) => (s ? String(s).substring(0,10) : '');
 
+    // === 이미지 보강 유틸 시작 ===
+
+    // 심플 placeholder (에러시 표시)
+    const PH = "data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='96' height='60'>\
+<rect width='100%' height='100%' fill='%23f2f2f2'/>\
+<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='12'>no image</text>\
+</svg>";
+
+    // URL이 이미지로 보이는지 간단 판별
+    function isImageUrl(u){
+      if(!u) return false;
+      try{
+        const url = new URL(u, location.origin);
+        const path = url.pathname.toLowerCase();
+        if (/\.(png|jpe?g|webp|gif|bmp|svg)$/.test(path)) return true;
+        const fmtQ = url.searchParams.get('format') || url.searchParams.get('ext');
+        return !!(fmtQ && /png|jpe?g|webp|gif|bmp|svg/i.test(fmtQ));
+      }catch{ return false; }
+    }
+
+    // HTTPS 페이지에서 HTTP 이미지면 https로 바꿔 시도(서버가 지원해야 성공)
+    function normalizeUrl(u){
+      try{
+        if(!u) return u;
+        const url = new URL(u, location.origin);
+        if(location.protocol === 'https:' && url.protocol === 'http:'){
+          url.protocol = 'https:';
+        }
+        return url.toString();
+      }catch{ return u; }
+    }
+
+    // 레코드에서 사용하는 대표 이미지 고르기: cardImageUrl -> (없으면) cardProductUrl(이미지일 때만)
+    function pickImageSrcFromRecord(r){
+      const first = r?.cardImageUrl;
+      const fallback = isImageUrl(r?.cardProductUrl) ? r.cardProductUrl : null;
+      return normalizeUrl(first || fallback);
+    }
+    // otherCard용
+    function pickOtherImageSrcFromRecord(r){
+      const first = r?.otherCardImageUrl;
+      const fallback = isImageUrl(r?.otherCardProductUrl) ? r.otherCardProductUrl : null;
+      return normalizeUrl(first || fallback);
+    }
+
+    // 공통 <img> 태그 생성 (리퍼러 제거 + 오류시 placeholder)
+    function imgTag(src, altText){
+      return src
+        ? `<img class="thumb" src="${src}" alt="${altText || ''}" referrerpolicy="no-referrer" loading="lazy"
+                 decoding="async" onerror="this.onerror=null; this.src='${PH}'">`
+        : `<div class="thumb" role="img" aria-label="no image"></div>`;
+    }
+    // === 이미지 보강 유틸 끝 ===
+
     // 공통 fetch 헬퍼 (에러 핸들링)
     async function jfetch(url){
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
@@ -229,11 +284,14 @@
 
         const tb = document.getElementById('popularTbody');
         tb.innerHTML = (data||[]).map(r => {
-          const img = r.cardImageUrl ? `<img class="thumb" src="${r.cardImageUrl}" alt="">` : `<div class="thumb"></div>`;
+          const src = pickImageSrcFromRecord(r);
+          const img = imgTag(src, r.cardName || '카드 이미지');
+
           const name = r.cardName || '(이름없음)';
           const num  = r.cardNo ? `#${r.cardNo}` : '';
           const a1 = r.cardProductUrl ? `<a href="${r.cardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
           const a2 = r.cardProductUrl ? `</a>` : '';
+
           return `
             <tr>
               <td>
@@ -263,47 +321,52 @@
 
     // 유사
     async function loadSimilar(){
-      try {
-        const cardNo = document.getElementById('similarCardNo').value;
-        const days   = document.getElementById('similarDays').value || 30;
-        const limit  = document.getElementById('similarLimit').value || 10;
-        if(!cardNo){ alert('기준 카드번호를 입력해주세요.'); return; }
+  try {
+    const key   = (document.getElementById('similarKey').value || '').trim();
+    const days  = document.getElementById('similarDays').value || 30;
+    const limit = document.getElementById('similarLimit').value || 10;
+    if(!key){ alert('기준 카드(번호 또는 이름)를 입력해주세요.'); return; }
 
-        const data = await jfetch(`${API}/similar/${cardNo}?days=${days}&limit=${limit}`);
-        const tb = document.getElementById('similarTbody');
-        tb.innerHTML = (data||[]).map(r => {
-          const bImg = r.cardImageUrl ? `<img class="thumb" src="${r.cardImageUrl}" alt="">` : `<div class="thumb"></div>`;
-          const bName = r.cardName || '(이름없음)';
-          const bNum  = r.cardNo ? `#${r.cardNo}` : '';
-          const b1 = r.cardProductUrl ? `<a href="${r.cardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
-          const b2 = r.cardProductUrl ? `</a>` : '';
+    const isNumber = /^\d+$/.test(key);
+    const url = `${API}/similar/${encodeURIComponent(key)}?days=${days}&limit=${limit}`;
 
-          const sImg = r.otherCardImageUrl ? `<img class="thumb" src="${r.otherCardImageUrl}" alt="">` : `<div class="thumb"></div>`;
-          const sName = r.otherCardName || '(이름없음)';
-          const sNum  = r.otherCardNo ? `#${r.otherCardNo}` : '';
-          const s1 = r.otherCardProductUrl ? `<a href="${r.otherCardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
-          const s2 = r.otherCardProductUrl ? `</a>` : '';
+    const data = await jfetch(url);
 
-          return `
-            <tr>
-              <td>
-                ${b1}
-                <div class="cardcell">${bImg}<div><div class="cardname">${bName}</div><div class="cardno">${bNum}</div></div></div>
-                ${b2}
-              </td>
-              <td>
-                ${s1}
-                <div class="cardcell">${sImg}<div><div class="cardname">${sName}</div><div class="cardno">${sNum}</div></div></div>
-                ${s2}
-              </td>
-              <td class="right">${fmt(r.simScore)}</td>
-            </tr>
-          `;
-        }).join('') || `<tr><td colspan="3" class="muted">데이터 없음</td></tr>`;
-      } catch (e){
-        alert('유사 카드 조회 실패: ' + e.message);
-      }
-    }
+    const tb = document.getElementById('similarTbody');
+    tb.innerHTML = (data||[]).map(r => {
+      const bImg = imgTag(pickImageSrcFromRecord(r), r.cardName || '기준 카드');
+      const bName = r.cardName || '(이름없음)';
+      const bNum  = r.cardNo ? `#${r.cardNo}` : '';
+      const b1 = r.cardProductUrl ? `<a href="${r.cardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
+      const b2 = r.cardProductUrl ? `</a>` : '';
+
+      const sImg = imgTag(pickOtherImageSrcFromRecord(r), r.otherCardName || '유사 카드');
+      const sName = r.otherCardName || '(이름없음)';
+      const sNum  = r.otherCardNo ? `#${r.otherCardNo}` : '';
+      const s1 = r.otherCardProductUrl ? `<a href="${r.otherCardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
+      const s2 = r.otherCardProductUrl ? `</a>` : '';
+
+      return `
+        <tr>
+          <td>
+            ${b1}
+            <div class="cardcell">${bImg}<div><div class="cardname">${bName}</div><div class="cardno">${bNum}</div></div></div>
+            ${b2}
+          </td>
+          <td>
+            ${s1}
+            <div class="cardcell">${sImg}<div><div class="cardname">${sName}</div><div class="cardno">${sNum}</div></div></div>
+            ${s2}
+          </td>
+          <td class="right">${fmt(r.simScore)}</td>
+        </tr>
+      `;
+    }).join('') || `<tr><td colspan="3" class="muted">데이터 없음</td></tr>`;
+  } catch (e){
+    alert('유사 카드 조회 실패: ' + e.message);
+  }
+}
+
 
     // 로그
     let state = { page: 1, size: 20 };
