@@ -1,8 +1,9 @@
 // lib/ApplicationStep1Page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'ApplicationStep2Page.dart';
-import 'user/service/Card_Apply_Service.dart';
+import 'user/service/card_apply_service.dart';
 
 const kPrimaryRed = Color(0xffB91111);
 
@@ -73,7 +74,7 @@ InputDecoration _fieldDec(String hint) => InputDecoration(
 );
 
 class ApplicationStep1Page extends StatefulWidget {
-  // ✅ cardNo는 validate 호출에 꼭 필요하므로 필수로 변경
+  /// ✅ cardNo는 validate 호출에 꼭 필요하므로 필수
   final int cardNo;
   final int? applicationNo; // /start에서 받은 값(선택)
   final bool? isCreditCard;
@@ -97,7 +98,14 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
   final _rrnFront = TextEditingController();
   final _rrnBack = TextEditingController();
 
-  bool _loading = false;
+  bool _submitting = false;
+  bool _prefilling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefill(); // ← 로그인 기반 프리필 시도
+  }
 
   @override
   void dispose() {
@@ -109,10 +117,35 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
     super.dispose();
   }
 
+  Future<void> _loadPrefill() async {
+    setState(() => _prefilling = true);
+    try {
+      final p = await CardApplyService.prefill(); // {name, rrnFront}
+      if (p != null) {
+        if ((_name.text).trim().isEmpty) _name.text = p['name'] ?? '';
+        if ((_rrnFront.text).trim().isEmpty) _rrnFront.text = p['rrnFront'] ?? '';
+        setState(() {}); // 반영
+      }
+    } on ApiException catch (e) {
+      // 401 등: 로그인 필요. 여기선 안내만 하고 계속 진행(수동 입력)
+      if (e.status == 401 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('로그인이 필요합니다. (프리필 미적용)')),
+        );
+        // TODO: 필요 시 로그인 화면으로 이동 처리
+      }
+    } catch (_) {
+      // 조용히 무시하고 수동 입력 진행
+    } finally {
+      if (mounted) setState(() => _prefilling = false);
+    }
+  }
+
   Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _loading = true);
+    setState(() => _submitting = true);
     try {
       final resp = await CardApplyService.validateInfo(
         cardNo: widget.cardNo,
@@ -146,17 +179,30 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
           SnackBar(content: Text(resp.message ?? '검증 실패')),
         );
       }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.status == 401) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('로그인이 필요합니다. 다시 로그인 후 시도해주세요.')),
+        );
+        // TODO: 로그인 화면 이동 처리
+      } else {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('오류: $e')));
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isBusy = _submitting || _prefilling;
+
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(color: Colors.black87),
@@ -180,9 +226,11 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
                 key: _formKey,
                 child: ListView(
                   children: [
+                    // 한글 이름 (프리필 대상)
                     TextFormField(
                       controller: _name,
                       decoration: _fieldDec('이름'),
+                      textInputAction: TextInputAction.next,
                       validator: (v) =>
                       (v == null || v.trim().isEmpty) ? '이름을 입력하세요' : null,
                     ),
@@ -192,10 +240,13 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
                       style: TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                     const SizedBox(height: 12),
+
+                    // 영문 성 / 이름
                     TextFormField(
                       controller: _engLast,
                       decoration: _fieldDec('영문 성'),
                       textCapitalization: TextCapitalization.characters,
+                      textInputAction: TextInputAction.next,
                       validator: (v) =>
                       (v == null || v.trim().isEmpty) ? '영문 성을 입력하세요' : null,
                     ),
@@ -204,10 +255,13 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
                       controller: _engFirst,
                       decoration: _fieldDec('영문 이름'),
                       textCapitalization: TextCapitalization.characters,
+                      textInputAction: TextInputAction.next,
                       validator: (v) =>
                       (v == null || v.trim().isEmpty) ? '영문 이름을 입력하세요' : null,
                     ),
                     const SizedBox(height: 10),
+
+                    // 주민번호 앞 6자리 (프리필 대상)
                     TextFormField(
                       controller: _rrnFront,
                       decoration: _fieldDec('주민등록번호 앞자리'),
@@ -216,10 +270,13 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
                         FilteringTextInputFormatter.digitsOnly,
                         LengthLimitingTextInputFormatter(6),
                       ],
+                      textInputAction: TextInputAction.next,
                       validator: (v) =>
                       (v == null || v.length != 6) ? '앞 6자리를 입력하세요' : null,
                     ),
                     const SizedBox(height: 10),
+
+                    // 주민번호 뒤 7자리 (수동 입력)
                     TextFormField(
                       controller: _rrnBack,
                       decoration: _fieldDec('주민등록번호 뒷자리'),
@@ -252,8 +309,8 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              onPressed: _loading ? null : _submit,
-              child: _loading
+              onPressed: isBusy ? null : _submit,
+              child: isBusy
                   ? const SizedBox(
                 height: 22,
                 width: 22,

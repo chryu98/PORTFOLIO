@@ -1,4 +1,5 @@
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class API {
   static String? baseUrl;
@@ -43,5 +44,22 @@ class API {
   // 🔴 발급/검증 엔드포인트 추가
   static String get applyStart        => _j('/card/apply/api/start');
   static String get applyValidateInfo => _j('/card/apply/api/validateInfo');
-// (선택) 프리필: static String applyPrefill() => _j('/card/apply/api/prefill');
+  static String get applyPrefill => '$baseUrl/card/apply/api/prefill';
+
+  // (선택) JWT 로그인
+  static String get jwtLogin             => '$baseUrl/jwt/api/login';
+
+  // ▼ 공통 헤더 (JWT 포함)
+  static Future<Map<String, String>> authHeaders({bool json = true}) async {
+    final headers = <String, String>{};
+    if (json) headers['Content-Type'] = 'application/json';
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt'); // 로그인 시 저장한 키와 맞추세요
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+  static String get applyValidateContact => '$baseUrl/card/apply/api/validateContact';
 }
