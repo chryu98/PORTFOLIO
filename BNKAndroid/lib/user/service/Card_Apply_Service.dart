@@ -22,7 +22,7 @@ class StartResponse {
   StartResponse({required this.applicationNo, required this.isCreditCard});
 
   factory StartResponse.fromJson(Map<String, dynamic> j) => StartResponse(
-    applicationNo: j['applicationNo'] as int,
+    applicationNo: (j['applicationNo'] as num).toInt(), // ✅ num → int 변환
     isCreditCard: (j['isCreditCard']?.toString() ?? 'N') == 'Y',
   );
 }
@@ -34,6 +34,13 @@ class ValidateResult {
   final int? applicationNo;
 
   ValidateResult({required this.success, this.message, this.applicationNo});
+
+  // ✅ 안전 파서 추가: num → int 변환 처리
+  factory ValidateResult.fromJson(Map<String, dynamic> j) => ValidateResult(
+    success: j['success'] == true,
+    message: j['message']?.toString(),
+    applicationNo: (j['applicationNo'] is num) ? (j['applicationNo'] as num).toInt() : null,
+  );
 }
 
 class CardApplyService {
@@ -68,7 +75,9 @@ class CardApplyService {
         body: j,
       );
     }
-    if (j['applicationNo'] is! int) {
+
+    // ✅ 형식 검증을 num 기준으로 완화
+    if (j['applicationNo'] is! num) {
       throw ApiException(
         message: 'applicationNo 누락/형식 오류',
         status: res.statusCode,
@@ -107,11 +116,8 @@ class CardApplyService {
     _throwIfHttpError(res);
     final Map<String, dynamic> j = _decode(res);
 
-    return ValidateResult(
-      success: j['success'] == true,
-      message: j['message']?.toString(),
-      applicationNo: (j['applicationNo'] is int) ? j['applicationNo'] as int : null,
-    );
+    // ✅ 통일된 파서 사용
+    return ValidateResult.fromJson(j);
   }
 
   // ---- 프리필: 한글이름 + 주민번호 앞 6자리 (GET /card/apply/api/prefill) ----

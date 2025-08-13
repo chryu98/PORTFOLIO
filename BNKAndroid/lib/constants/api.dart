@@ -1,15 +1,16 @@
+// lib/constants/api.dart
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class API {
   static String? baseUrl;
 
+  /// 앱 실행 시 호출해 baseUrl 자동 세팅
   static Future<void> initBaseUrl() async {
-    const fallbackIp = '192.168.0.5';
+    const fallbackIp = '192.168.0.229';
     try {
       final r = await http.get(Uri.parse('http://$fallbackIp:8090/api/config/base-url'));
       if (r.statusCode == 200) {
-        baseUrl = r.body.trim(); // 예: http://192.168.100.106:8090[/컨텍스트]
+        baseUrl = r.body.trim();
         print('[API] baseUrl 세팅됨: $baseUrl');
       } else {
         throw Exception("base-url 응답 실패");
@@ -20,14 +21,18 @@ class API {
     }
   }
 
-  // --- 공용 path join (슬래시 중복 방지)
-  static String _j(String p) {
+  /// 내부 URL 조합기
+  static String _j(String path) {
+    if (baseUrl == null) {
+      print('[API] 경고: baseUrl이 설정되지 않았습니다.');
+    }
     final b = baseUrl ?? '';
-    return b.endsWith('/') ? '$b${p.startsWith('/') ? p.substring(1) : p}'
-        : '$b${p.startsWith('/') ? p : '/$p'}';
+    return b.endsWith('/')
+        ? '$b${path.startsWith('/') ? path.substring(1) : path}'
+        : '$b${path.startsWith('/') ? path : '/$path'}';
   }
 
-  // 기존 카드 API
+  // ===== 카드 API =====
   static String get cards => _j('/api/cards');
   static String cardDetail(int id) => _j('/api/cards/detail/$id');
   static String compareCardDetail(dynamic id) => _j('/api/cards/$id');
@@ -41,25 +46,14 @@ class API {
     return _j('/api/cards/search?$q');
   }
 
-  // 🔴 발급/검증 엔드포인트 추가
-  static String get applyStart        => _j('/card/apply/api/start');
-  static String get applyValidateInfo => _j('/card/apply/api/validateInfo');
-  static String get applyPrefill => '$baseUrl/card/apply/api/prefill';
+  // ===== 발급 API =====
+  static String get applyStart           => _j('/card/apply/api/start');
+  static String get applyValidateInfo    => _j('/card/apply/api/validateInfo');
+  static String get applyPrefill         => _j('/card/apply/api/prefill');
+  static String get applyValidateContact => _j('/card/apply/api/validateContact');
 
-  // (선택) JWT 로그인
-  static String get jwtLogin             => '$baseUrl/jwt/api/login';
-
-  // ▼ 공통 헤더 (JWT 포함)
-  static Future<Map<String, String>> authHeaders({bool json = true}) async {
-    final headers = <String, String>{};
-    if (json) headers['Content-Type'] = 'application/json';
-
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwt'); // 로그인 시 저장한 키와 맞추세요
-    if (token != null && token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-    return headers;
-  }
-  static String get applyValidateContact => '$baseUrl/card/apply/api/validateContact';
+  // ===== JWT API =====
+  static String get jwtLogin  => _j('/jwt/api/login');
+  static String get jwtLogout => _j('/jwt/api/logout'); // 선택
+  static String get jwtRefresh => _j('/jwt/api/refresh'); // 선택
 }
