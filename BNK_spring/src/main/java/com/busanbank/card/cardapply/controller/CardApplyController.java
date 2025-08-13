@@ -6,6 +6,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.busanbank.card.user.dao.IUserDao;
@@ -21,8 +22,17 @@ public class CardApplyController {
 	@Autowired
 	private IUserDao userDao;
 	
-	@GetMapping("/customer-info/{cardNo}")
-	public String customerInfo(@PathVariable("cardNo") int cardNo,
+	@GetMapping("/termsAgree")
+	public String contactInfo(@RequestParam("cardNo") int cardNo,
+							  Model model) {
+		
+		
+		model.addAttribute("cardNo", cardNo);
+		return "cardapply/termsAgree";
+	}
+	
+	@GetMapping("/customer-info")
+	public String customerInfo(@RequestParam("cardNo") int cardNo,
 							   HttpSession session, Model model,
 							   RedirectAttributes rttr) throws Exception {
 		
@@ -45,9 +55,24 @@ public class CardApplyController {
 		return "cardapply/customerInfo";
 	}
 	
+	@GetMapping("/contactInfo")
+	public String contactInfo(@RequestParam("applicationNo") Integer applicationNo,
+							  Model model) {
+		model.addAttribute("applicationNo", applicationNo);
+		return "cardapply/contactInfo";
+	}
+
+	@GetMapping("/jobInfo")
+	public String jobInfo(@RequestParam("applicationNo") Integer applicationNo,
+			  			  Model model) {		
+		model.addAttribute("applicationNo", applicationNo);
+		return "cardapply/jobInfo";
+	}
+
 	@GetMapping("/addressInfo")
-	public String addressInfo() {
-		
+	public String addressInfo(@RequestParam("applicationNo") Integer applicationNo,
+			Model model) {		
+		model.addAttribute("applicationNo", applicationNo);
 		return "cardapply/addressInfo";
 	}
 }

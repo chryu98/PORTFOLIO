@@ -205,7 +205,7 @@
 <div class="wrap">
   <div class="top">
     <div>
-      <img id="cardImg" src="" alt="카드이미지" class="card-img">
+      <img id="cardImg" src="" alt="카드이미지" class="card-img" data-track="card-image">
       
     </div>
     <div class="info">
@@ -223,7 +223,8 @@
   <%
     String cardNo = request.getParameter("no"); // URL에서 no 파라미터 받아옴
 %>
-<a href="/card/apply/customer-info/<%=cardNo%>"
+<a href="/card/apply/termsAgree?cardNo=<%=cardNo%>"
+ id="applyLink"
    style="display:inline-block; padding:12px 24px; background:#d44; color:white; font-weight:bold; border-radius:8px; text-decoration:none;">
    카드 발급하기
 </a>
@@ -240,7 +241,7 @@
 
   <div class="section">
 	  <h3>유의사항</h3>
-	  <div class="accordion" onclick="toggleNoticeAccordion(this)">
+	  <div class="accordion" data-track="notice-all" onclick="toggleNoticeAccordion(this)">
 	    <h4>전체 보기 <span>▼</span></h4>
 	    <p id="noticeFull"></p>
 	  </div>
@@ -426,35 +427,84 @@
     el.classList.toggle("active");
   }
 </script>
+
+
 <%
-    com.busanbank.card.user.dto.UserDto loginUser = 
+    com.busanbank.card.user.dto.UserDto loginUser =
         (com.busanbank.card.user.dto.UserDto) session.getAttribute("loginUser");
     Long memberNo = (loginUser != null) ? Long.valueOf(loginUser.getMemberNo()) : null;
 %>
 <script>
-const memberNo = <%= memberNo != null ? "'" + memberNo + "'" : "null" %>;
-console.log("🧪 memberNo (from session):", memberNo);
-  
-  if (memberNo !== 'null') {
+  const memberNo = <%= memberNo != null ? "'" + memberNo + "'" : "null" %>;
+  console.log("🧪 memberNo (from session):", memberNo);
+
+  // VIEW
+  if (memberNo !== 'null' && memberNo !== '0') {
     fetch("/api/log/card-behavior", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         memberNo: Number(memberNo),
-        cardNo: Number(cardNo),
+        cardNo: Number(cardNo), // 위쪽에서 URLSearchParams로 만든 JS 변수 그대로 사용
         behaviorType: "VIEW",
         deviceType: /Mobi|Android/i.test(navigator.userAgent) ? "MOBILE" : "PC",
         userAgent: navigator.userAgent
       })
-    }).then(res => {
-      console.log("✅ 로그 저장 응답:", res.status);
-    }).catch(err => {
-      console.error("❌ 로그 저장 에러:", err);
-    });
+    }).then(res => console.log("✅ 로그 저장 응답:", res.status))
+      .catch(err => console.error("❌ 로그 저장 에러:", err));
   } else {
     console.warn("⛔ memberNo나 cardNo가 비어 있어서 로그 저장 안 됨");
   }
+
+  function deviceTypeOf(ua) {
+    return /Mobi|Android/i.test(ua) ? "MOBILE" : "PC";
+  }
+
+  // 공통 로깅: VIEW / CLICK / APPLY_START / APPLY_COMPLETE
+  function logBehavior(type) {
+    if (memberNo === 'null' || memberNo === '0') return; // 비로그인 시 스킵
+    const payload = {
+      memberNo: Number(memberNo),
+      cardNo: Number(cardNo),
+      behaviorType: type,
+      deviceType: deviceTypeOf(navigator.userAgent),
+      userAgent: navigator.userAgent
+    };
+    const url = "/api/log/card-behavior";
+    const body = JSON.stringify(payload);
+
+    if (navigator.sendBeacon) {
+      const blob = new Blob([body], { type: "application/json;charset=UTF-8" });
+      if (navigator.sendBeacon(url, blob)) return;
+    }
+    fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body })
+      .catch(() => {});
+  }
+
+  // CLICK 수집 (필요 시 applyLink 제외)
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-track]");
+    if (!el) return;
+    if (el.id === "applyLink") return; // ← 이 줄은 선택(빼고 싶을 때만)
+    logBehavior("CLICK");
+  });
+
+  // APPLY_START: 인터셉트 후 이동
+  document.addEventListener("DOMContentLoaded", () => {
+    const applyLink = document.getElementById("applyLink");
+    if (!applyLink) return;
+    applyLink.setAttribute("data-track", "apply-button");
+    applyLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      const href = applyLink.getAttribute("href");
+      if (applyLink._applied) return;
+      applyLink._applied = true;
+      logBehavior("APPLY_START");
+      setTimeout(() => { window.location.href = href; }, 50);
+    });
+  });
 </script>
+
 
 
 <script>

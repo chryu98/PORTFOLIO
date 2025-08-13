@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.busanbank.card.admin.dao.RecoMapper">
+
+  <resultMap id="CardInsightMap" type="com.busanbank.card.admin.dto.CardInsightDto">
+    <result column="card_no"                  property="cardNo"/>
+    <result column="card_name"                property="cardName"/>
+    <result column="card_image_url"           property="cardImageUrl"/>
+    <result column="card_product_url"         property="cardProductUrl"/>
+
+    <result column="views"                    property="views"/>
+    <result column="clicks"                   property="clicks"/>
+    <result column="applies"                  property="applies"/>
+    <result column="score"                    property="score"/>
+    <result column="ctr"                      property="ctr"/>
+    <result column="cvr"                      property="cvr"/>
+
+    <result column="other_card_no"            property="otherCardNo"/>
+    <result column="other_card_name"          property="otherCardName"/>
+    <result column="other_card_image_url"     property="otherCardImageUrl"/>
+    <result column="other_card_product_url"   property="otherCardProductUrl"/>
+    <result column="sim_score"                property="simScore"/>
+
+    <result column="log_no"                   property="logNo"/>
+    <result column="member_no"                property="memberNo"/>
+    <result column="behavior_type"            property="behaviorType"/>
+    <result column="behavior_time"            property="behaviorTime"/>
+    <result column="device_type"              property="deviceType"/>
+    <result column="user_agent"               property="userAgent"/>
+    <result column="ip_address"               property="ipAddress"/>
+
+    <result column="metric_type"              property="metricType"/>
+    <result column="from_date"                property="fromDate"/>
+    <result column="to_date"                  property="toDate"/>
+  </resultMap>
+
+  <!-- 1) 인기 카드: CARD 조인, CLOB -> VARCHAR2 변환 -->
+<select id="selectPopular" resultMap="CardInsightMap">
+  <![CDATA[
+  WITH agg AS (
+    SELECT l.card_no,
+           SUM(CASE WHEN l.behavior_type='VIEW'  THEN 1 ELSE 0 END) AS views,
+           SUM(CASE WHEN l.behavior_type='CLICK' THEN 1 ELSE 0 END) AS clicks,
+           SUM(CASE WHEN l.behavior_type LIKE 'APPLY%' THEN 1 ELSE 0 END) AS applies,
+           SUM(CASE WHEN l.behavior_type='VIEW'  THEN 1
+                    WHEN l.behavior_type='CLICK' THEN 4
+                    WHEN l.behavior_type LIKE 'APPLY%' THEN 12
+                    ELSE 0 END) AS score,
+           CASE WHEN SUM(CASE WHEN l.behavior_type='VIEW' THEN 1 ELSE 0 END)=0 THEN NULL
+                ELSE 1.0 * SUM(CASE WHEN l.behavior_type='CLICK' THEN 1 ELSE 0 END)
+                         / SUM(CASE WHEN l.behavior_type='VIEW'  THEN 1 ELSE 0 END)
+           END AS ctr,
+           CASE WHEN SUM(CASE WHEN l.behavior_type='VIEW' THEN 1 ELSE 0 END)=0 THEN NULL
+                ELSE 1.0 * SUM(CASE WHEN l.behavior_type LIKE 'APPLY%' THEN 1 ELSE 0 END)
+                         / SUM(CASE WHEN l.behavior_type='VIEW'  THEN 1 ELSE 0 END)
+           END AS cvr
+    FROM CARD_BEHAVIOR_LOG l
+    WHERE l.behavior_time >= (SYSDATE - #{days})
+      AND NVL(l.member_no,0) != 0
+    GROUP BY l.card_no
+  )
+  SELECT *
+  FROM (
+    SELECT
+      a.card_no AS card_no,
+      c.card_name AS card_name,
+      -- CLOB -> VARCHAR2 (프론트/ResultMap 맞추려면 별칭을 card_product_url 로!)
+      DBMS_LOB.SUBSTR(c.card_url, 4000, 1) AS card_product_url,
+      a.views, a.clicks, a.applies, a.score, a.ctr, a.cvr,
+      'POPULARITY' AS metric_type,
+      NULL AS other_card_no, NULL AS other_card_name, NULL AS other_card_image_url, NULL AS other_card_product_url, NULL AS sim_score,
+      NULL AS log_no, NULL AS member_no, NULL AS behavior_type, NULL AS behavior_time,
+      NULL AS device_type, NULL AS user_agent, NULL AS ip_address,
+      NULL AS from_date, NULL AS to_date
+    FROM agg a
+    LEFT JOIN CARD c ON c.card_no = a.card_no
+    ORDER BY a.score DESC
+  )
+  WHERE ROWNUM <= #{limit}
+  ]]>
+</select>
+
+
+
+  <!-- 2) 유사 카드: pairs + CARD 조인, CLOB -> VARCHAR2 -->
+<select id="selectSimilar" resultMap="CardInsightMap">
+  <![CDATA[
+  WITH base AS (
+    SELECT DISTINCT member_no
+    FROM CARD_BEHAVIOR_LOG
+    WHERE card_no = #{cardNo}
+      AND behavior_time >= (SYSDATE - #{days})
+      AND NVL(member_no,0) != 0
+  ),
+  pairs AS (
+    SELECT l2.card_no AS other_card_no,
+           SUM(CASE 
+                 WHEN l2.behavior_type='VIEW'  THEN 1
+                 WHEN l2.behavior_type='CLICK' THEN 4
+                 WHEN l2.behavior_type LIKE 'APPLY%' THEN 12
+                 ELSE 0 
+               END) AS sim_score
+    FROM CARD_BEHAVIOR_LOG l2
+    JOIN base b ON b.member_no = l2.member_no
+    WHERE l2.behavior_time >= (SYSDATE - #{days})
+      AND l2.card_no != #{cardNo}
+    GROUP BY l2.card_no
+  )
+  SELECT *
+  FROM (
+    SELECT
+      #{cardNo} AS card_no,
+      c.card_name AS card_name,
+      DBMS_LOB.SUBSTR(c.card_url, 4000, 1) AS card_product_url,
+      p.other_card_no,
+      o.card_name AS other_card_name,
+      DBMS_LOB.SUBSTR(o.card_url, 4000, 1) AS other_card_product_url,
+      p.sim_score,
+      'SIMILARITY' AS metric_type,
+      NULL AS views, NULL AS clicks, NULL AS applies, NULL AS score, NULL AS ctr, NULL AS cvr,
+      NULL AS log_no, NULL AS member_no, NULL AS behavior_type, NULL AS behavior_time,
+      NULL AS device_type, NULL AS user_agent, NULL AS ip_address,
+      NULL AS from_date, NULL AS to_date
+    FROM pairs p
+    JOIN CARD o ON o.card_no = p.other_card_no
+    JOIN CARD c ON c.card_no = #{cardNo}
+    ORDER BY p.sim_score DESC
+  )
+  WHERE ROWNUM <= #{limit}
+  ]]>
+</select>
+
+
+  <!-- 3) KPI: 변경 없음 -->
+  <select id="selectKpi" resultMap="CardInsightMap">
+    SELECT
+      NULL AS card_no, NULL AS card_name, NULL AS card_image_url, NULL AS card_product_url,
+      SUM(CASE WHEN behavior_type='VIEW'  THEN 1 ELSE 0 END) AS views,
+      SUM(CASE WHEN behavior_type='CLICK' THEN 1 ELSE 0 END) AS clicks,
+      SUM(CASE WHEN behavior_type LIKE 'APPLY%' THEN 1 ELSE 0 END) AS applies,
+      NULL AS score,
+      CASE WHEN SUM(CASE WHEN behavior_type='VIEW' THEN 1 ELSE 0 END)=0 THEN NULL
+           ELSE 1.0 * SUM(CASE WHEN behavior_type='CLICK' THEN 1 ELSE 0 END)
+                    / SUM(CASE WHEN behavior_type='VIEW'  THEN 1 ELSE 0 END)
+      END AS ctr,
+      CASE WHEN SUM(CASE WHEN behavior_type='VIEW' THEN 1 ELSE 0 END)=0 THEN NULL
+           ELSE 1.0 * SUM(CASE WHEN behavior_type LIKE 'APPLY%' THEN 1 ELSE 0 END)
+                    / SUM(CASE WHEN behavior_type='VIEW'  THEN 1 ELSE 0 END)
+      END AS cvr,
+      'KPI' AS metric_type,
+      NULL AS other_card_no, NULL AS other_card_name, NULL AS other_card_image_url, NULL AS other_card_product_url, NULL AS sim_score,
+      NULL AS log_no, NULL AS member_no, NULL AS behavior_type, NULL AS behavior_time,
+      NULL AS device_type, NULL AS user_agent, NULL AS ip_address,
+      (SYSDATE - #{days}) AS from_date, SYSDATE AS to_date
+    FROM CARD_BEHAVIOR_LOG
+    WHERE behavior_time >= (SYSDATE - #{days})
+      AND NVL(member_no,0) != 0
+  </select>
+
+  <!-- 4) 로그: 변경 없음 -->
+  <select id="selectLogs" resultMap="CardInsightMap">
+    SELECT
+      l.log_no, l.member_no, l.card_no, l.behavior_type, l.behavior_time,
+      l.device_type, l.user_agent, l.ip_address,
+      NULL AS card_name, NULL AS card_image_url, NULL AS card_product_url,
+      NULL AS views, NULL AS clicks, NULL AS applies, NULL AS score,
+      NULL AS ctr, NULL AS cvr, NULL AS other_card_no, NULL AS other_card_name, NULL AS other_card_image_url, NULL AS other_card_product_url, NULL AS sim_score,
+      'LOG' AS metric_type, NULL AS from_date, NULL AS to_date
+    FROM CARD_BEHAVIOR_LOG l
+    WHERE 1=1
+      <if test="memberNo != null"> AND l.member_no = #{memberNo} </if>
+      <if test="cardNo != null">   AND l.card_no   = #{cardNo}   </if>
+      <if test="type != null and type != ''"> AND l.behavior_type = #{type} </if>
+      <if test="from != null and from != ''"> AND l.behavior_time &gt;= TO_DATE(#{from}, 'YYYY-MM-DD') </if>
+      <if test="to != null and to != ''">     AND l.behavior_time &lt;  TO_DATE(#{to},   'YYYY-MM-DD') + 1 </if>
+    ORDER BY l.behavior_time DESC
+    OFFSET #{offset} ROWS FETCH NEXT #{pageSize} ROWS ONLY
+  </select>
+
+</mapper>

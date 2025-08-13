@@ -12,8 +12,10 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import 'ApplicationStep1Page.dart';
 
+
+
 //혜택 png크기 조절
-const double kBenefitIconHeight = 180; // 120~160 맘에 드는 값
+const double kBenefitIconHeight = 150; // 120~160 맘에 드는 값
 
 /// 카테고리와 GIF 자산 경로 매핑
 const Map<String, String> kCategoryGifPath = {
