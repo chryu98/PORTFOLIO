@@ -242,6 +242,7 @@ class _CardListPageState extends State<CardListPage>
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: FutureBuilder(
           future: Future.wait([_fCards, _fPopular]),
