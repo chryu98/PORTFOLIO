@@ -7,6 +7,8 @@ import '../constants/faq_api.dart';
 import '../constants/chat_api.dart';
 import '../user/cardListPage.dart';
 import '../chat/widgets/chatbot_modal.dart';
+import '../constants/api.dart';  // 카드 API
+
 
 class FaqPage extends StatefulWidget {
   const FaqPage({super.key});
@@ -331,6 +333,7 @@ class _FaqPageState extends State<FaqPage> {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await API.initBaseUrl();
   // 스프링 FAQ 서버(필수)
   FAQApi.useLan(ip: '192.168.0.5', port: 8090); // 본인 IP
   FAQApi.setPathPrefix('/api');                 // 백엔드가 /api/faq 라우트일 때

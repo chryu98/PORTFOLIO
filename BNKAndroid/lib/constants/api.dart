@@ -4,7 +4,7 @@ class API {
   static String? baseUrl;
 
   static Future<void> initBaseUrl() async {
-    const fallbackIp = '192.168.100.106';
+    const fallbackIp = '192.168.0.5';
     try {
       final r = await http.get(Uri.parse('http://$fallbackIp:8090/api/config/base-url'));
       if (r.statusCode == 200) {
