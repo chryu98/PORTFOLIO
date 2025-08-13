@@ -35,7 +35,7 @@ class _LoginPageState extends State<LoginPage> {
   // 로그인 버튼 클릭 시 호출되는 함수
   Future<void> login() async {
     // 1. Spring API URL 설정
-    final url = Uri.parse('http://192.168.0.5:8090/user/api/login');
+    final url = Uri.parse('http://192.168.0.229:8090/user/api/login');
 
     try {
       // 2. POST 요청 보내기
