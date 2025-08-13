@@ -8,17 +8,17 @@ import io.flutter.plugin.platform.PlatformView;
 import io.flutter.plugin.platform.PlatformViewFactory;
 
 public class NaverMapFactory extends PlatformViewFactory {
-    private final Context context;
+
     private final BinaryMessenger messenger;
 
-    public NaverMapFactory(Context context, BinaryMessenger messenger) {
+    public NaverMapFactory(BinaryMessenger messenger) {
         super(StandardMessageCodec.INSTANCE);
-        this.context = context;
         this.messenger = messenger;
     }
 
-    public NaverMapPlatformView create(Context ctx, int id, Object args) {
-        // ⬇️ 여기서 (Context, BinaryMessenger, int) 시그니처 호출
-        return new NaverMapPlatformView(context, messenger, id);
+    @Override
+    public PlatformView create(Context context, int id, Object args) {
+        // ✅ BinaryMessenger를 플랫폼뷰로 전달
+        return new NaverMapPlatformView(context, messenger);
     }
 }

@@ -1,18 +1,51 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper
   PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-
 <mapper namespace="com.busanbank.card.branch.mapper.BranchMapper">
 
+  <resultMap id="BranchMap" type="com.busanbank.card.branch.dto.BranchDto">
+    <id    property="branchNo"     column="BRANCH_NO"/>
+    <result property="branchName"  column="BRANCH_NAME"/>
+    <result property="branchAddress" column="BRANCH_ADDRESS"/>
+    <result property="branchTel"   column="BRANCH_TEL"/>
+    <result property="latitude"    column="LATITUDE"/>
+    <result property="longitude"   column="LONGITUDE"/>
+  </resultMap>
 
-    <select id="findAllBranches" resultType="com.busanbank.card.branch.dto.BranchDto">
-        SELECT
-            BRANCH_NO as branchNo,
-            BRANCH_NAME as branchName,
-            BRANCH_ADDRESS as branchAddress,
-            BRANCH_TEL as branchTel
-        FROM BNK_BRANCH
-    </select>
+  <select id="selectAll" resultMap="BranchMap">
+    SELECT BRANCH_NO, BRANCH_NAME, BRANCH_ADDRESS, BRANCH_TEL, LATITUDE, LONGITUDE
+    FROM BNK_BRANCH
+    ORDER BY BRANCH_NO
+  </select>
+
+  <select id="selectAllWithoutLatLng" resultMap="BranchMap">
+    SELECT BRANCH_NO, BRANCH_NAME, BRANCH_ADDRESS, BRANCH_TEL, LATITUDE, LONGITUDE
+    FROM BNK_BRANCH
+    WHERE LATITUDE IS NULL OR LONGITUDE IS NULL
+    ORDER BY BRANCH_NO
+  </select>
+
+  <update id="updateBranchLocation">
+    UPDATE BNK_BRANCH
+       SET LATITUDE  = #{latitude},
+           LONGITUDE = #{longitude}
+     WHERE BRANCH_NO = #{branchNo}
+  </update>
+
+	<select id="searchBranches" resultMap="BranchMap">
+	    SELECT
+	        BRANCH_NO,
+	        BRANCH_NAME,
+	        BRANCH_TEL,
+	        BRANCH_ADDRESS,
+	        LATITUDE,
+	        LONGITUDE
+	    FROM BNK_BRANCH
+	    WHERE (BRANCH_NAME LIKE #{keyword}
+	        OR BRANCH_ADDRESS LIKE #{keyword}
+	        OR BRANCH_TEL LIKE #{keyword})
+	      AND LATITUDE IS NOT NULL
+	      AND LONGITUDE IS NOT NULL
+	</select>
 
 </mapper>
