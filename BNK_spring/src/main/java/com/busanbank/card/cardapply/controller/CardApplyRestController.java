@@ -119,17 +119,34 @@ public class CardApplyRestController {
 
         boolean nameMatch  = dbName.equals(inputName);
         boolean frontMatch = dbRrnFront.equals(inputRrnFront);
-        boolean backMatch  = inputRrnBack.length() == 7
-                           && !dbGender.isEmpty()
-                           && inputRrnBack.charAt(0) == dbGender.charAt(0)
-                           && inputRrnBack.substring(1).equals(dbTail);
+
+     // (이미 위에서 계산했다면 생략) 복호화
+        final String inputBack = digits(in.getRrnBack()); // "1234567" 형태
+
+        final boolean lenOk    = inputBack.length() == 7;
+        final boolean genderOk = !dbGender.isEmpty() && lenOk && inputBack.charAt(0) == dbGender.charAt(0);
+        final boolean tailOk   = lenOk && dbTail != null && inputBack.substring(1).equals(dbTail);
+        final boolean tailDigitsOk = dbTail != null && dbTail.matches("\\d{6}");
+
+        // ✅ 반드시 return 전에 찍어야 확인 가능
+        log.warn("[DBG] backMatch parts: lenOk={}, genderOk={}, tailOk={}, tailDigitsOk={}",
+                lenOk, genderOk, tailOk, tailDigitsOk);
+        log.warn("[DBG] expected={} input={}", dbGender + "******", maskRrnBack(inputBack));
+
+        final boolean backMatch = genderOk && tailOk;
 
         log.info("[validateInfo] nameMatch={}, frontMatch={}, backMatch={}, inBack={}, dbBack={}",
-                nameMatch, frontMatch, backMatch,
-                maskRrnBack(inputRrnBack), dbGender + "******");
+                nameMatch, frontMatch, backMatch, maskRrnBack(inputBack), dbGender + "******");
 
         if (!(nameMatch && frontMatch && backMatch)) {
-            return fail(result, "입력한 정보가 회원 정보와 일치하지 않습니다.");
+            // 원인 힌트까지 주고 싶으면(개발용)
+            final String reason = !nameMatch ? "이름 불일치"
+                              : !frontMatch ? "앞6 불일치"
+                              : !lenOk ? "뒤7 길이 오류"
+                              : !genderOk ? "성별코드 불일치"
+                              : !tailDigitsOk ? "DB 뒤6 복호화 비정상"
+                              : "뒤6 불일치";
+            return fail(result, "입력한 정보가 회원 정보와 일치하지 않습니다. ("+reason+")");
         }
 
         // ----- 임시 저장: 헤더 -----
