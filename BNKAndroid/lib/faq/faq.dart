@@ -9,7 +9,6 @@ import '../user/cardListPage.dart';
 import '../chat/widgets/chatbot_modal.dart';
 import '../constants/api.dart';  // 카드 API
 
-
 class FaqPage extends StatefulWidget {
   const FaqPage({super.key});
   @override
@@ -17,7 +16,9 @@ class FaqPage extends StatefulWidget {
 }
 
 class _FaqPageState extends State<FaqPage> {
-  static const _bnkRed = Color(0xFFE60012);
+  // ── BNK 부산은행 톤
+  static const _bnkRed = Color(0xFFD6001C);      // BNK 레드 (브랜드 메인)
+  static const _bnkRedDark = Color(0xFFA80016);  // 딥 레드 (그라데이션 하단)
   static const _ink = Color(0xFF222222);
   static const _bg = Color(0xFFF5F6F8);
   static const int _pageSize = 20;
@@ -79,6 +80,10 @@ class _FaqPageState extends State<FaqPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 상단 AppBar를 피해서 챗봇 버튼을 띄우기 위한 안전 오프셋
+    final safeTop = MediaQuery.of(context).padding.top;
+    final chatTopOffset = safeTop + kToolbarHeight + 8; // AppBar 바로 아래 살짝 띄움
+
     return WillPopScope(
       onWillPop: () async {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => CardListPage()));
@@ -87,7 +92,14 @@ class _FaqPageState extends State<FaqPage> {
       child: Scaffold(
         backgroundColor: _bg,
         appBar: AppBar(
-          title: const Text('FAQ'),
+          title: const Text(
+            'FAQ',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
+              color: _ink,
+            ),
+          ),
           centerTitle: true,
           elevation: 0,
           backgroundColor: Colors.white,
@@ -103,40 +115,47 @@ class _FaqPageState extends State<FaqPage> {
             child: Container(height: 1, color: Colors.black.withValues(alpha: 0.06)),
           ),
         ),
-        body: RefreshIndicator(
-          onRefresh: _onRefresh,
-          child: CustomScrollView(
-            controller: _scroll,
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(child: _searchAndCategory()),
-              if (_err.isNotEmpty) SliverToBoxAdapter(child: _errorCard()),
-              if (_items.isEmpty && _err.isEmpty && !_loading)
-                SliverToBoxAdapter(child: _emptyCard()),
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                      (context, i) => _faqTile(_items[i]),
-                  childCount: _items.length,
-                ),
-              ),
-              SliverToBoxAdapter(child: _pager()),
-            ],
-          ),
-        ),
 
-        // 챗봇 FAB
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () {
-            showDialog(
-              context: context,
-              barrierDismissible: true,
-              builder: (_) => const ChatbotModal(),
-            );
-          },
-          label: const Text('챗봇'),
-          icon: const Icon(Icons.smart_toy_outlined),
-          backgroundColor: _bnkRed,
-          foregroundColor: Colors.white,
+        // FAB를 상단-우측에 "화면 위로" 띄우기 위해 Stack 오버레이 사용
+        body: Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: CustomScrollView(
+                controller: _scroll,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(child: _searchAndCategory()),
+                  if (_err.isNotEmpty) SliverToBoxAdapter(child: _errorCard()),
+                  if (_items.isEmpty && _err.isEmpty && !_loading)
+                    SliverToBoxAdapter(child: _emptyCard()),
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                          (context, i) => _faqTile(_items[i]),
+                      childCount: _items.length,
+                    ),
+                  ),
+                  SliverToBoxAdapter(child: _pager()),
+                ],
+              ),
+            ),
+
+            // 오른쪽 위로 띄운 챗봇 FAB (고정 위치)
+            Positioned(
+              top: chatTopOffset,   // ← 필요하면 이 값만 조정하면 됨
+              right: 12,
+              child: _ChatFab(
+                compact: true, // 아이콘 원형 캡슐 (상단에 잘 어울림)
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: true,
+                    builder: (_) => const ChatbotModal(),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -181,10 +200,13 @@ class _FaqPageState extends State<FaqPage> {
           children: ['전체', '카드'].map((c) {
             final selected = _selectedCat == c;
             return ChoiceChip(
-              label: Text(c, style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : _ink,
-              )),
+              label: Text(
+                c,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: selected ? Colors.white : _ink,
+                ),
+              ),
               selected: selected,
               backgroundColor: Colors.white,
               selectedColor: _bnkRed,
@@ -246,7 +268,14 @@ class _FaqPageState extends State<FaqPage> {
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           leading: _badge(m.category),
-          title: Text(m.faqQuestion, style: const TextStyle(fontWeight: FontWeight.w700, color: _ink)),
+          title: Text(
+            m.faqQuestion,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: _ink,
+              letterSpacing: 0.1,
+            ),
+          ),
           subtitle: (m.regDate != null)
               ? Text('업데이트 ${_fmt(m.regDate!)}', style: TextStyle(color: Colors.grey[600], fontSize: 12))
               : null,
@@ -267,9 +296,9 @@ class _FaqPageState extends State<FaqPage> {
     decoration: BoxDecoration(
       color: const Color(0xFFFFEEF0),
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: const Color(0xFFE60012).withValues(alpha: 0.2)),
+      border: Border.all(color: _bnkRed.withValues(alpha: 0.2)),
     ),
-    child: Text(cat, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _ink)),
+    child: Text(cat, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _ink)),
   );
 
   Widget _pager() {
@@ -288,7 +317,7 @@ class _FaqPageState extends State<FaqPage> {
             _pillButton(icon: Icons.chevron_left, label: '이전 20개', enabled: !_loading && _page > 0, onTap: () => _goTo(_page - 1)),
             const Spacer(),
             Text((_items.isEmpty && !_loading) ? '항목 없음' : '항목 $start–$end',
-                style: const TextStyle(fontWeight: FontWeight.w600, color: _ink)),
+                style: const TextStyle(fontWeight: FontWeight.w700, color: _ink)),
             const Spacer(),
             _pillButton(icon: Icons.chevron_right, label: '다음 20개', primary: true, enabled: !_loading && !_last, onTap: () => _goTo(_page + 1)),
           ],
@@ -329,7 +358,152 @@ class _FaqPageState extends State<FaqPage> {
       '${d.year}.${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')}';
 }
 
-// 디버그 런처(원하면 유지)
+/// ─────────────────────────────────────────────────────────────────
+/// 말랑한 BNK 톤 챗봇 FAB (오른쪽 위 고정, compact=true면 원형)
+class _ChatFab extends StatelessWidget {
+  final VoidCallback onTap;
+  final bool compact; // true: 원형(상단용), false: 라벨 포함 캡슐
+  const _ChatFab({required this.onTap, this.compact = true});
+
+  @override
+  Widget build(BuildContext context) {
+    if (compact) {
+      // 상단 고정에 어울리는 원형 스타일
+      return Semantics(
+        button: true,
+        label: '챗봇 열기',
+        child: Material(
+          color: Colors.transparent,
+          child: Ink(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [_FaqPageState._bnkRed, _FaqPageState._bnkRedDark],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _FaqPageState._bnkRed.withValues(alpha: 0.28),
+                  blurRadius: 16,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1),
+            ),
+            child: InkWell(
+              onTap: onTap,
+              customBorder: const CircleBorder(),
+              splashColor: Colors.white.withValues(alpha: 0.14),
+              highlightColor: Colors.white.withValues(alpha: 0.08),
+              child: const Center(
+                child: Icon(Icons.smart_toy_rounded, color: Colors.white, size: 26),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 하단 배치 시 쓰기 좋은 라벨 포함 캡슐형 (필요하면 compact=false로 사용)
+    return Semantics(
+      button: true,
+      label: '챗봇 열기',
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_FaqPageState._bnkRed, _FaqPageState._bnkRedDark],
+            ),
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: _FaqPageState._bnkRed.withValues(alpha: 0.30),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+            ],
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.08),
+              width: 1,
+            ),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(28),
+            onTap: onTap,
+            splashColor: Colors.white.withValues(alpha: 0.12),
+            highlightColor: Colors.white.withValues(alpha: 0.06),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 8, right: 14, top: 6, bottom: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  // 아이콘 캡
+                  _IconCap(),
+                  SizedBox(width: 10),
+                  Text(
+                    '챗봇',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IconCap extends StatelessWidget {
+  const _IconCap();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: const Icon(
+        Icons.smart_toy_rounded,
+        color: _FaqPageState._bnkRed,
+        size: 24,
+      ),
+    );
+  }
+}
+
+// ── 디버그 런처(원하면 유지)
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
