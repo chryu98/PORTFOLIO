@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'CardListPage.dart';
 import 'package:bnkandroid/constants/api.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 void main() async {
   await API.initBaseUrl();
   runApp(MyApp());
@@ -32,10 +34,12 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  String? _savedToken;
+
   // 로그인 버튼 클릭 시 호출되는 함수
   Future<void> login() async {
     // 1. Spring API URL 설정
-    final url = Uri.parse('http://192.168.0.5:8090/user/api/login');
+    final url = Uri.parse('http://192.168.0.229:8090/user/api/login');
 
     try {
       // 2. POST 요청 보내기
@@ -54,6 +58,22 @@ class _LoginPageState extends State<LoginPage> {
         final data = jsonDecode(response.body);
         print('로그인 성공: ${data['message']}');
 
+        // 토큰이 응답에 포함되어 있다면 저장
+        if (data['token'] != null) {
+          String token = data['token'];
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('jwt_token', token);
+
+          // 상태 변경하여 화면에 토큰 표시
+          setState(() {
+            _savedToken = token;
+          });
+
+          print('JWT 토큰 저장 완료: $token');
+        } else {
+          print('응답에 토큰이 없습니다.');
+        }
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => CardListPage()),
@@ -69,6 +89,7 @@ class _LoginPageState extends State<LoginPage> {
       }
 
     } catch (e) {
+      print('네트워크 오류: $e');
       // 네트워크 오류 등 예외 처리
       _showErrorDialog('네트워크 오류가 발생했습니다.');
     }
@@ -119,6 +140,11 @@ class _LoginPageState extends State<LoginPage> {
               onPressed: login, // 로그인 함수 호출
               child: Text('로그인'),
             ),
+            if (_savedToken != null) ...[
+              SizedBox(height: 20),
+              Text('저장된 토큰:', style: TextStyle(fontWeight: FontWeight.bold)),
+              SelectableText(_savedToken!),
+            ]
           ],
         ),
       ),

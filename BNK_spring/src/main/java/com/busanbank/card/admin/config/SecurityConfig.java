@@ -1,5 +1,6 @@
 package com.busanbank.card.admin.config;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -20,11 +21,13 @@ import java.util.List;
 @Order(1)
 public class SecurityConfig {
 
+	@Autowired
+    private CorsConfigurationSource corsConfigurationSource;
+	
     @Bean(name = "adminFilterChain")
     public SecurityFilterChain adminFilterChain(HttpSecurity http, AdminSession adminSession) throws Exception {
         http
-            .cors() // CORS 활성화
-            .and()
+        	.cors(cors -> cors.configurationSource(corsConfigurationSource))
             .securityMatcher("/admin/**")
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
@@ -54,18 +57,5 @@ public class SecurityConfig {
             );
 
         return http.build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowCredentials(true);
-        config.setAllowedOriginPatterns(List.of("*")); // 여기에 프론트 주소
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
     }
 }

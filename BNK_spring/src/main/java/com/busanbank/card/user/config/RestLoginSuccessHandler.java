@@ -7,6 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
+import com.busanbank.card.cardapply.config.JwtTokenProvider;
 import com.busanbank.card.user.dao.IUserDao;
 import com.busanbank.card.user.dto.UserDto;
 
@@ -19,6 +20,9 @@ public class RestLoginSuccessHandler implements AuthenticationSuccessHandler {
 	
 	@Autowired
 	private IUserDao userDao;
+	
+	@Autowired
+	private JwtTokenProvider jwtTokenProvider;
 	
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -34,11 +38,18 @@ public class RestLoginSuccessHandler implements AuthenticationSuccessHandler {
         session.setAttribute("loginRole", userDetails.getRole());
         session.setAttribute("loginMemberNo", userDetails.getMemberNo());
         
-        //JSON 응답
-    	response.setStatus(HttpServletResponse.SC_OK);
-    	response.setContentType("application/json; charset=UTF-8");
-		response.setCharacterEncoding("UTF-8");
-		
-        response.getWriter().write("{\"message\": \"로그인 성공\"}");
+        //JWT 토큰 생성
+        var roles = authentication.getAuthorities().stream()
+                     .map(auth -> auth.getAuthority())
+                     .toList();
+        String token = jwtTokenProvider.createToken(userDetails.getUsername(), roles);
+        
+        //JSON 응답 (토큰 포함)
+        response.setStatus(HttpServletResponse.SC_OK);
+        response.setContentType("application/json; charset=UTF-8");
+        response.setCharacterEncoding("UTF-8");
+        
+        String json = String.format("{\"message\":\"로그인 성공\", \"token\":\"%s\"}", token);
+        response.getWriter().write(json);
     }
 }

@@ -3,6 +3,7 @@ package com.busanbank.card.user.controller;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.busanbank.card.cardapply.config.JwtTokenProvider;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
@@ -34,6 +37,8 @@ public class UserRestController {
 	private AuthenticationManager authenticationManager;
 	@Autowired
 	private SessionRegistry sessionRegistry;
+	@Autowired
+	private JwtTokenProvider jwtTokenProvider;
 
 	@PostMapping(value = "/login", produces = "application/json; charset=UTF-8")
 	public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest, HttpServletRequest request) {
@@ -48,8 +53,17 @@ public class UserRestController {
 					.authenticate(new UsernamePasswordAuthenticationToken(username, password));
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 
+			//인증 성공 시 JWT 토큰 생성 (JwtTokenProvider는 직접 구현하셨다고 가정)
+	        List<String> roles = authentication.getAuthorities().stream()
+	                            .map(auth -> auth.getAuthority())
+	                            .collect(Collectors.toList());
+
+	        String token = jwtTokenProvider.createToken(username, roles);
+			
 			response.put("success", true);
 			response.put("message", "로그인 성공");
+			response.put("token", token);
+			
 			return ResponseEntity.ok(response);
 
 		} catch (BadCredentialsException e) {

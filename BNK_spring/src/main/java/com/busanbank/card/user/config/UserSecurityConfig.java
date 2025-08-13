@@ -24,6 +24,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.busanbank.card.cardapply.config.JwtTokenFilter;
+import com.busanbank.card.cardapply.config.JwtTokenProvider;
+
 import jakarta.servlet.http.HttpSession;
 
 @Configuration
@@ -44,6 +47,12 @@ public class UserSecurityConfig {
     private RestLoginSuccessHandler restLoginSuccessHandler;
     @Autowired
     private RestLoginFailureHandler restLoginFailureHandler;
+    
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+    
+    @Autowired
+    private CorsConfigurationSource corsConfigurationSource;
     
     @Bean
     BCryptPasswordEncoder bCryptPasswordEncoder() {
@@ -92,8 +101,9 @@ public class UserSecurityConfig {
             .requestMatchers("/user/api/**").permitAll()
             .anyRequest().permitAll()
         )
-        .cors()  // 반드시 추가
-        .and()
+        .addFilterBefore(new JwtTokenFilter(jwtTokenProvider, userDetailsService),
+                UsernamePasswordAuthenticationFilter.class)
+        .cors(cors -> cors.configurationSource(corsConfigurationSource))  // 반드시 추가
         .csrf(csrf -> csrf.disable())
         .formLogin(auth -> auth
             .loginPage("/user/login")
