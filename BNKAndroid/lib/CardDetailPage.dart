@@ -1,23 +1,22 @@
 import 'dart:convert';
 import 'dart:math';
+
 import 'package:bnkandroid/user/service/Card_Apply_Service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:visibility_detector/visibility_detector.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:http/http.dart' as http;
+
 import '../constants/api.dart';
 import '../user/model/CardModel.dart';
 import '../user/service/CardService.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:visibility_detector/visibility_detector.dart';
-
 import 'ApplicationStep1Page.dart';
 
+/// 혜택 아이콘(카테고리 이미지) 높이
+const double kBenefitIconHeight = 150;
 
-
-//혜택 png크기 조절
-const double kBenefitIconHeight = 150; // 120~160 맘에 드는 값
-
-/// 카테고리와 GIF 자산 경로 매핑
+/// 카테고리명 → 이미지 자산 경로
 const Map<String, String> kCategoryGifPath = {
   '놀이공원': 'assets/amusementpark.png',
   '베이커리': 'assets/bread.png',
@@ -38,11 +37,10 @@ const Map<String, String> kCategoryGifPath = {
   '레저&스포츠': 'assets/sport.png',
   '구독': 'assets/subscribe.png',
   '공공요금': 'assets/bills.png',
-  '공유모빌리티': 'assets/rent.png', // 임시 매핑(렌트/카셰어 느낌)
-  '발렛': 'assets/valet.png', // 파일명이 ballet.gif면 valet.gif로 바꿔 쓰는 걸 권장
-  //'하이패스', '세무지원' 은 GIF 없다면 자동으로 텍스트 표시됨
-  '하이패스' : 'assets/highpass.png',
-  '세무지원' : 'assets/taxsupport.png',
+  '공유모빌리티': 'assets/rent.png',
+  '발렛': 'assets/valet.png',
+  '하이패스': 'assets/highpass.png',
+  '세무지원': 'assets/taxsupport.png',
 };
 
 Widget buildCategoryHeader(String category, {double height = 22}) {
@@ -58,11 +56,11 @@ Widget buildCategoryHeader(String category, {double height = 22}) {
     );
   }
   return SizedBox(
-    height: height,                // 기존 텍스트 높이 느낌과 비슷하게
+    height: height,
     child: Image.asset(
       path,
       fit: BoxFit.contain,
-      gaplessPlayback: true,       // 깜빡임 줄이기
+      gaplessPlayback: true,
       filterQuality: FilterQuality.low,
     ),
   );
@@ -70,27 +68,15 @@ Widget buildCategoryHeader(String category, {double height = 22}) {
 
 bool _looksLikeDetail(String s) {
   final t = s.trim();
-
-  // 숫자·금액·제한어가 있으면 디테일로 간주
   final hasNumberOrUnit = RegExp(r'(\d+[%원]|[0-9,]+|월|최대|이상|이하)').hasMatch(t);
-
-  // 디테일성 키워드 확장 (포함/제외/가능/지원/제공/적용/환급/수수료 등)
   final hasDetailWord = RegExp(
-      r'(무료|무제한|청구|적립|캐시백|면제|추가|포인트|포함|제외|가능|지원|제공|적용|환급|수수료|라운지|발급|이용)'
+    r'(무료|무제한|청구|적립|캐시백|면제|추가|포인트|포함|제외|가능|지원|제공|적용|환급|수수료|라운지|발급|이용)',
   ).hasMatch(t);
-
-  // 아주 짧은 제목(숫자 없고, 끝이 할인/서비스/혜택)만 제목으로 판단
   final looksLikeShortTitle =
-      t.length <= 14 &&
-          !hasNumberOrUnit &&
-          RegExp(r'(혜택|할인|서비스)\s*$').hasMatch(t);
-
-  // 괄호가 있으면 보통 설명문이므로 포함
+      t.length <= 14 && !hasNumberOrUnit && RegExp(r'(혜택|할인|서비스)\s*$').hasMatch(t);
   final hasParen = t.contains('(') || t.contains(')');
-
   return (hasNumberOrUnit || hasDetailWord || hasParen) && !looksLikeShortTitle;
 }
-
 
 String? _categoryOf(String line, Map<String, List<String>> keywordMap) {
   final src = line.toLowerCase();
@@ -124,23 +110,20 @@ Widget buildGroupedBenefitBox(String category, List<String> details) {
       width: 390,
       margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-
-        borderRadius: BorderRadius.circular(12),
-
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // ⬇️ 여기만 바꾸면 바로 커짐
           buildCategoryHeader(category, height: kBenefitIconHeight),
           const SizedBox(height: 12),
           ...details.map((d) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: RichText(
               textAlign: TextAlign.center,
-              text: TextSpan(style: const TextStyle(color: Colors.black, fontSize: 13),
-                  children: _percentHighlight(d)),
+              text: TextSpan(
+                style: const TextStyle(color: Colors.black, fontSize: 13),
+                children: _percentHighlight(d),
+              ),
             ),
           )),
         ],
@@ -149,9 +132,7 @@ Widget buildGroupedBenefitBox(String category, List<String> details) {
   );
 }
 
-
-
-/// 🔍 키워드 기반 카테고리 추출
+/// 카테고리 추출
 List<String> extractCategories(String text, {int max = 5}) {
   const keywords = {
     '커피': ['커피', '스타벅스', '이디야', '카페베네'],
@@ -181,7 +162,6 @@ List<String> extractCategories(String text, {int max = 5}) {
 
   final lower = text.toLowerCase();
   final result = <String>{};
-
   for (var entry in keywords.entries) {
     if (result.length >= max) break;
     for (var keyword in entry.value) {
@@ -191,7 +171,6 @@ List<String> extractCategories(String text, {int max = 5}) {
       }
     }
   }
-
   return result.toList();
 }
 
@@ -226,17 +205,9 @@ Widget buildSimpleBenefitBox(String category, String line, {String? rate}) {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Align(
-                alignment: Alignment.center,
-                child: buildCategoryHeader(category, height: 40), // ← 28~34 정도 권장
-              ),
+              Align(alignment: Alignment.center, child: buildCategoryHeader(category, height: 40)),
               const SizedBox(height: 4),
-              Text(line,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 1.4,
-                  )),
+              Text(line, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.4)),
             ],
           ),
         ),
@@ -245,7 +216,7 @@ Widget buildSimpleBenefitBox(String category, String line, {String? rate}) {
   );
 }
 
-/// ✅ 통문자열 → 요약 박스 리스트로 자동 변환 (퍼센트 강조만)
+/// 통문자열 → 요약 박스 리스트로 자동 변환
 List<Widget> buildSummarizedBenefits(String rawText) {
   final Map<String, List<String>> keywordMap = {
     '커피': ['커피', '스타벅스', '이디야', '카페베네'],
@@ -279,29 +250,24 @@ List<Widget> buildSummarizedBenefits(String rawText) {
       .where((e) => e.isNotEmpty)
       .toList();
 
-  // 카테고리 → 상세문장들
   final Map<String, List<String>> groups = {};
   String? lastCat;
 
   for (final line in lines) {
-    // 현재 줄에서 카테고리 감지 (없으면 직전 카테고리 유지)
     final detected = _categoryOf(line, keywordMap);
     final cat = detected ?? lastCat;
 
-    // 제목처럼 보이면(짧은 "커피 할인" 등) → 카테고리만 기억하고 건너뛰기
     if (!_looksLikeDetail(line)) {
       if (detected != null) lastCat = detected;
       continue;
     }
 
-    // 카테고리 하나라도 잡히면 동일 블록으로 묶기
     if (cat != null) {
       groups.putIfAbsent(cat, () => <String>[]).add(line);
       lastCat = cat;
     }
   }
 
-  // 그룹 박스 위젯으로 변환
   final widgets = <Widget>[];
   var idx = 0;
   for (final entry in groups.entries) {
@@ -313,28 +279,22 @@ List<Widget> buildSummarizedBenefits(String rawText) {
   return widgets;
 }
 
-
 class _AnimatedOnVisible extends StatefulWidget {
   final Widget child;
-
   const _AnimatedOnVisible({Key? key, required this.child}) : super(key: key);
-
   @override
   State<_AnimatedOnVisible> createState() => _AnimatedOnVisibleState();
 }
 
 class _AnimatedOnVisibleState extends State<_AnimatedOnVisible> {
   bool _isVisible = false;
-
   @override
   Widget build(BuildContext context) {
     return VisibilityDetector(
       key: widget.key ?? UniqueKey(),
       onVisibilityChanged: (info) {
         if (info.visibleFraction > 0 && !_isVisible) {
-          setState(() {
-            _isVisible = true;
-          });
+          setState(() => _isVisible = true);
         }
       },
       child: AnimatedOpacity(
@@ -352,33 +312,21 @@ class _AnimatedOnVisibleState extends State<_AnimatedOnVisible> {
   }
 }
 
-
 Widget buildCleanBenefitBox(String category, String content) {
   final percentRegex = RegExp(r'(\d{1,2}%|\d{1,2}\.\d+%)');
   final spans = <TextSpan>[];
-
   final matches = percentRegex.allMatches(content);
   int lastIndex = 0;
-
   for (final match in matches) {
-    final matchStart = match.start;
-    final matchEnd = match.end;
-
-    if (matchStart > lastIndex) {
-      spans.add(TextSpan(text: content.substring(lastIndex, matchStart)));
+    if (match.start > lastIndex) {
+      spans.add(TextSpan(text: content.substring(lastIndex, match.start)));
     }
-
     spans.add(TextSpan(
-      text: content.substring(matchStart, matchEnd),
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        color: Colors.red,
-      ),
+      text: content.substring(match.start, match.end),
+      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
     ));
-
-    lastIndex = matchEnd;
+    lastIndex = match.end;
   }
-
   if (lastIndex < content.length) {
     spans.add(TextSpan(text: content.substring(lastIndex)));
   }
@@ -391,29 +339,16 @@ Widget buildCleanBenefitBox(String category, String content) {
       decoration: BoxDecoration(
         color: const Color(0xFFF4F6FA),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
       ),
-
-      // 내부는 왼쪽 정렬
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center, // ← 가운데 정렬
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Center(
-            child: buildCategoryHeader(category, height: 160), // ← 크기 키움 (32~40 추천)
-          ),
+          Center(child: buildCategoryHeader(category, height: 160)),
           const SizedBox(height: 16),
           RichText(
-            textAlign: TextAlign.center, // ← 본문 텍스트 가운데
-            text: TextSpan(
-              style: const TextStyle(color: Colors.black, fontSize: 13),
-              children: spans,
-            ),
+            textAlign: TextAlign.center,
+            text: TextSpan(style: const TextStyle(color: Colors.black, fontSize: 13), children: spans),
           ),
         ],
       ),
@@ -421,34 +356,30 @@ Widget buildCleanBenefitBox(String category, String content) {
   );
 }
 
-
-
-
-/// 🏷️ 해시태그 형태로 보여줄 때 사용하는 위젯 리스트
+/// 해시태그 위젯
 List<Widget> extractCategoriesAsWidget(String text, {int max = 5}) {
   return extractCategories(text, max: max)
       .map((tag) => Padding(
     padding: const EdgeInsets.only(top: 4),
     child: Container(
-      padding:
-      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.red),
       ),
-      child: Text('#$tag',
-          style: const TextStyle(fontSize: 12, color: Colors.red)),
+      child: Text('#$tag', style: const TextStyle(fontSize: 12, color: Colors.red)),
     ),
   ))
       .toList();
 }
 
+/* ──────────────────────────────── Detail Page ─────────────────────────────── */
+
 class CardDetailPage extends StatefulWidget {
   final String cardNo;
   final ValueNotifier<Set<String>> compareIds;
   final VoidCallback onCompareChanged;
-
   const CardDetailPage({
     super.key,
     required this.cardNo,
@@ -487,7 +418,6 @@ class _CardDetailPageState extends State<CardDetailPage> {
   }
 
   Future<void> _startCardApplication(String cardNoStr) async {
-    // 1) cardNo 파싱/검증
     final cardNo = int.tryParse(cardNoStr);
     if (cardNo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -497,24 +427,19 @@ class _CardDetailPageState extends State<CardDetailPage> {
     }
 
     try {
-      // 2) /card/apply/api/start 호출 (서비스 사용)
-      debugPrint('▶ start apply: cardNo=$cardNo');
       final start = await CardApplyService.start(cardNo: cardNo);
-
-      // 3) Step1로 이동 (필수 파라미터 전달!)
       if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => ApplicationStep1Page(
-            cardNo: cardNo,                          // ✅ 필수
-            applicationNo: start.applicationNo,      // /start 응답
-            isCreditCard: start.isCreditCard,        // /start 응답
+            cardNo: cardNo,
+            applicationNo: start.applicationNo,
+            isCreditCard: start.isCreditCard,
           ),
         ),
       );
     } on ApiException catch (e) {
-      // 서비스에서 던지는 API 예외 처리
       if (!mounted) return;
       final msg = e.body?['message']?.toString() ?? e.message;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -527,8 +452,6 @@ class _CardDetailPageState extends State<CardDetailPage> {
       );
     }
   }
-
-
 
   void _showCompareModal() {
     final ids = widget.compareIds.value;
@@ -556,10 +479,7 @@ class _CardDetailPageState extends State<CardDetailPage> {
                 future: CardService.fetchCompareCardDetail(id),
                 builder: (ctx, snap) {
                   if (!snap.hasData) {
-                    return const SizedBox(
-                        width: 80,
-                        height: 120,
-                        child: CircularProgressIndicator());
+                    return const SizedBox(width: 80, height: 120, child: CircularProgressIndicator());
                   }
                   final c = snap.data!;
                   final brand = (c.cardBrand ?? '').toUpperCase();
@@ -567,7 +487,6 @@ class _CardDetailPageState extends State<CardDetailPage> {
                   final feeDom = brand.contains('LOCAL') || brand.contains('BC') ? fee : '없음';
                   final feeVisa = brand.contains('VISA') ? fee : '없음';
                   final feeMaster = brand.contains('MASTER') ? fee : '없음';
-                  final tags = extractCategories('${c.service}\n${c.sService ?? ''}');
 
                   return Flexible(
                     child: Container(
@@ -590,8 +509,6 @@ class _CardDetailPageState extends State<CardDetailPage> {
                           Text(c.cardName, style: const TextStyle(fontWeight: FontWeight.bold)),
                           const SizedBox(height: 4),
                           Text(c.cardSlogan ?? '-', style: const TextStyle(fontSize: 12)),
-
-                          /// ✅ 해시태그 추가 영역
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 6,
@@ -604,15 +521,12 @@ class _CardDetailPageState extends State<CardDetailPage> {
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(color: Colors.red),
                               ),
-                              child: Text(
-                                '#$tag',
-                                style: const TextStyle(fontSize: 11, color: Colors.red),
-                              ),
+                              child:
+                              Text('#$tag', style: const TextStyle(fontSize: 11, color: Colors.red)),
                             ))
                                 .toList(),
                           ),
                           const SizedBox(height: 6),
-
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -627,7 +541,6 @@ class _CardDetailPageState extends State<CardDetailPage> {
                       ),
                     ),
                   );
-
                 },
               );
             }).toList(),
@@ -639,48 +552,68 @@ class _CardDetailPageState extends State<CardDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('카드 상세정보'),
-        backgroundColor: Colors.white,
-        foregroundColor: Color(0xFF4E4E4E),
-      ),
-      body: FutureBuilder<CardModel>(
-        future: _futureCard,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    // ✅ Scaffold 전체를 ValueListenableBuilder로 감싸 AppBar 타입 오류 방지 + 상단 비교함바 고정
+    return ValueListenableBuilder<Set<String>>(
+      valueListenable: widget.compareIds,
+      builder: (context, ids, __) {
+        final hasCompare = ids.isNotEmpty;
 
-          final card = snapshot.data!;
-          final imgUrl = '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(card.cardUrl)}';
-          final brand = (card.cardBrand ?? '').toUpperCase();
-          final fee = '${(card.annualFee ?? 0)}원';
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('카드 상세정보'),
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF4E4E4E),
+            bottom: hasCompare
+                ? PreferredSize(
+              preferredSize: const Size.fromHeight(56),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: _TopCompareBar(
+                  count: ids.length,
+                  onOpen: _showCompareModal,
+                  onClear: () {
+                    widget.compareIds.value = {};
+                    widget.onCompareChanged();
+                    setState(() {});
+                  },
+                ),
+              ),
+            )
+                : null,
+          ),
 
-          final feeDomestic = (brand.contains('LOCAL') || brand.contains('BC')) ? fee : '없음';
-          final feeVisa = brand.contains('VISA') ? fee : '없음';
-          final feeMaster = brand.contains('MASTER') ? fee : '없음';
+          body: FutureBuilder<CardModel>(
+            future: _futureCard,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          final tags = extractCategories('${card.service}\n${card.sService ?? ''}');
-          final isInCompare = widget.compareIds.value.contains(card.cardNo.toString());
+              final card = snapshot.data!;
+              final imgUrl = '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(card.cardUrl)}';
+              final brand = (card.cardBrand ?? '').toUpperCase();
+              final fee = '${(card.annualFee ?? 0)}원';
+              final feeDomestic = (brand.contains('LOCAL') || brand.contains('BC')) ? fee : '없음';
+              final feeVisa = brand.contains('VISA') ? fee : '없음';
+              final feeMaster = brand.contains('MASTER') ? fee : '없음';
+              final tags = extractCategories('${card.service}\n${card.sService ?? ''}');
+              final isInCompare = widget.compareIds.value.contains(card.cardNo.toString());
 
-          return Stack(
-            children: [
-              SingleChildScrollView(
+              return SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
                       width: double.infinity,
-                      height: 300, // 상단 전체 높이 (배경 포함)
-                      color: const Color(0xFFF4F6FA), // 연한 블루그레이 배경
+                      height: 300,
+                      color: const Color(0xFFF4F6FA),
                       alignment: Alignment.center,
                       child: RotatedBox(
                         quarterTurns: 1,
                         child: Image.network(
                           imgUrl,
-                          height: 160, // 이미지 자체 높이만 제어
+                          height: 160,
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 100),
                         ),
@@ -698,46 +631,31 @@ class _CardDetailPageState extends State<CardDetailPage> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 12),
                     Center(
-                      child: Text(card.cardSlogan ?? '-',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 15,
-                          )),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    Center(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _toggleCompare(card.cardNo.toString()),
-
-                        label: Text(
-                          isInCompare ? "-   비교함 제거" : "+   비교함 담기",
-                          style: const TextStyle(color: Color(0xFF4E4E4E)),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFFF4F6FA), // 연한 그레이
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        ),
+                      child: Text(
+                        card.cardSlogan ?? '-',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.grey, fontSize: 15),
                       ),
                     ),
-
                     const SizedBox(height: 18),
 
+                    // ✅ 카드리스트와 동일한 캡슐형 토글 버튼
+                    _CompareToggle(
+                      selected: isInCompare,
+                      onPressed: () => _toggleCompare(card.cardNo.toString()),
+                    ),
 
+                    const SizedBox(height: 18),
                     Align(
-                      alignment: Alignment.center, // ← 생략해도 무방
+                      alignment: Alignment.center,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center, // ← ✅ start → center
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           const SizedBox(height: 18),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.center, // ✅ 중심 정렬
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               _feeItemWithIcon('assets/overseas_pay_domestic.png', feeDomestic),
                               const SizedBox(width: 30),
@@ -747,7 +665,6 @@ class _CardDetailPageState extends State<CardDetailPage> {
                             ],
                           ),
                           const SizedBox(height: 16),
-
                         ],
                       ),
                     ),
@@ -757,61 +674,62 @@ class _CardDetailPageState extends State<CardDetailPage> {
                         alignment: WrapAlignment.center,
                         spacing: 8,
                         runSpacing: 4,
-                        children: tags.map((t) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        children: tags
+                            .map((t) => Container(
+                          padding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: Colors.red),
                           ),
-                          child: Text('#$t', style: const TextStyle(color: Colors.red, fontSize: 13)),
-                        )).toList(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 22),
-
-                    const Divider(),
-                    const SizedBox(height: 18),
-
-
-
-                    const SizedBox(height: 30),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: _sectionTitle('혜택 요약'),
-                    ),
-                    const SizedBox(height: 6),
-                  Align(
-                    alignment: Alignment.center,
-                    child: AnimationLimiter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: buildSummarizedBenefits('${card.service}\n${card.sService ?? ''}')
-                            .asMap()
-                            .entries
-                            .map(
-                              (entry) => AnimationConfiguration.staggeredList(
-                            position: entry.key,
-                            delay: Duration(milliseconds: (50 * pow(entry.key + 1, 1.2)).toInt()),
-                            duration: const Duration(milliseconds: 300),
-                            child: SlideAnimation(
-                              verticalOffset: 20.0,
-                              curve: Curves.easeOut,
-                              child: FadeInAnimation(
-                                duration: const Duration(milliseconds: 300),
-                                child: entry.value,
-                              ),
-                            ),
-                          ),
-                        )
+                          child: Text('#$t',
+                              style:
+                              const TextStyle(color: Colors.red, fontSize: 13)),
+                        ))
                             .toList(),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 22),
+                    const Divider(),
+                    const SizedBox(height: 18),
 
+                    const SizedBox(height: 30),
+                    Align(alignment: Alignment.centerLeft, child: _sectionTitle('혜택 요약')),
+                    const SizedBox(height: 6),
 
-                  const SizedBox(height: 30),
+                    Align(
+                      alignment: Alignment.center,
+                      child: AnimationLimiter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: buildSummarizedBenefits(
+                              '${card.service}\n${card.sService ?? ''}')
+                              .asMap()
+                              .entries
+                              .map(
+                                (entry) => AnimationConfiguration.staggeredList(
+                              position: entry.key,
+                              delay: Duration(
+                                  milliseconds:
+                                  (50 * pow(entry.key + 1, 1.2)).toInt()),
+                              duration: const Duration(milliseconds: 300),
+                              child: SlideAnimation(
+                                verticalOffset: 20.0,
+                                curve: Curves.easeOut,
+                                child: FadeInAnimation(
+                                  duration: const Duration(milliseconds: 300),
+                                  child: entry.value,
+                                ),
+                              ),
+                            ),
+                          )
+                              .toList(),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 30),
                     SectionTile(
                       title: '유의사항',
                       child: Text(
@@ -824,81 +742,47 @@ class _CardDetailPageState extends State<CardDetailPage> {
                     const SizedBox(height: 60),
                   ],
                 ),
-              ),
-              Positioned(
-                bottom: 10,
-                right: 20,
-                child: ValueListenableBuilder<Set<String>>(
-                  valueListenable: widget.compareIds,
-                  builder: (context, ids, _) {
-                    if (ids.isEmpty) return const SizedBox();
-                    return FloatingActionButton.extended(
-                      backgroundColor: Color(0xFFF4F6FA),
-                      foregroundColor: Color(0xFF4E4E4E),
+              );
+            },
+          ),
 
-                      label: Text('비교함 (${ids.length})'),
-                      onPressed: _showCompareModal,
-                    );
-                  },
-                ),
-              )
-            ],
-          );
-        },
-      ),
-      bottomNavigationBar: FutureBuilder<CardModel>(
-        future: _futureCard,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const SizedBox.shrink();
-          final card = snapshot.data!;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-            color: Colors.white,
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: () => _startCardApplication(card.cardNo.toString()),
-                icon: const Icon(Icons.credit_card),
-                label: const Text("카드 발급하기"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xffB91111),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+          bottomNavigationBar: FutureBuilder<CardModel>(
+            future: _futureCard,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const SizedBox.shrink();
+              final card = snapshot.data!;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+                color: Colors.white,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _startCardApplication(card.cardNo.toString()),
+                    icon: const Icon(Icons.credit_card),
+                    label: const Text("카드 발급하기"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xffB91111),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          );
-        },
-      ),
+              );
+            },
+          ),
+        );
+      },
     );
-
   }
-
-  Widget _feeItem(String label, String value) => Padding(
-    padding: const EdgeInsets.only(right: 16),
-    child: Row(children: [
-      Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
-      Text(value),
-    ]),
-  );
 
   Widget _feeItemWithIcon(String assetPath, String feeText) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          assetPath,
-          width: 24,
-          height: 24,
-        ),
+        Image.asset(assetPath, width: 24, height: 24),
         const SizedBox(width: 4),
-        Text(
-          feeText,
-          style: const TextStyle(fontSize: 14),
-        ),
+        Text(feeText, style: const TextStyle(fontSize: 14)),
       ],
     );
   }
@@ -907,18 +791,141 @@ class _CardDetailPageState extends State<CardDetailPage> {
     return Row(
       children: [
         Container(width: 4, height: 20, color: Colors.black, margin: const EdgeInsets.only(right: 8)),
-        Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-            color: Color(0xFF444444),
-          ),
-        ),
+        Text(title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              color: Color(0xFF444444),
+            )),
       ],
     );
   }
 }
+
+/* ───────────── 상단 고정 비교함 바 ───────────── */
+
+class _TopCompareBar extends StatelessWidget {
+  final int count;
+  final VoidCallback onOpen;
+  final VoidCallback onClear;
+  const _TopCompareBar({
+    Key? key,
+    required this.count,
+    required this.onOpen,
+    required this.onClear,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFEFF1F4)),
+        boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 16, offset: Offset(0, 6))],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 18),
+          const SizedBox(width: 8),
+          Text('비교함 $count개 담김',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111111))),
+          const Spacer(),
+          TextButton(
+            onPressed: onClear,
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF6B7280),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              minimumSize: Size.zero,
+            ),
+            child: const Text('비우기'),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: onOpen,
+            style: ElevatedButton.styleFrom(
+              elevation: 0,
+              backgroundColor: const Color(0xFF111827),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('비교하기', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/* ───────────── 카드리스트와 동일한 비교 토글 ───────────── */
+
+class _CompareToggle extends StatelessWidget {
+  final bool selected;
+  final VoidCallback onPressed;
+  const _CompareToggle({required this.selected, required this.onPressed});
+
+  static const _green = Color(0xFF2E7D32);
+  static const _greenBg = Color(0xFFE8F5E9);
+  static const _pillPad = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+
+  @override
+  Widget build(BuildContext context) {
+    if (selected) {
+      return InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: _pillPad,
+          decoration: BoxDecoration(
+            color: _greenBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _green.withOpacity(0.3)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check, size: 16, color: _green),
+              SizedBox(width: 6),
+              Text(
+                '비교함에 추가됨',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _green),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: _pillPad,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Color(0xFFDDDDDD)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add, size: 16, color: Color(0xFF555555)),
+            SizedBox(width: 6),
+            Text(
+              '비교함 담기',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF555555)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/* ───────────── 접이식 섹션 ───────────── */
 
 class SectionTile extends StatefulWidget {
   final String title;
@@ -952,40 +959,17 @@ class _SectionTileState extends State<SectionTile> {
       children: [
         Row(
           children: [
-            Container(
-              width: 4,
-              height: 20,
-              color: Colors.black,
-              margin: const EdgeInsets.only(right: 8),
-            ),
-            Text(
-              widget.title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-                color: Color(0xFF444444),
-              ),
-            ),
+            Container(width: 4, height: 20, color: Colors.black, margin: const EdgeInsets.only(right: 8)),
+            Text(widget.title,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF444444))),
             const Spacer(),
             IconButton(
-              icon: Icon(
-                _isExpanded ? Icons.expand_less : Icons.expand_more,
-                size: 20,
-                color: Colors.black87,
-              ),
-              onPressed: () {
-                setState(() {
-                  _isExpanded = !_isExpanded;
-                });
-              },
+              icon: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more, size: 20, color: Colors.black87),
+              onPressed: () => setState(() => _isExpanded = !_isExpanded),
             ),
           ],
         ),
-        if (_isExpanded)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: widget.child,
-          ),
+        if (_isExpanded) Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: widget.child),
       ],
     );
   }
