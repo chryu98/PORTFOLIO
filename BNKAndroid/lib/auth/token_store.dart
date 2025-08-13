@@ -1,23 +1,22 @@
-// lib/auth/token_store.dart
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TokenStore {
-  static const _kKey = 'jwt';
-  static final TokenStore I = TokenStore._();
   TokenStore._();
+  static final I = TokenStore._();
+  static const _key = 'jwt_token';
 
   Future<void> save(String token) async {
-    final p = await SharedPreferences.getInstance();
-    await p.setString(_kKey, token);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, token);
   }
 
-  Future<String?> get() async {
-    final p = await SharedPreferences.getInstance();
-    return p.getString(_kKey);
+  Future<String?> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_key);
   }
 
   Future<void> clear() async {
-    final p = await SharedPreferences.getInstance();
-    await p.remove(_kKey);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
   }
 }
