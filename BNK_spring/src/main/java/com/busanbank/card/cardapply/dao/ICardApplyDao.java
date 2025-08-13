@@ -1,7 +1,10 @@
 package com.busanbank.card.cardapply.dao;
 
+import java.util.List;
+
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.SelectKey;
 import org.apache.ibatis.annotations.Update;
 
@@ -9,6 +12,7 @@ import com.busanbank.card.cardapply.dto.ApplicationPersonTempDto;
 import com.busanbank.card.cardapply.dto.CardApplicationTempDto;
 import com.busanbank.card.cardapply.dto.ContactInfoDto;
 import com.busanbank.card.cardapply.dto.JobInfoDto;
+import com.busanbank.card.cardapply.dto.PdfFilesDto;
 
 @Mapper
 public interface ICardApplyDao {
@@ -43,10 +47,17 @@ public interface ICardApplyDao {
     """)
     int updateApplicationContactTemp(ContactInfoDto contactInfo);
 
-    @Update("""
-        UPDATE APPLICATION_PERSON_TEMP
-           SET JOB = #{job}, PURPOSE = #{purpose}, FUND_SOURCE = #{fundSource}
-         WHERE APPLICATION_NO = #{applicationNo}
-    """)
-    int updateApplicationJobTemp(JobInfoDto jobInfo);
+	@Update("UPDATE APPLICATION_PERSON_TEMP "
+			+ "SET JOB = #{job}, PURPOSE = #{purpose}, FUND_SOURCE = #{fundSource} "
+			+ "WHERE APPLICATION_NO = #{applicationNo}")
+	int updateApplicationJobTemp(JobInfoDto jobInfo);
+	
+	//신용카드 약관
+	@Select("SELECT * FROM PDF_FILES WHERE PDF_NO IN (2, 3, 4, 5, 6, 31)")
+	List<PdfFilesDto> selectCreditPdfFiles();
+
+	//체크카드 약관
+	@Select("SELECT * FROM PDF_FILES WHERE PDF_NO IN (1, 5, 6, 31)")
+	List<PdfFilesDto> selectCheckPdfFiles();
+	
 }

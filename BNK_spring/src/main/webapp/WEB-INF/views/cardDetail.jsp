@@ -223,7 +223,7 @@
   <%
     String cardNo = request.getParameter("no"); // URL에서 no 파라미터 받아옴
 %>
-<a href="/card/apply/termsAgree?cardNo=<%=cardNo%>"
+<a href="/card/apply/customer-info?cardNo=<%=cardNo%>"
  id="applyLink"
    style="display:inline-block; padding:12px 24px; background:#d44; color:white; font-weight:bold; border-radius:8px; text-decoration:none;">
    카드 발급하기
