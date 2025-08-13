@@ -22,8 +22,17 @@ public class CardApplyController {
 	@Autowired
 	private IUserDao userDao;
 	
-	@GetMapping("/customer-info/{cardNo}")
-	public String customerInfo(@PathVariable("cardNo") int cardNo,
+	@GetMapping("/termsAgree")
+	public String contactInfo(@RequestParam("cardNo") int cardNo,
+							  Model model) {
+		
+		
+		model.addAttribute("cardNo", cardNo);
+		return "cardapply/termsAgree";
+	}
+	
+	@GetMapping("/customer-info")
+	public String customerInfo(@RequestParam("cardNo") int cardNo,
 							   HttpSession session, Model model,
 							   RedirectAttributes rttr) throws Exception {
 		

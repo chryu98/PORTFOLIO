@@ -3,6 +3,23 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'CardListPage.dart';
+import 'package:bnkandroid/constants/api.dart';
+
+void main() async {
+  await API.initBaseUrl();
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false, // 디버그 배너 제거
+      title: '로그인 예제',
+      home: LoginPage(),
+    );
+  }
+}
 
 // 로그인 페이지 위젯
 class LoginPage extends StatefulWidget {
@@ -18,7 +35,7 @@ class _LoginPageState extends State<LoginPage> {
   // 로그인 버튼 클릭 시 호출되는 함수
   Future<void> login() async {
     // 1. Spring API URL 설정
-    final url = Uri.parse('http://localhost:8090/user/api/login');
+    final url = Uri.parse('http://192.168.0.5:8090/user/api/login');
 
     try {
       // 2. POST 요청 보내기
