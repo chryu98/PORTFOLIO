@@ -49,7 +49,12 @@ class CardListPage extends StatefulWidget {
   State<CardListPage> createState() => _CardListPageState();
 }
 
-class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClientMixin {
+class _CardListPageState extends State<CardListPage>
+    with AutomaticKeepAliveClientMixin {
+
+  static const double _GAP_AFTER_HEADER = 24;            // 헤더(검색/비교함) ↔ 캐러셀
+  static const double _GAP_CAROUSEL_TO_CHIPS = 24;       // 캐러셀 ↔ 세그먼트 칩(버튼)
+
   @override
   bool get wantKeepAlive => true;
 
@@ -108,7 +113,8 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
     } else if (s.length < 2) {
       s.add(id);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('최대 2개까지만 비교')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('최대 2개까지만 비교')));
     }
     compareIds.value = s;
     _saveCompare();
@@ -122,7 +128,8 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
     }
     setState(() => _loading = true);
     try {
-      final r = await http.get(Uri.parse(API.searchCards(_keyword, selType.value, _selectedTags)));
+      final r = await http.get(
+          Uri.parse(API.searchCards(_keyword, selType.value, _selectedTags)));
       if (r.statusCode == 200) {
         final l = json.decode(utf8.decode(r.bodyBytes)) as List;
         setState(() => _searchResults =
@@ -133,10 +140,10 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
     }
   }
 
-  /* ───── UI: 핀 고정 헤더(필터+검색+비교함바) ───── */
-  SliverAppBar _buildPinnedSearchAndFilter({required bool showCompareBar}) {
-    final double baseHeight = 140;     // 비교함 바 없을 때
-    final double withBarHeight = 176;  // 비교함 바 있을 때
+  /* ───── UI: 상단 고정 헤더(검색 + 비교함바) ───── */
+  SliverAppBar _buildPinnedHeader({required bool showCompareBar}) {
+    final double baseHeight = 70;      // 비교함 바 없을 때
+    final double withBarHeight = 142;  // 비교함 바 있을 때
 
     return SliverAppBar(
       pinned: true,
@@ -146,51 +153,10 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
       collapsedHeight: showCompareBar ? withBarHeight : baseHeight,
       flexibleSpace: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 2),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ───── 세그먼트(전체/신용/체크) ─────
-              ValueListenableBuilder<String>(
-                valueListenable: selType,
-                builder: (context, cur, __) => Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: ['전체', '신용', '체크'].map((t) {
-                    final on = cur == t;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Theme(
-                        data: Theme.of(context).copyWith(
-                          chipTheme: Theme.of(context).chipTheme.copyWith(
-                            checkmarkColor: Colors.white,
-                          ),
-                        ),
-                        child: ChoiceChip(
-                          selected: on,
-                          showCheckmark: true,
-                          label: Text(t == '신용' ? '신용카드' : t == '체크' ? '체크카드' : '전체'),
-                          selectedColor: const Color(0xffB91111),
-                          backgroundColor: Colors.white,
-                          labelStyle: TextStyle(
-                            color: on ? Colors.white : Colors.black87,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          side: on ? BorderSide.none : const BorderSide(color: Color(0x22000000)),
-                          onSelected: (_) {
-                            selType.value = t;
-                            if (_keyword.isNotEmpty || _selectedTags.isNotEmpty) {
-                              _performSearch();
-                            }
-                          },
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
               // ───── 검색창 + 필터 버튼 ─────
               Row(
                 children: [
@@ -204,9 +170,7 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
                           _performSearch();
                         },
                         onChanged: (v) {
-                          if (v.trim().isEmpty) {
-                            setState(() => _keyword = '');
-                          }
+                          if (v.trim().isEmpty) setState(() => _keyword = '');
                         },
                         decoration: InputDecoration(
                           hintText: '카드이름, 혜택으로 검색',
@@ -262,7 +226,6 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
     );
   }
 
-
   void _openCompareSheet() {
     showModalBottomSheet(
       context: context,
@@ -279,7 +242,6 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      // FAB 제거: 비교함 바를 사용
       body: SafeArea(
         child: FutureBuilder(
           future: Future.wait([_fCards, _fPopular]),
@@ -291,6 +253,8 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
               return const Center(child: Text('카드가 없습니다.'));
             }
 
+
+
             final all = snap.data![0] as List<CardModel>;
             final popular = snap.data![1] as List<CardModel>;
 
@@ -298,14 +262,35 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
               key: const PageStorageKey('cardScroll'),
               controller: _scrollCtl,
               slivers: [
-                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                // 고정 헤더: 검색 + 비교함
                 ValueListenableBuilder<Set<String>>(
                   valueListenable: compareIds,
-                  builder: (_, ids, __) => _buildPinnedSearchAndFilter(showCompareBar: ids.isNotEmpty),
+                  builder: (_, ids, __) =>
+                      _buildPinnedHeader(showCompareBar: ids.isNotEmpty),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 10)),
+
+                // 캐러셀
                 SliverToBoxAdapter(child: _buildCarousel(popular)),
-                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                // 캐러셀 아래: 세그먼트 칩(항상 표시)
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                SliverToBoxAdapter(
+                  child: SegmentChipsBar(
+                    selType: selType,
+                    onChanged: () {
+                      if (_keyword.isNotEmpty || _selectedTags.isNotEmpty) {
+                        _performSearch();
+                      } else {
+                        setState(() {}); // 단순 필터만이면 그리드 리빌드
+                      }
+                    },
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
                 // 카드 목록
                 SliverToBoxAdapter(
@@ -333,10 +318,14 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Padding(
-                              padding: const EdgeInsets.only(top: 10, bottom: 6, left: 4),
+                              padding:
+                              const EdgeInsets.only(top: 10, bottom: 6, left: 4),
                               child: Text(
-                                (cur == '전체') ? '전체카드' : '$cur카드 • ${list.length}개',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                (cur == '전체')
+                                    ? '전체카드'
+                                    : '$cur카드 • ${list.length}개',
+                                style: const TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.w600),
                               ),
                             ),
 
@@ -344,20 +333,24 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 40),
                                 child: Center(
-                                  child:
-                                  Text('검색 결과가 없어요', style: TextStyle(color: Colors.black54)),
+                                  child: Text('검색 결과가 없어요',
+                                      style:
+                                      TextStyle(color: Colors.black54)),
                                 ),
                               )
                             else
                               GridView.builder(
                                 shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
+                                physics:
+                                const NeverScrollableScrollPhysics(),
                                 itemCount: list.length,
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
                                   crossAxisSpacing: 13,
                                   mainAxisSpacing: 20,
-                                  mainAxisExtent: 280, // 고정 높이(필요시 250~280 조절)
+                                  // ⬇️ 살짝 여유를 더 줘서 overflow 방지
+                                  mainAxisExtent: 304,
                                 ),
                                 itemBuilder: (context, i) {
                                   final card = list[i];
@@ -368,15 +361,18 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
                                       valueListenable: compareIds,
                                       builder: (_, ids, __) => CardGridTile(
                                         card: card,
-                                        selected: ids.contains(card.cardNo.toString()),
+                                        selected: ids.contains(
+                                            card.cardNo.toString()),
                                         onTap: () {
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
                                               builder: (_) => CardDetailPage(
-                                                cardNo: card.cardNo.toString(),
+                                                cardNo:
+                                                card.cardNo.toString(),
                                                 compareIds: compareIds,
-                                                onCompareChanged: _saveCompare,
+                                                onCompareChanged:
+                                                _saveCompare,
                                               ),
                                             ),
                                           );
@@ -447,15 +443,19 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
                   url,
                   fit: BoxFit.cover,
                   loadingBuilder: (_, child, progress) =>
-                  progress == null ? child : const Center(child: CircularProgressIndicator()),
-                  errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image)),
+                  progress == null
+                      ? child
+                      : const Center(child: CircularProgressIndicator()),
+                  errorBuilder: (_, __, ___) =>
+                  const Center(child: Icon(Icons.broken_image)),
                 ),
                 Positioned(
                   bottom: 16,
                   left: 16,
                   right: 16,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(10),
@@ -478,7 +478,8 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
                             c.cardSlogan!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 12),
                           ),
                       ],
                     ),
@@ -529,9 +530,13 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
                           final brand = (c.cardBrand ?? '').toUpperCase();
                           final fee = '${c.annualFee ?? 0}원';
                           final feeDom =
-                          (brand.contains('LOCAL') || brand.contains('BC')) ? fee : '없음';
-                          final feeVisa = brand.contains('VISA') ? fee : '없음';
-                          final feeMaster = brand.contains('MASTER') ? fee : '없음';
+                          (brand.contains('LOCAL') || brand.contains('BC'))
+                              ? fee
+                              : '없음';
+                          final feeVisa =
+                          brand.contains('VISA') ? fee : '없음';
+                          final feeMaster =
+                          brand.contains('MASTER') ? fee : '없음';
 
                           return Container(
                             margin: const EdgeInsets.all(8),
@@ -554,7 +559,8 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
                                 Text(
                                   c.cardName,
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
@@ -564,7 +570,8 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
                                 ),
                                 const SizedBox(height: 8),
                                 const Text('🔖 요약 혜택',
-                                    style: TextStyle(fontWeight: FontWeight.bold)),
+                                    style:
+                                    TextStyle(fontWeight: FontWeight.bold)),
                                 const SizedBox(height: 6),
 
                                 Wrap(
@@ -600,8 +607,55 @@ class _CardListPageState extends State<CardListPage> with AutomaticKeepAliveClie
   }
 }
 
-/* ───────────────── Card Tile ───────────────── */
+/* ───────────────── 캐러셀 아래 세그먼트 칩 바 ───────────────── */
+class SegmentChipsBar extends StatelessWidget {
+  final ValueNotifier<String> selType;
+  final VoidCallback onChanged; // 선택 변경 시 검색/필터 갱신
 
+  const SegmentChipsBar({super.key, required this.selType, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ValueListenableBuilder<String>(
+        valueListenable: selType,
+        builder: (context, cur, __) => Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: ['전체', '신용', '체크'].map((t) {
+            final on = cur == t;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  chipTheme: Theme.of(context).chipTheme.copyWith(checkmarkColor: Colors.white),
+                ),
+                child: ChoiceChip(
+                  selected: on,
+                  showCheckmark: true,
+                  label: Text(t == '신용' ? '신용카드' : t == '체크' ? '체크카드' : '전체'),
+                  selectedColor: const Color(0xffB91111),
+                  backgroundColor: Colors.white,
+                  labelStyle: TextStyle(
+                    color: on ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  side: on ? BorderSide.none : const BorderSide(color: Color(0x22000000)),
+                  onSelected: (_) {
+                    selType.value = t;
+                    onChanged();
+                  },
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+/* ───────────────── Card Tile ───────────────── */
 class CardGridTile extends StatelessWidget {
   final CardModel card;
   final VoidCallback onTap;
@@ -654,7 +708,7 @@ class CardGridTile extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
 
           // 카드명
           Text(
@@ -806,19 +860,23 @@ List<Widget> extractCategories(String text, {int max = 5}) {
   };
   final lower = text.toLowerCase();
   final found = <String>{
-    for (final e in keys.entries) if (e.value.any((k) => lower.contains(k.toLowerCase()))) e.key
+    for (final e in keys.entries)
+      if (e.value.any((k) => lower.contains(k.toLowerCase()))) e.key
   }.take(max);
   return found
       .map((t) => Padding(
     padding: const EdgeInsets.only(top: 4),
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding:
+      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.red.shade50,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.red.shade200),
       ),
-      child: Text('#$t', style: const TextStyle(fontSize: 12, color: Colors.red)),
+      child: Text('#$t',
+          style:
+          const TextStyle(fontSize: 12, color: Colors.red)),
     ),
   ))
       .toList();
@@ -827,7 +885,8 @@ List<Widget> extractCategories(String text, {int max = 5}) {
 class TagFilterModal extends StatefulWidget {
   final List<String> selectedTags;
   final Function(List<String>) onConfirm;
-  const TagFilterModal({super.key, required this.selectedTags, required this.onConfirm});
+  const TagFilterModal(
+      {super.key, required this.selectedTags, required this.onConfirm});
   @override
   State<TagFilterModal> createState() => _TagFilterModalState();
 }
@@ -861,7 +920,8 @@ class _TagFilterModalState extends State<TagFilterModal> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 40),
+      padding:
+      EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 40),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: const BoxDecoration(
@@ -871,7 +931,8 @@ class _TagFilterModalState extends State<TagFilterModal> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Align(
             alignment: Alignment.centerLeft,
-            child: Text('원하는 혜택을 고르세요 (최대 5개)', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text('원하는 혜택을 고르세요 (최대 5개)',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -882,16 +943,19 @@ class _TagFilterModalState extends State<TagFilterModal> {
               return GestureDetector(
                 onTap: () => _toggle(t),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: on ? const Color(0xfffdeeee) : Colors.grey[200],
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: on ? Colors.red : Colors.grey.shade300),
+                    border: Border.all(
+                        color: on ? Colors.red : Colors.grey.shade300),
                   ),
                   child: Text(
                     '#$t',
                     style: TextStyle(
-                        color: on ? Colors.red : Colors.black87, fontWeight: FontWeight.w500),
+                        color: on ? Colors.red : Colors.black87,
+                        fontWeight: FontWeight.w500),
                   ),
                 ),
               );
@@ -929,8 +993,7 @@ Widget _feeItemWithIcon(String assetPath, String feeText) {
   );
 }
 
-/* ───────────────── 비교함 바(Top-level 위젯) ───────────────── */
-
+/* ───────────────── 비교함 바 ───────────────── */
 class CompareDockBar extends StatelessWidget {
   final int count;
   final VoidCallback onOpen;
@@ -944,7 +1007,6 @@ class CompareDockBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 안전장치: 혹시 count==0이면 렌더하지 않음
     if (count == 0) return const SizedBox.shrink();
 
     return Container(
@@ -955,7 +1017,7 @@ class CompareDockBar extends StatelessWidget {
         border: Border.all(color: const Color(0xFFEFF1F4)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0F000000), // 아주 은은한 섀도우
+            color: Color(0x0F000000),
             blurRadius: 16,
             offset: Offset(0, 6),
           ),
@@ -963,8 +1025,8 @@ class CompareDockBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // 상태(왼쪽)
-          const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 18),
+          const Icon(Icons.check_circle_rounded,
+              color: Color(0xFF2E7D32), size: 18),
           const SizedBox(width: 8),
           Text(
             '비교함 $count개 담김',
@@ -975,33 +1037,34 @@ class CompareDockBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          // 비우기(보조)
           TextButton(
             onPressed: onClear,
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFF6B7280),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               minimumSize: Size.zero,
             ),
             child: const Text('비우기'),
           ),
           const SizedBox(width: 8),
-          // 비교하기(주 버튼)
           ElevatedButton(
             onPressed: onOpen,
             style: ElevatedButton.styleFrom(
               elevation: 0,
-              backgroundColor: const Color(0xFF111827), // 딥 그레이(핀테크 느낌)
+              backgroundColor: const Color(0xFF111827),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            child: Text('비교하기', style: const TextStyle(fontWeight: FontWeight.w700)),
+            child:
+            const Text('비교하기', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
     );
   }
 }
-
