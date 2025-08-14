@@ -1,13 +1,12 @@
-import 'package:bnkandroid/user/CardListPage.dart';
+// lib/app_shell.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// 이미 있는 페이지들 import
+import 'package:bnkandroid/user/CardListPage.dart';
 import 'package:bnkandroid/user/LoginPage.dart';
 
-// 아래 두 개는 실제 페이지로 교체하세요
-// import 'package:bnkandroid/benefits/BenefitsPage.dart';
-// import 'package:bnkandroid/support/SupportPage.dart';
+// 커스텀 애니메이티드 하단바 (옆으로 스르륵 붙는 인디케이터)
+import 'package:bnkandroid/ui/animated_nav_bar.dart';
 
 const kPrimaryRed = Color(0xffB91111);
 
@@ -60,7 +59,7 @@ class _AppShellState extends State<AppShell> {
   Widget _buildTabRoot(AppTab tab) {
     switch (tab) {
       case AppTab.cards:
-        return _KeepAlive(child: CardListPage()); //카드리스트
+        return  _KeepAlive(child: CardListPage()); // 카드리스트
       case AppTab.benefits:
         return const _KeepAlive(child: _Stub(title: '혜택/이벤트')); // TODO: BenefitsPage로 교체
       case AppTab.support:
@@ -70,15 +69,11 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
-  BottomNavigationBarItem _item(
-      {required IconData icon, required String label}) {
-    return BottomNavigationBarItem(icon: Icon(icon), label: label);
-  }
-
   @override
   Widget build(BuildContext context) {
     final tabs = AppTab.values;
 
+    // NOTE: WillPopScope는 deprecated 경고가 있을 수 있지만 동작에는 문제없음.
     return WillPopScope(
       onWillPop: () async {
         // 현재 탭에서 뒤로 갈 수 있으면 pop, 아니면 앱 종료 허용
@@ -102,22 +97,17 @@ class _AppShellState extends State<AppShell> {
           ))
               .toList(),
         ),
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: BottomNavigationBar(
-            type: BottomNavigationBarType.fixed,
-            currentIndex: _index,
-            onTap: _selectTab,
-            selectedItemColor: kPrimaryRed,
-            unselectedItemColor: const Color(0xFF98A2B3),
-            showUnselectedLabels: true,
-            items: [
-              _item(icon: Icons.credit_card, label: '카드'),
-              _item(icon: Icons.local_offer_outlined, label: '혜택'),
-              _item(icon: Icons.headset_mic_outlined, label: '문의'),
-              _item(icon: Icons.person_outline, label: '마이'),
-            ],
-          ),
+
+        // ⬇️ 커스텀 애니메이션 하단바 적용 (옆으로 스르륵 이동)
+        bottomNavigationBar: AnimatedAttachNavBar(
+          index: _index,
+          onTap: _selectTab,
+          items: const [
+            AttachNavItem(Icons.credit_card, '카드'),
+            AttachNavItem(Icons.local_offer_outlined, '혜택'),
+            AttachNavItem(Icons.headset_mic_outlined, '문의'),
+            AttachNavItem(Icons.person_outline, '마이'),
+          ],
         ),
       ),
     );
@@ -211,8 +201,10 @@ class _Stub extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar:
-      AppBar(title: Text(title), backgroundColor: Colors.white, foregroundColor: Colors.black),
+      appBar: AppBar(
+          title: Text(title),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black),
       body: Center(child: Text(title)),
       backgroundColor: Colors.white,
     );

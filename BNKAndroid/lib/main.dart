@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:bnkandroid/constants/api.dart';
 import 'app_shell.dart';          // ✅ 푸터 포함 공용 쉘
-import 'ui/bnk_theme.dart';       // ✅ 토스/카뱅 느낌의 커스텀 테마
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();   // 필수
@@ -18,7 +18,6 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'BNK Card',
       debugShowCheckedModeBanner: false,
-      theme: BNKTheme.light,                  // ✅ 커스텀 테마 적용
       home: const AppShell(),                 // ✅ 하단 푸터 고정되는 앱 쉘
     );
   }

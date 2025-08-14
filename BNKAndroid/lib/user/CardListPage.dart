@@ -40,9 +40,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: BNKTheme.light,
       debugShowCheckedModeBanner: false,
       title: 'BNK',
+      theme: ThemeData(
+        scaffoldBackgroundColor: Colors.white, // 앱 기본 배경 흰색
+      ),
       home: SplashPage(),
     );
   }
