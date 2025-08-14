@@ -136,8 +136,16 @@
 			const result = await response.json();
 
 			if (response.ok) {
-				location.href = "/";
+				// 핵심: 로그인 성공 시 토큰을 localStorage에 저장
+	            if (result.token) {
+	                localStorage.setItem('jwtToken', result.token);
+	                // 토큰 저장 후 원하는 페이지로 이동
+	                location.href = "/"; 
+	            } else {
+	                alert("로그인에 성공했지만, 토큰을 받지 못했습니다. 다시 시도해주세요.");
+	            }
 			} else {
+				// 로그인 실패 시 서버에서 보낸 메시지를 알림
 				alert(result.message);
 				document.getElementById("username").value = "";
 				document.getElementById("password").value = "";
