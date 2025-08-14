@@ -35,7 +35,7 @@ class ValidateResult {
 
   ValidateResult({required this.success, this.message, this.applicationNo});
 
-  // ✅ 안전 파서 추가: num → int 변환 처리
+  // ✅ 안전 파서: num → int 변환 처리
   factory ValidateResult.fromJson(Map<String, dynamic> j) => ValidateResult(
     success: j['success'] == true,
     message: j['message']?.toString(),
@@ -76,7 +76,6 @@ class CardApplyService {
       );
     }
 
-    // ✅ 형식 검증을 num 기준으로 완화
     if (j['applicationNo'] is! num) {
       throw ApiException(
         message: 'applicationNo 누락/형식 오류',
@@ -115,8 +114,6 @@ class CardApplyService {
 
     _throwIfHttpError(res);
     final Map<String, dynamic> j = _decode(res);
-
-    // ✅ 통일된 파서 사용
     return ValidateResult.fromJson(j);
   }
 
@@ -159,6 +156,28 @@ class CardApplyService {
 
     _throwIfHttpError(res);
     final Map<String, dynamic> j = _decode(res);
+    return j['success'] == true;
+  }
+
+  // ---- KYC/직업 등 저장: /card/apply/api/saveJobInfo (POST) ----
+  static Future<bool> saveJobInfo({
+    required int applicationNo,
+    required String job,
+    required String purpose,
+    required String fundSource,
+  }) async {
+    final res = await http.post(
+      Uri.parse(API.applySaveJobInfo), // ← 여기로 통일
+      headers: await _authHeaders(),
+      body: jsonEncode({
+        'applicationNo': applicationNo,
+        'job': job,
+        'purpose': purpose,
+        'fundSource': fundSource,
+      }),
+    );
+    _throwIfHttpError(res);
+    final j = _decode(res);
     return j['success'] == true;
   }
 

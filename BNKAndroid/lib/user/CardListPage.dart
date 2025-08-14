@@ -9,7 +9,10 @@ import 'package:http/http.dart' as http;
 import 'package:bnkandroid/constants/api.dart';
 import 'package:bnkandroid/user/service/CardService.dart';
 import '../CardDetailPage.dart';
+import '../ui/bnk_theme.dart';
+import 'LoginPage.dart';
 import 'model/CardModel.dart';
+
 
 /* ───────────────── Compare DTO ───────────────── */
 class CompareCard {
@@ -30,18 +33,23 @@ class CompareCard {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await API.initBaseUrl();
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
   @override
-  Widget build(BuildContext ctx) => MaterialApp(
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(scaffoldBackgroundColor: Colors.white),
-    home: CardListPage(),
-  );
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'BNK',
+      theme: ThemeData(
+        scaffoldBackgroundColor: Colors.white, // 앱 기본 배경 흰색
+      ),
+      home: SplashPage(),
+    );
+  }
 }
+
 
 /* ───────────────── Main Page ───────────────── */
 class CardListPage extends StatefulWidget {

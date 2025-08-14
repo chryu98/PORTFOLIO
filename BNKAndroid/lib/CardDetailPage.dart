@@ -7,7 +7,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:bnkandroid/user/LoginPage.dart';
-import 'package:bnkandroid/user/service/Card_Apply_Service.dart';
+import 'package:bnkandroid/user/service/card_apply_service.dart';
 import 'package:bnkandroid/constants/api.dart';
 import 'package:bnkandroid/user/model/CardModel.dart';
 import 'package:bnkandroid/user/service/CardService.dart';
