@@ -9,22 +9,24 @@ import 'package:bnkandroid/constants/api.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await API.initBaseUrl(); // baseUrl 먼저 초기화
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'JWT 로그인 예제',
-      home: SplashPage(), // 시작 시 토큰 체크
+      home: const SplashPage(), // 시작 시 토큰 체크
     );
   }
 }
 
 /// 시작 페이지 - 토큰 체크
 class SplashPage extends StatefulWidget {
+  const SplashPage({super.key});
   @override
   _SplashPageState createState() => _SplashPageState();
 }
@@ -40,33 +42,46 @@ class _SplashPageState extends State<SplashPage> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token');
 
+    if (!mounted) return;
+
     if (token != null && token.isNotEmpty) {
-      print("🔹 저장된 토큰 있음 → 메인으로 이동");
+      // 🔹 저장된 토큰 있음 → 메인으로
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => CardListPage()),
+        MaterialPageRoute(builder: (_) =>  CardListPage()),
       );
     } else {
-      print("🔹 저장된 토큰 없음 → 로그인으로 이동");
+      // 🔹 저장된 토큰 없음 → 로그인으로
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => LoginPage()),
+        MaterialPageRoute(builder: (_) => const LoginPage()),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 
 /// 로그인 페이지
 class LoginPage extends StatefulWidget {
+  /// 로그인 성공 후 이동할 대상 (예: () => ApplicationStep1Page(...))
+  final WidgetBuilder? redirectBuilder;
+
+  const LoginPage({super.key, this.redirectBuilder});
+
   @override
   _LoginPageState createState() => _LoginPageState();
+
+  /// 어디서든 호출: 로그인 후 특정 화면으로 교체 이동
+  static Future<void> goLoginThen(BuildContext context, WidgetBuilder builder) async {
+    await Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => LoginPage(redirectBuilder: builder)),
+    );
+  }
 }
 
 class _LoginPageState extends State<LoginPage> {
@@ -74,18 +89,51 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
 
   String? _savedToken;
+  bool _loading = false;
 
-  Future<void> login() async {
-    // 1) 현재 로그인 URL이 실제 서버와 맞는지 꼭 확인
-    //    ※ 서버에 /jwt/api/login 이 없다면 /user/api/login 으로 바꾸세요.
-    final loginUrl = '${API.baseUrl}/jwt/api/login';
-    print('[LOGIN] url=$loginUrl');
+  @override
+  void initState() {
+    super.initState();
+    // ✅ 입력 변화 시 버튼 활성화 상태 갱신
+    _usernameController.addListener(_onFieldsChanged);
+    _passwordController.addListener(_onFieldsChanged);
+  }
+
+  @override
+  void dispose() {
+    _usernameController.removeListener(_onFieldsChanged);
+    _passwordController.removeListener(_onFieldsChanged);
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _onFieldsChanged() {
+    if (mounted) setState(() {}); // build 재실행 → 버튼 활성/비활성 갱신
+  }
+
+  bool get _canSubmit =>
+      !_loading &&
+          _usernameController.text.trim().isNotEmpty &&
+          _passwordController.text.trim().isNotEmpty;
+
+  Future<void> _login() async {
+    // 간단 검증
+    if (!_canSubmit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('아이디와 비밀번호를 입력해 주세요.')),
+      );
+      return;
+    }
+
+    final loginUrl = '${API.baseUrl}/jwt/api/login'; // 서버 엔드포인트 확인 필요
+    setState(() => _loading = true);
 
     try {
       final resp = await http.post(
         Uri.parse(loginUrl),
         headers: {'Content-Type': 'application/json'},
-        // 서버 DTO 필드명에 정확히 맞추세요 (username/password 혹은 id/pw)
+        // 서버 DTO 필드명에 맞춰 수정 (username/password 또는 id/pw 등)
         body: jsonEncode({
           'username': _usernameController.text.trim(),
           'password': _passwordController.text.trim(),
@@ -93,25 +141,20 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       final raw = utf8.decode(resp.bodyBytes);
-      print('[LOGIN] status=${resp.statusCode}');
-      print('[LOGIN] content-type=${resp.headers['content-type']}');
-      print('[LOGIN] body="$raw"'); // 실제 응답이 뭔지 먼저 확인!
 
       if (resp.statusCode != 200) {
-        // 401/404/500 등은 body가 HTML이거나 빈 문자열일 수 있음
         _showErrorDialog('서버 오류 (${resp.statusCode})');
         return;
       }
 
-      // 2) JSON 시도 → 실패 시 텍스트 토큰 시도 → 둘 다 실패면 에러
+      // JSON 토큰 파싱 → 실패 시 text/plain 토큰 시도
       String? token;
       try {
-        final dynamic parsed = jsonDecode(raw);
+        final parsed = jsonDecode(raw);
         if (parsed is Map<String, dynamic>) {
           token = (parsed['token'] ?? parsed['accessToken'])?.toString();
         }
       } catch (_) {
-        // JSON이 아니면 텍스트 통째로 토큰으로 가정 (서버가 text/plain 토큰만 내려줄 때 대비)
         if (raw.isNotEmpty && !raw.trim().startsWith('<')) {
           token = raw.trim();
         }
@@ -124,18 +167,28 @@ class _LoginPageState extends State<LoginPage> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('jwt_token', token);
-      setState(() => _savedToken = token);
-      print('✅ JWT 저장 완료');
+      _savedToken = token;
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => CardListPage()),
-      );
+      if (!mounted) return;
+
+      // ✅ 리다이렉트 대상이 있으면 그곳으로, 없으면 메인으로
+      if (widget.redirectBuilder != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: widget.redirectBuilder!),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => CardListPage()),
+        );
+      }
     } catch (e) {
       _showErrorDialog('네트워크 오류: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
-
 
   void _showErrorDialog(String message) {
     showDialog(
@@ -144,10 +197,7 @@ class _LoginPageState extends State<LoginPage> {
         title: const Text('로그인 실패'),
         content: Text(message),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('확인'),
-          ),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('확인')),
         ],
       ),
     );
@@ -165,17 +215,30 @@ class _LoginPageState extends State<LoginPage> {
             TextField(
               controller: _usernameController,
               decoration: const InputDecoration(labelText: '아이디'),
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) => FocusScope.of(context).nextFocus(),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _passwordController,
               decoration: const InputDecoration(labelText: '비밀번호'),
               obscureText: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) {
+                if (_canSubmit) _login(); // 엔터로 로그인
+              },
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: login,
-              child: const Text('로그인'),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _canSubmit ? _login : null, // ✅ 활성/비활성 정상 동작
+                child: _loading
+                    ? const SizedBox(
+                    width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('로그인'),
+              ),
             ),
             if (_savedToken != null) ...[
               const SizedBox(height: 20),
