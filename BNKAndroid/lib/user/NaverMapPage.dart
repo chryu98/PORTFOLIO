@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
+
 class Branch {
   final int branchNo;
   final String branchName;
@@ -234,9 +235,9 @@ class _NaverMapPageState extends State<NaverMapPage> {
             ),
           ),
           Expanded(
-            // 여기에는 기존에 쓰던 PlatformView(네이버맵 뷰) 위젯 배치
+            // 기존 네이티브 플랫폼뷰 호출
             child: const AndroidView(
-              viewType: 'naver_map_view', // 여러분의 viewType과 동일하게
+              viewType: 'naver_map_view', // MainActivity/Factory에서 등록한 viewType과 동일
               creationParams: {},
               creationParamsCodec: StandardMessageCodec(),
             ),
