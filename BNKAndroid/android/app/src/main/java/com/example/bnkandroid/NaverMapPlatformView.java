@@ -26,14 +26,19 @@ import io.flutter.plugin.platform.PlatformView;
 
 public class NaverMapPlatformView implements PlatformView, MethodChannel.MethodCallHandler {
 
-    private static final String CHANNEL_NAME = "naver_map_channel";
+    private static final String CHANNEL_NAME = "bnk_naver_map_channel";
+    private static final String TAG = "NaverMapPlatformView";
 
     private final MapView mapView;
     private final MethodChannel channel;
     private NaverMap naverMap;
 
     private final List<Marker> currentMarkers = new ArrayList<>();
+
+    // 지도 준비 전 보관용
     private final List<Map<String, Object>> pendingMarkers = new ArrayList<>();
+    private boolean pendingFitBounds = false;
+    private int pendingPadding = 60;
 
     public NaverMapPlatformView(Context context, BinaryMessenger messenger) {
         mapView = new MapView(context, new NaverMapOptions());
@@ -45,12 +50,18 @@ public class NaverMapPlatformView implements PlatformView, MethodChannel.MethodC
 
         mapView.getMapAsync(map -> {
             naverMap = map;
+
+            // ① 강한 증거: 토스트
+            android.widget.Toast.makeText(mapView.getContext(), "NaverMapPlatformView onMapReady()", android.widget.Toast.LENGTH_LONG).show();
+
+
+
             // ✅ Flutter에 지도 준비 완료 이벤트 송신
             channel.invokeMethod("onMapReady", null);
 
-            // 지도 준비 전에 들어온 setMarkers 요청이 있으면 여기서 반영
+            // 지도 준비 전에 들어온 setMarkers 요청 반영
             if (!pendingMarkers.isEmpty()) {
-                setMarkersInternal(pendingMarkers);
+                setMarkersInternal(pendingMarkers, pendingFitBounds, pendingPadding);
                 pendingMarkers.clear();
             }
         });
@@ -72,32 +83,38 @@ public class NaverMapPlatformView implements PlatformView, MethodChannel.MethodC
 
     @Override
     public void onMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
-        android.util.Log.d(TAG, "onMethodCall: " + call.method);
+        android.widget.Toast.makeText(mapView.getContext(), "call="+call.method, android.widget.Toast.LENGTH_SHORT).show();
+
         switch (call.method) {
             case "setMarkers": {
-                // args: { "markers": [ {"lat":..,"lng":..,"title":..,"snippet":..}, ... ] }
                 @SuppressWarnings("unchecked")
                 Map<String, Object> args = (Map<String, Object>) call.arguments;
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> markers = (List<Map<String, Object>>) args.get("markers");
 
-                if (markers == null) {
-                    result.success(null);
-                    return;
+                boolean fitBounds = args.get("fitBounds") != null && (boolean) args.get("fitBounds");
+                int padding = 60;
+                if (args.get("padding") instanceof Number) {
+                    padding = ((Number) args.get("padding")).intValue();
                 }
+
+                if (markers == null) { result.success(null); return; }
 
                 if (naverMap == null) {
-                    // 지도 준비 전: 대기 큐에 저장
+                    // 지도 준비 전이면 보관
                     pendingMarkers.clear();
-                    pendingMarkers.addAll(markers);
+                    if (markers != null) pendingMarkers.addAll(markers);
+                    pendingFitBounds = fitBounds;
+                    pendingPadding = padding;
                     result.success(null);
                     return;
                 }
 
-                setMarkersInternal(markers);
+                setMarkersInternal(markers, fitBounds, padding);
                 result.success(null);
                 break;
             }
+
             case "moveCamera": {
                 if (naverMap == null) {
                     result.error("MAP_NOT_READY", "NaverMap not ready", null);
@@ -105,10 +122,15 @@ public class NaverMapPlatformView implements PlatformView, MethodChannel.MethodC
                 }
                 @SuppressWarnings("unchecked")
                 Map<String, Object> args = (Map<String, Object>) call.arguments;
-                double lat = toDouble(args.get("lat"), 0);
-                double lng = toDouble(args.get("lng"), 0);
+                double lat = toDouble(args.get("lat"), Double.NaN);
+                double lng = toDouble(args.get("lng"), Double.NaN);
                 float zoom = args.get("zoom") != null ? ((Number) args.get("zoom")).floatValue() : 16f;
                 boolean animate = args.get("animate") != null && (boolean) args.get("animate");
+
+                if (!isValidCoord(lat, lng)) {
+                    result.success(null);
+                    return;
+                }
 
                 CameraUpdate cu = CameraUpdate.zoomTo(zoom)
                         .animate(animate ? CameraAnimation.Easing : CameraAnimation.None)
@@ -119,6 +141,7 @@ public class NaverMapPlatformView implements PlatformView, MethodChannel.MethodC
                 result.success(null);
                 break;
             }
+
             case "fitBounds": {
                 if (naverMap == null) {
                     result.error("MAP_NOT_READY", "NaverMap not ready", null);
@@ -136,42 +159,86 @@ public class NaverMapPlatformView implements PlatformView, MethodChannel.MethodC
                 }
 
                 LatLngBounds.Builder b = new LatLngBounds.Builder();
+                int included = 0;
                 for (Map<String, Object> p : points) {
-                    double lat = toDouble(p.get("lat"), toDouble(p.get("latitude"), 0));
-                    double lng = toDouble(p.get("lng"), toDouble(p.get("longitude"), 0));
+                    double lat = toDouble(p.get("lat"), toDouble(p.get("latitude"), Double.NaN));
+                    double lng = toDouble(p.get("lng"), toDouble(p.get("longitude"), Double.NaN));
+                    if (!isValidCoord(lat, lng)) continue;
                     b.include(new LatLng(lat, lng));
+                    included++;
                 }
-                CameraUpdate cu = CameraUpdate.fitBounds(b.build(), padding);
-                naverMap.moveCamera(cu);
+                if (included > 0) {
+                    CameraUpdate cu = CameraUpdate.fitBounds(b.build(), padding);
+                    naverMap.moveCamera(cu);
+                }
 
                 result.success(null);
                 break;
             }
+
             default:
                 result.notImplemented();
         }
     }
 
-    private void setMarkersInternal(List<Map<String, Object>> markers) {
+    // 마커 생성 + (옵션) 전체 보기
+    private void setMarkersInternal(List<Map<String, Object>> markers, boolean fitBounds, int padding) {
         // 기존 마커 제거
         for (Marker m : currentMarkers) m.setMap(null);
         currentMarkers.clear();
 
+        if (markers == null || markers.isEmpty()) {
+            android.util.Log.d(TAG, "markers applied=0");
+            return;
+        }
+
+        LatLngBounds.Builder bounds = new LatLngBounds.Builder();
+        int count = 0;
+
         for (Map<String, Object> item : markers) {
-            // ✅ 키 호환: lat/lng 또는 latitude/longitude 모두 지원
-            double lat = toDouble(item.get("lat"), toDouble(item.get("latitude"), 0));
-            double lng = toDouble(item.get("lng"), toDouble(item.get("longitude"), 0));
-            String title = getString(item.get("title"), getString(item.get("branchName"), ""));
-            String snippet = getString(item.get("snippet"), "");
+            double lat = toDouble(item.get("lat"), toDouble(item.get("latitude"), Double.NaN));
+            double lng = toDouble(item.get("lng"), toDouble(item.get("longitude"), Double.NaN));
+            if (!isValidCoord(lat, lng)) continue;
 
             Marker mk = new Marker();
             mk.setPosition(new LatLng(lat, lng));
-            mk.setCaptionText(title != null ? title : "");
-            mk.setSubCaptionText(snippet != null ? snippet : "");
+            mk.setCaptionText(getString(item.get("title"), getString(item.get("branchName"), "")));
+            mk.setSubCaptionText(getString(item.get("snippet"), ""));
             mk.setMap(naverMap);
             currentMarkers.add(mk);
+
+            if (fitBounds) bounds.include(new LatLng(lat, lng));
+            count++;
         }
-        android.util.Log.d(TAG, "markers applied=" + currentMarkers.size());
+
+        // ✅ 하드코딩 테스트 마커 추가
+        Marker testMk = new Marker();
+        testMk.setPosition(new LatLng(36.1796, 129.0756)); // 부산 시청 근처
+        testMk.setCaptionText("테스트 마커");
+        testMk.setSubCaptionText("하드코딩 예시");
+        testMk.setMap(naverMap);
+        currentMarkers.add(testMk);
+        if (fitBounds) bounds.include(new LatLng(36.1796, 129.0756));
+        count++;
+
+
+        android.util.Log.d(TAG, "markers applied=" + count);
+
+        if (fitBounds && count > 0) {
+            CameraUpdate cu = CameraUpdate.fitBounds(bounds.build(), padding);
+            naverMap.moveCamera(cu);
+        }
+    }
+
+    // ───────────────────────────
+    // 유틸
+    // ───────────────────────────
+    private static boolean isValidCoord(double lat, double lng) {
+        if (Double.isNaN(lat) || Double.isNaN(lng)) return false;
+        if (lat == 0.0 && lng == 0.0) return false; // (0,0) 방지
+        if (lat < -90 || lat > 90) return false;
+        if (lng < -180 || lng > 180) return false;
+        return true;
     }
 
     private static double toDouble(Object v, double def) {

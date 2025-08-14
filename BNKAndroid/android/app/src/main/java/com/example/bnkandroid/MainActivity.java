@@ -15,7 +15,7 @@ public class MainActivity extends FlutterActivity {
                 .getPlatformViewsController()
                 .getRegistry()
                 .registerViewFactory(
-                        "naver_map_view",
+                        "bnk_naver_map_view",
                         new NaverMapFactory(flutterEngine.getDartExecutor().getBinaryMessenger())
                 );
     }
