@@ -1,17 +1,20 @@
 import 'dart:convert';
 import 'dart:math';
-
-import 'package:bnkandroid/user/service/Card_Apply_Service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:http/http.dart' as http;
 
-import '../constants/api.dart';
-import '../user/model/CardModel.dart';
-import '../user/service/CardService.dart';
+import 'package:bnkandroid/user/LoginPage.dart';
+import 'package:bnkandroid/user/service/Card_Apply_Service.dart';
+import 'package:bnkandroid/constants/api.dart';
+import 'package:bnkandroid/user/model/CardModel.dart';
+import 'package:bnkandroid/user/service/CardService.dart';
 import 'ApplicationStep1Page.dart';
+
+// ApiException이 정의된 위치에 맞춰 import
+// 예시: import 'package:bnkandroid/constants/api_exception.dart';
 
 /// 혜택 아이콘(카테고리 이미지) 높이
 const double kBenefitIconHeight = 150;
@@ -75,6 +78,7 @@ bool _looksLikeDetail(String s) {
   final looksLikeShortTitle =
       t.length <= 14 && !hasNumberOrUnit && RegExp(r'(혜택|할인|서비스)\s*$').hasMatch(t);
   final hasParen = t.contains('(') || t.contains(')');
+
   return (hasNumberOrUnit || hasDetailWord || hasParen) && !looksLikeShortTitle;
 }
 
@@ -182,23 +186,14 @@ Widget buildSimpleBenefitBox(String category, String line, {String? rate}) {
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.05),
-          blurRadius: 6,
-          offset: const Offset(0, 2),
-        ),
+        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2)),
       ],
     ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (rate != null) ...[
-          Text(rate,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-                color: Color(0xffB91111),
-              )),
+          Text(rate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Color(0xffB91111))),
           const SizedBox(width: 12),
         ],
         Expanded(
@@ -216,7 +211,7 @@ Widget buildSimpleBenefitBox(String category, String line, {String? rate}) {
   );
 }
 
-/// 통문자열 → 요약 박스 리스트로 자동 변환
+/// 통문자열 → 요약 박스 리스트
 List<Widget> buildSummarizedBenefits(String rawText) {
   final Map<String, List<String>> keywordMap = {
     '커피': ['커피', '스타벅스', '이디야', '카페베네'],
@@ -281,7 +276,7 @@ List<Widget> buildSummarizedBenefits(String rawText) {
 
 class _AnimatedOnVisible extends StatefulWidget {
   final Widget child;
-  const _AnimatedOnVisible({Key? key, required this.child}) : super(key: key);
+  const _AnimatedOnVisible({super.key, required this.child});
   @override
   State<_AnimatedOnVisible> createState() => _AnimatedOnVisibleState();
 }
@@ -380,6 +375,7 @@ class CardDetailPage extends StatefulWidget {
   final String cardNo;
   final ValueNotifier<Set<String>> compareIds;
   final VoidCallback onCompareChanged;
+
   const CardDetailPage({
     super.key,
     required this.cardNo,
@@ -417,15 +413,35 @@ class _CardDetailPageState extends State<CardDetailPage> {
     setState(() {});
   }
 
+  /// 발급 시작 (로그인 체크 → 필요 시 로그인 → 이어서 발급)
   Future<void> _startCardApplication(String cardNoStr) async {
     final cardNo = int.tryParse(cardNoStr);
     if (cardNo == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('잘못된 카드 번호입니다.')),
       );
       return;
     }
 
+    // 1) 로그인 여부 확인
+    final prefs = await SharedPreferences.getInstance();
+    final hasToken = (prefs.getString('jwt_token') ?? '').isNotEmpty;
+
+    if (!hasToken) {
+      // 2) 미로그인 → 로그인 페이지로, 로그인 성공 시 발급 계속
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LoginPage(
+            redirectBuilder: (_) => _ContinueApplicationPage(cardNo: cardNo),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // 3) 로그인 상태면 바로 발급 시작
     try {
       final start = await CardApplyService.start(cardNo: cardNo);
       if (!mounted) return;
@@ -440,8 +456,22 @@ class _CardDetailPageState extends State<CardDetailPage> {
         ),
       );
     } on ApiException catch (e) {
+      // 4) 401 등 인증 오류면 로그인으로 보내고, 로그인 후 이어서 진행
+      final status = _extractStatusCode(e); // ← 헬퍼 사용
+      if (status == 401) {
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => LoginPage(
+              redirectBuilder: (_) => _ContinueApplicationPage(cardNo: cardNo),
+            ),
+          ),
+        );
+        return;
+      }
       if (!mounted) return;
-      final msg = e.body?['message']?.toString() ?? e.message;
+      final msg = _extractErrorMessage(e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('발급 시작 실패: $msg')),
       );
@@ -452,6 +482,49 @@ class _CardDetailPageState extends State<CardDetailPage> {
       );
     }
   }
+
+  /// ---- 여기 아래 두 개 헬퍼를 같은 파일(같은 클래스 안 or 바깥) 에 추가하세요 ----
+
+  int _extractStatusCode(dynamic e) {
+    try {
+      // 1) e.statusCode (가장 흔한 케이스)
+      final sc = (e as dynamic).statusCode;
+      if (sc is int) return sc;
+    } catch (_) {}
+
+    try {
+      // 2) e.code (일부 생성 클라이언트가 code 필드 사용)
+      final code = (e as dynamic).code;
+      if (code is int) return code;
+    } catch (_) {}
+
+    try {
+      // 3) e.response?.statusCode (Dio/일부 구현)
+      final resp = (e as dynamic).response;
+      final sc = (resp as dynamic)?.statusCode;
+      if (sc is int) return sc;
+    } catch (_) {}
+
+    return 0; // 알 수 없음
+  }
+
+  String _extractErrorMessage(dynamic e) {
+    // body.message → message → toString 순으로 시도
+    try {
+      final body = (e as dynamic).body;
+      if (body is Map && body['message'] != null) {
+        return body['message'].toString();
+      }
+    } catch (_) {}
+
+    try {
+      final msg = (e as dynamic).message;
+      if (msg != null) return msg.toString();
+    } catch (_) {}
+
+    return e.toString();
+  }
+
 
   void _showCompareModal() {
     final ids = widget.compareIds.value;
@@ -521,8 +594,8 @@ class _CardDetailPageState extends State<CardDetailPage> {
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(color: Colors.red),
                               ),
-                              child:
-                              Text('#$tag', style: const TextStyle(fontSize: 11, color: Colors.red)),
+                              child: Text('#$tag',
+                                  style: const TextStyle(fontSize: 11, color: Colors.red)),
                             ))
                                 .toList(),
                           ),
@@ -552,7 +625,6 @@ class _CardDetailPageState extends State<CardDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Scaffold 전체를 ValueListenableBuilder로 감싸 AppBar 타입 오류 방지 + 상단 비교함바 고정
     return ValueListenableBuilder<Set<String>>(
       valueListenable: widget.compareIds,
       builder: (context, ids, __) {
@@ -581,13 +653,10 @@ class _CardDetailPageState extends State<CardDetailPage> {
             )
                 : null,
           ),
-
           body: FutureBuilder<CardModel>(
             future: _futureCard,
             builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
               final card = snapshot.data!;
               final imgUrl = '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(card.cardUrl)}';
@@ -641,7 +710,6 @@ class _CardDetailPageState extends State<CardDetailPage> {
                     ),
                     const SizedBox(height: 18),
 
-                    // ✅ 카드리스트와 동일한 캡슐형 토글 버튼
                     _CompareToggle(
                       selected: isInCompare,
                       onPressed: () => _toggleCompare(card.cardNo.toString()),
@@ -676,16 +744,13 @@ class _CardDetailPageState extends State<CardDetailPage> {
                         runSpacing: 4,
                         children: tags
                             .map((t) => Container(
-                          padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: Colors.red),
                           ),
-                          child: Text('#$t',
-                              style:
-                              const TextStyle(color: Colors.red, fontSize: 13)),
+                          child: Text('#$t', style: const TextStyle(color: Colors.red, fontSize: 13)),
                         ))
                             .toList(),
                       ),
@@ -703,16 +768,13 @@ class _CardDetailPageState extends State<CardDetailPage> {
                       child: AnimationLimiter(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
-                          children: buildSummarizedBenefits(
-                              '${card.service}\n${card.sService ?? ''}')
+                          children: buildSummarizedBenefits('${card.service}\n${card.sService ?? ''}')
                               .asMap()
                               .entries
                               .map(
                                 (entry) => AnimationConfiguration.staggeredList(
                               position: entry.key,
-                              delay: Duration(
-                                  milliseconds:
-                                  (50 * pow(entry.key + 1, 1.2)).toInt()),
+                              delay: Duration(milliseconds: (50 * pow(entry.key + 1, 1.2)).toInt()),
                               duration: const Duration(milliseconds: 300),
                               child: SlideAnimation(
                                 verticalOffset: 20.0,
@@ -733,9 +795,7 @@ class _CardDetailPageState extends State<CardDetailPage> {
                     SectionTile(
                       title: '유의사항',
                       child: Text(
-                        (card.notice != null && card.notice!.trim().isNotEmpty)
-                            ? card.notice!
-                            : '유의사항이 없습니다.',
+                        (card.notice != null && card.notice!.trim().isNotEmpty) ? card.notice! : '유의사항이 없습니다.',
                         style: const TextStyle(fontSize: 13),
                       ),
                     ),
@@ -791,12 +851,7 @@ class _CardDetailPageState extends State<CardDetailPage> {
     return Row(
       children: [
         Container(width: 4, height: 20, color: Colors.black, margin: const EdgeInsets.only(right: 8)),
-        Text(title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-              color: Color(0xFF444444),
-            )),
+        Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF444444))),
       ],
     );
   }
@@ -809,11 +864,11 @@ class _TopCompareBar extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onClear;
   const _TopCompareBar({
-    Key? key,
+    super.key,
     required this.count,
     required this.onOpen,
     required this.onClear,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -889,10 +944,8 @@ class _CompareToggle extends StatelessWidget {
             children: [
               Icon(Icons.check, size: 16, color: _green),
               SizedBox(width: 6),
-              Text(
-                '비교함에 추가됨',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _green),
-              ),
+              Text('비교함에 추가됨',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _green)),
             ],
           ),
         ),
@@ -907,17 +960,15 @@ class _CompareToggle extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Color(0xFFDDDDDD)),
+          border: Border.all(color: const Color(0xFFDDDDDD)),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.add, size: 16, color: Color(0xFF555555)),
             SizedBox(width: 6),
-            Text(
-              '비교함 담기',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF555555)),
-            ),
+            Text('비교함 담기',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF555555))),
           ],
         ),
       ),
@@ -933,11 +984,11 @@ class SectionTile extends StatefulWidget {
   final bool initiallyExpanded;
 
   const SectionTile({
-    Key? key,
+    super.key,
     required this.title,
     required this.child,
     this.initiallyExpanded = false,
-  }) : super(key: key);
+  });
 
   @override
   State<SectionTile> createState() => _SectionTileState();
@@ -972,5 +1023,110 @@ class _SectionTileState extends State<SectionTile> {
         if (_isExpanded) Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: widget.child),
       ],
     );
+  }
+}
+
+/// 로그인 후 자동으로 발급 시작 API를 호출해 Step1로 넘겨주는 중간 페이지
+class _ContinueApplicationPage extends StatefulWidget {
+  final int cardNo;
+  const _ContinueApplicationPage({required this.cardNo});
+
+  @override
+  State<_ContinueApplicationPage> createState() => _ContinueApplicationPageState();
+}
+
+class _ContinueApplicationPageState extends State<_ContinueApplicationPage> {
+  @override
+  void initState() {
+    super.initState();
+    _go();
+  }
+
+  Future<void> _go() async {
+    try {
+      final start = await CardApplyService.start(cardNo: widget.cardNo);
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ApplicationStep1Page(
+            cardNo: widget.cardNo,
+            applicationNo: start.applicationNo,
+            isCreditCard: start.isCreditCard,
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
+      final status = _extractStatusCode(e); // ← 헬퍼 사용
+      if (status == 401) {
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => LoginPage(
+              redirectBuilder: (_) => _ContinueApplicationPage(cardNo: widget.cardNo),
+            ),
+          ),
+        );
+        return;
+      }
+      if (!mounted) return;
+      final msg = _extractErrorMessage(e); // ← 헬퍼 사용
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('발급 시작 실패: $msg')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('발급 시작 오류: $e')),
+      );
+      Navigator.pop(context);
+    }
+  }
+  int _extractStatusCode(dynamic e) {
+    // 1) e.statusCode
+    try {
+      final sc = (e as dynamic).statusCode;
+      if (sc is int) return sc;
+    } catch (_) {}
+
+    // 2) e.code
+    try {
+      final c = (e as dynamic).code;
+      if (c is int) return c;
+    } catch (_) {}
+
+    // 3) e.response?.statusCode (Dio 스타일)
+    try {
+      final resp = (e as dynamic).response;
+      final sc = (resp as dynamic)?.statusCode;
+      if (sc is int) return sc;
+    } catch (_) {}
+
+    return 0;
+  }
+
+  String _extractErrorMessage(dynamic e) {
+    // body.message → message → toString()
+    try {
+      final body = (e as dynamic).body;
+      if (body is Map && body['message'] != null) {
+        return body['message'].toString();
+      }
+    } catch (_) {}
+
+    try {
+      final msg = (e as dynamic).message;
+      if (msg != null) return msg.toString();
+    } catch (_) {}
+
+    return e.toString();
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
