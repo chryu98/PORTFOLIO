@@ -1,6 +1,7 @@
 package com.busanbank.card.cardapply.controller;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;   // prefill
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.busanbank.card.card.dao.CardDao;
@@ -19,6 +21,7 @@ import com.busanbank.card.cardapply.dto.ApplicationPersonTempDto;
 import com.busanbank.card.cardapply.dto.CardApplicationTempDto;
 import com.busanbank.card.cardapply.dto.ContactInfoDto;
 import com.busanbank.card.cardapply.dto.JobInfoDto;
+import com.busanbank.card.cardapply.dto.PdfFilesDto;
 import com.busanbank.card.cardapply.dto.UserInputInfoDto;
 import com.busanbank.card.user.dao.IUserDao;
 import com.busanbank.card.user.dto.UserDto;
@@ -35,6 +38,12 @@ public class CardApplyRestController {
     @Autowired private CardDao cardDao;
     @Autowired private ICardApplyDao cardApplyDao;
 
+    @GetMapping("/card-terms")
+    public List<PdfFilesDto> getCardTerms(@RequestParam("cardNo") long cardNo) {
+    	System.out.println(cardApplyDao.getTermsByCardNo(cardNo));
+        return cardApplyDao.getTermsByCardNo(cardNo);
+    }
+    
     /** 현재 인증된 사용자 조회 (JWT 기반) */
     private UserDto currentUser() {
         Authentication a = SecurityContextHolder.getContext().getAuthentication();

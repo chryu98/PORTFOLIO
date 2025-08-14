@@ -96,7 +96,7 @@ public class UserSecurityConfig {
         restLoginFilter.setAuthenticationFailureHandler(restLoginFailureHandler);
     	
         http
-        .securityMatcher("/regist/**", "/user/chat/**", "/user/**", "/user/api/**", "/loginProc", "/logout")
+        .securityMatcher("/regist/**", "/user/chat/**", "/user/**", "/user/api/**", "/card/apply/**", "/card/apply/api/**", "/loginProc", "/logout")
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/user/api/**").permitAll()
             .anyRequest().permitAll()

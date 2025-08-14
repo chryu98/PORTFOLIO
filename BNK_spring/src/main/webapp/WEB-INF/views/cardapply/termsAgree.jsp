@@ -1,115 +1,170 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-    pageEncoding="UTF-8"%>
-<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="jakarta.tags.core"%>
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>카드 발급 - 약관 동의</title>
 <style>
-    body { font-family: Arial, sans-serif; }
-    .term-list { margin: 20px; }
-    .term-item { margin-bottom: 10px; }
-    .term-item label { cursor: pointer; color: #0073e6; text-decoration: underline; }
-    .modal {
-        display: none;
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        justify-content: center; align-items: center;
-    }
-    .modal-content {
-        background: #fff; padding: 20px; width: 80%; height: 80%;
-        display: flex; flex-direction: column;
-    }
-    .pdf-viewer { flex: 1; border: none; margin-bottom: 10px; }
-    .modal-buttons { text-align: right; }
-    .modal-buttons button { padding: 8px 15px; }
+#pdfViewer {
+	width: 100%;
+	height: 500px;
+	border: 1px solid #ccc;
+	display: none;
+	margin-top: 20px;
+}
+.terms-list div { margin-bottom: 10px; }
+.terms-list input[type="checkbox"] { cursor: pointer; }
+.btn {
+	padding: 8px 16px;
+	margin-top: 10px;
+	background-color: #c10c0c;
+	color: white;
+	border: none;
+	cursor: pointer;
+}
 </style>
 </head>
 <body>
+
 <h2>카드를 만드려면<br>약관 동의가 필요해요</h2>
-<div class="term-list">
-    <div class="term-item">
-        <input type="checkbox" id="term1" disabled>
-        <label data-pdf-no="1">[필수] 체크카드 개인회원 표준 약관</label>
-    </div>
-    <div class="term-item">
-        <input type="checkbox" id="term2" disabled>
-        <label data-pdf-no="2">[필수] 개인(신용)정보 필수적 전체 동의서</label>
-    </div>
-    <div class="term-item">
-        <input type="checkbox" id="term3" disabled>
-        <label data-pdf-no="3">[필수] 포인트이용약관</label>
-    </div>
-    <button id="agreeAll">모두 동의</button>
+
+<div class="terms-list" id="termsContainer">
+	<div>
+		<input type="checkbox" id="allAgree" />
+		<label for="allAgree"><strong>모두 동의</strong></label>
+	</div>
 </div>
 
-<!-- PDF 모달 -->
-<div class="modal" id="pdfModal">
-    <div class="modal-content">
-        <iframe id="pdfViewer" class="pdf-viewer"></iframe>
-        <div class="modal-buttons">
-            <button id="btnAgree">동의</button>
-            <button id="btnClose">닫기</button>
-        </div>
-    </div>
+<button class="btn" id="nextBtn">다음</button>
+
+<!-- PDF 뷰어 영역 -->
+<div id="pdfViewer">
+	<iframe id="pdfFrame" width="100%" height="100%"></iframe>
+	<div style="margin-top: 10px;">
+		<button class="btn" id="agreeBtn">동의</button>
+		<button class="btn" id="downloadBtn">다운로드</button>
+		<button class="btn" id="closeBtn" style="background-color: #888;">닫기</button>
+	</div>
 </div>
 
 <script>
-    const modal = document.getElementById("pdfModal");
-    const pdfViewer = document.getElementById("pdfViewer");
-    const btnAgree = document.getElementById("btnAgree");
-    const btnClose = document.getElementById("btnClose");
+let currentPdfCheckbox = null;
 
-    let currentTermId = null;
+// 약관 목록 불러오기
+const cardNo = ${cardNo};
+console.log('cardNo =', cardNo);
 
-    // 체크박스나 라벨 클릭 시 PDF 뷰어 띄움
-    document.querySelectorAll(".term-item label, .term-item input[type=checkbox]").forEach(el => {
-        el.addEventListener("click", function(e) {
-            e.preventDefault(); // 체크박스 직접 클릭 방지
-            const pdfNo = this.dataset.pdfNo || this.nextElementSibling?.dataset.pdfNo;
-            currentTermId = this.getAttribute("for") || this.id || this.previousElementSibling?.id;
-            openPdfViewer(pdfNo);
-        });
-    });
+// JWT 토큰을 localStorage에서 가져오기
+const jwtToken = localStorage.getItem('jwtToken');
 
-    // 모두 동의 버튼 클릭
-    document.getElementById("agreeAll").addEventListener("click", async function() {
-        const labels = document.querySelectorAll(".term-item label");
-        for (let i = 0; i < labels.length; i++) {
-            const pdfNo = labels[i].dataset.pdfNo;
-            currentTermId = labels[i].previousElementSibling.id;
-            await openPdfViewer(pdfNo, true); // 자동 동의 모드
+if (jwtToken) {
+    fetch('/card/apply/api/card-terms?cardNo=' + cardNo, {
+        method: 'GET',
+        headers: {
+            'Authorization': 'Bearer ' + jwtToken, // 'Bearer ' 접두사 필수
+            'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin'
+    })
+    .then(res => {
+        if (res.status === 401) {
+            alert('인증에 실패했습니다. 다시 로그인해주세요.');
+            window.location.href = '/user/login';
+            throw new Error('인증 실패');
         }
-    });
-
-    // PDF 뷰어 열기
-    function openPdfViewer(pdfNo, autoAgree = false) {
-        return new Promise(resolve => {
-            fetch(`/terms/pdf/${pdfNo}`) // 서버에서 PDF URL 반환
-                .then(res => res.json())
-                .then(data => {
-                    pdfViewer.src = data.pdfUrl; // PDF 경로
-                    modal.style.display = "flex";
-
-                    if (autoAgree) {
-                        document.getElementById(currentTermId).checked = true;
-                        resolve();
-                    } else {
-                        btnAgree.onclick = () => {
-                            document.getElementById(currentTermId).checked = true;
-                            modal.style.display = "none";
-                            resolve();
-                        };
-                        btnClose.onclick = () => {
-                            modal.style.display = "none";
-                            resolve();
-                        };
-                    }
-                });
+        if (!res.ok) {
+            throw new Error('HTTP error ' + res.status);
+        }
+        return res.json();
+    })
+    .then(terms => {
+        const container = document.getElementById('termsContainer');
+        terms.forEach(term => {
+            const isRequired = term.isRequired === 'Y' ? '필수' : '선택';
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <input type="checkbox" class="termCheckbox" id="term_${term.pdfNo}" 
+                    data-pdfno="${term.pdfNo}" disabled />
+                <label class="termLabel" data-pdfno="${term.pdfNo}">
+                    ${term.pdfName} (${isRequired})
+                </label>
+            `;
+            container.appendChild(div);
         });
-    }
-</script>
+    })
+    .catch(err => {
+        console.error('fetch 요청 실패:', err);
+    });
+} else {
+    alert('로그인이 필요한 서비스입니다.');
+    window.location.href = '/user/login';
+}
 
+// 이벤트 위임 - 약관 클릭 시 PDF 뷰어
+document.getElementById('termsContainer').addEventListener('click', function(e) {
+	if (e.target.classList.contains('termLabel')) {
+		const pdfNo = e.target.dataset.pdfno;
+		currentPdfCheckbox = document.getElementById('term_' + pdfNo);
+		
+		const jwtToken = localStorage.getItem('jwtToken');
+		if (jwtToken) {
+			document.getElementById('pdfFrame').src = '/pdf/view?pdfNo=' + pdfNo + '&token=' + jwtToken;
+			document.getElementById('pdfViewer').style.display = 'block';
+		} else {
+			alert('로그인이 필요합니다.');
+			window.location.href = '/user/login';
+		}
+	}
+});
+
+// 전체 동의
+document.getElementById('allAgree').addEventListener('change', function() {
+	const allChecked = this.checked;
+	document.querySelectorAll('.termCheckbox').forEach(cb => {
+		if (!cb.disabled) cb.checked = allChecked;
+	});
+});
+
+// 동의 버튼
+document.getElementById('agreeBtn').addEventListener('click', function() {
+	if (currentPdfCheckbox) {
+		currentPdfCheckbox.checked = true;
+		currentPdfCheckbox.disabled = false;
+	}
+	document.getElementById('pdfViewer').style.display = 'none';
+	currentPdfCheckbox = null;
+});
+
+// PDF 닫기
+document.getElementById('closeBtn').addEventListener('click', function() {
+	document.getElementById('pdfViewer').style.display = 'none';
+	currentPdfCheckbox = null;
+});
+
+// 다운로드 버튼
+document.getElementById('downloadBtn').addEventListener('click', function() {
+	if (currentPdfCheckbox) {
+		const pdfNo = currentPdfCheckbox.dataset.pdfno;
+		const jwtToken = localStorage.getItem('jwtToken');
+		window.open('/pdf/download?pdfNo=' + pdfNo + '&token=' + jwtToken, '_blank');
+	}
+});
+
+// 다음 버튼
+document.getElementById('nextBtn').addEventListener('click', function() {
+	const requiredTerms = Array.from(document.querySelectorAll('.termCheckbox'))
+		.filter(cb => cb.parentElement.textContent.includes('(필수)'));
+
+	const allChecked = requiredTerms.every(cb => cb.checked);
+	if (!allChecked) {
+		alert('필수 약관에 모두 동의해야 합니다.');
+		return;
+	}
+    
+    // 다음 페이지로 이동할 때도 cardNo를 함께 전달
+	location.href = '/card/apply/info?cardNo=' + cardNo;
+});
+</script>
 </body>
 </html>

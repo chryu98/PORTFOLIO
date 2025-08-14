@@ -52,12 +52,16 @@ public interface ICardApplyDao {
 			+ "WHERE APPLICATION_NO = #{applicationNo}")
 	int updateApplicationJobTemp(JobInfoDto jobInfo);
 	
-	//신용카드 약관
-	@Select("SELECT * FROM PDF_FILES WHERE PDF_NO IN (2, 3, 4, 5, 6, 31)")
-	List<PdfFilesDto> selectCreditPdfFiles();
-
-	//체크카드 약관
-	@Select("SELECT * FROM PDF_FILES WHERE PDF_NO IN (1, 5, 6, 31)")
-	List<PdfFilesDto> selectCheckPdfFiles();
+	@Select("""
+		    SELECT cf.pdf_no AS pdfNo,
+		           cf.pdf_name AS pdfName,
+		           cf.pdf_data AS pdfData,
+		           ct.is_required AS isRequired
+		    FROM card_terms ct
+		    JOIN pdf_files cf ON ct.pdf_no = cf.pdf_no
+		    WHERE ct.card_no = #{cardNo}
+		    ORDER BY ct.display_order
+		""")
+	List<PdfFilesDto> getTermsByCardNo(long cardNo);
 	
 }
