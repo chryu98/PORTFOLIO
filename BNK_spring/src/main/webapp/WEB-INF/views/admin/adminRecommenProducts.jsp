@@ -23,11 +23,15 @@
     .right { text-align:right; }
     .controls { display:flex; gap:8px; align-items:center; }
 
-    /* 카드 셀 UI */
+    /* 카드/회원 셀 UI */
     .cardcell{display:flex;align-items:center;gap:10px;min-width:240px}
     .thumb{width:48px;height:30px;border-radius:6px;object-fit:cover;background:#f2f2f2;border:1px solid #eee}
     .cardname{font-weight:600}
     .cardno{color:#666;font-size:12px}
+    .avatar{width:30px;height:30px;border-radius:50%;background:#f2f2f2;border:1px solid #eee;display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:#999}
+    .memberwrap{display:flex;align-items:center;gap:10px;min-width:200px}
+    .membername{font-weight:600}
+    .memberno{color:#666;font-size:12px}
   </style>
 </head>
 <body>
@@ -44,9 +48,7 @@
       <button id="btnLoadKpi">KPI 조회</button>
       <div class="muted" id="kpiRange"></div>
     </div>
-    <div class="kpi" id="kpiWrap">
-      <!-- 동적 -->
-    </div>
+    <div class="kpi" id="kpiWrap"></div>
   </div>
 
   <!-- 인기 카드 -->
@@ -75,30 +77,28 @@
           <th class="right">전환율</th>
         </tr>
       </thead>
-      <tbody id="popularTbody">
-        <!-- 동적 -->
-      </tbody>
+      <tbody id="popularTbody"></tbody>
     </table>
   </div>
 
   <!-- 유사 카드 -->
   <div class="box">
-  <h2>유사 혜택 카드 추천</h2>
-  <div class="row">
-    <div>
-      <label>기준 카드(번호 또는 이름)</label>
-      <input type="text" id="similarKey" placeholder="예) 1001 또는 커피 혜택 카드" />
+    <h2>유사 혜택 카드 추천</h2>
+    <div class="row">
+      <div>
+        <label>기준 카드(번호 또는 이름)</label>
+        <input type="text" id="similarKey" placeholder="예) 1001 또는 커피 혜택 카드" />
+      </div>
+      <div>
+        <label>조회 기간(일)</label>
+        <input type="number" id="similarDays" value="30" min="1" />
+      </div>
+      <div>
+        <label>개수</label>
+        <input type="number" id="similarLimit" value="10" min="1" />
+      </div>
+      <button id="btnLoadSimilar">유사카드 조회</button>
     </div>
-    <div>
-      <label>조회 기간(일)</label>
-      <input type="number" id="similarDays" value="30" min="1" />
-    </div>
-    <div>
-      <label>개수</label>
-      <input type="number" id="similarLimit" value="10" min="1" />
-    </div>
-    <button id="btnLoadSimilar">유사카드 조회</button>
-  </div>
     <table>
       <thead>
         <tr>
@@ -107,9 +107,7 @@
           <th class="right">유사도 점수</th>
         </tr>
       </thead>
-      <tbody id="similarTbody">
-        <!-- 동적 -->
-      </tbody>
+      <tbody id="similarTbody"></tbody>
     </table>
   </div>
 
@@ -117,13 +115,16 @@
   <div class="box">
     <h2>행동 로그</h2>
     <div class="row">
+      <!-- 번호 또는 이름 + 자동완성 -->
       <div>
-        <label>회원번호</label>
-        <input type="number" id="logMemberNo" />
+        <label>회원(번호 또는 이름)</label>
+        <input type="text" id="logMemberKey" placeholder="예) 1001 또는 홍길동" list="memberHints" />
+        <datalist id="memberHints"></datalist>
       </div>
       <div>
-        <label>카드번호</label>
-        <input type="number" id="logCardNo" />
+        <label>카드(번호 또는 이름)</label>
+        <input type="text" id="logCardKey" placeholder="예) 2002 또는 커피 혜택 카드" list="cardHints" />
+        <datalist id="cardHints"></datalist>
       </div>
       <div>
         <label>타입</label>
@@ -154,8 +155,8 @@
       <thead>
         <tr>
           <th>LOG_NO</th>
-          <th>MEMBER_NO</th>
-          <th>CARD_NO</th>
+          <th>회원</th>
+          <th>카드</th>
           <th>TYPE</th>
           <th>TIME</th>
           <th>DEVICE</th>
@@ -163,9 +164,7 @@
           <th>USER_AGENT</th>
         </tr>
       </thead>
-      <tbody id="logsTbody">
-        <!-- 동적 -->
-      </tbody>
+      <tbody id="logsTbody"></tbody>
     </table>
     <div class="row" style="justify-content:flex-end; margin-top:10px;">
       <button id="prevPage">이전</button>
@@ -182,16 +181,13 @@
     const pct = (n) => (n == null ? '-' : (Number(n) * 100).toFixed(1) + '%');
     const cut10 = (s) => (s ? String(s).substring(0,10) : '');
 
-    // === 이미지 보강 유틸 시작 ===
-
-    // 심플 placeholder (에러시 표시)
+    // === 이미지/플레이스홀더 유틸 ===
     const PH = "data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' width='96' height='60'>\
 <rect width='100%' height='100%' fill='%23f2f2f2'/>\
 <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='12'>no image</text>\
 </svg>";
 
-    // URL이 이미지로 보이는지 간단 판별
     function isImageUrl(u){
       if(!u) return false;
       try{
@@ -202,8 +198,6 @@
         return !!(fmtQ && /png|jpe?g|webp|gif|bmp|svg/i.test(fmtQ));
       }catch{ return false; }
     }
-
-    // HTTPS 페이지에서 HTTP 이미지면 https로 바꿔 시도(서버가 지원해야 성공)
     function normalizeUrl(u){
       try{
         if(!u) return u;
@@ -214,30 +208,19 @@
         return url.toString();
       }catch{ return u; }
     }
-
-    // 레코드에서 사용하는 대표 이미지 고르기: cardImageUrl -> (없으면) cardProductUrl(이미지일 때만)
     function pickImageSrcFromRecord(r){
       const first = r?.cardImageUrl;
       const fallback = isImageUrl(r?.cardProductUrl) ? r.cardProductUrl : null;
       return normalizeUrl(first || fallback);
     }
-    // otherCard용
-    function pickOtherImageSrcFromRecord(r){
-      const first = r?.otherCardImageUrl;
-      const fallback = isImageUrl(r?.otherCardProductUrl) ? r.otherCardProductUrl : null;
-      return normalizeUrl(first || fallback);
-    }
-
-    // 공통 <img> 태그 생성 (리퍼러 제거 + 오류시 placeholder)
     function imgTag(src, altText){
       return src
         ? `<img class="thumb" src="${src}" alt="${altText || ''}" referrerpolicy="no-referrer" loading="lazy"
                  decoding="async" onerror="this.onerror=null; this.src='${PH}'">`
         : `<div class="thumb" role="img" aria-label="no image"></div>`;
     }
-    // === 이미지 보강 유틸 끝 ===
 
-    // 공통 fetch 헬퍼 (에러 핸들링)
+    // 공통 fetch
     async function jfetch(url){
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
       if(!res.ok){
@@ -321,63 +304,228 @@
 
     // 유사
     async function loadSimilar(){
-  try {
-    const key   = (document.getElementById('similarKey').value || '').trim();
-    const days  = document.getElementById('similarDays').value || 30;
-    const limit = document.getElementById('similarLimit').value || 10;
-    if(!key){ alert('기준 카드(번호 또는 이름)를 입력해주세요.'); return; }
+      try {
+        const key   = (document.getElementById('similarKey').value || '').trim();
+        const days  = document.getElementById('similarDays').value || 30;
+        const limit = document.getElementById('similarLimit').value || 10;
+        if(!key){ alert('기준 카드(번호 또는 이름)를 입력해주세요.'); return; }
 
-    const isNumber = /^\d+$/.test(key);
-    const url = `${API}/similar/${encodeURIComponent(key)}?days=${days}&limit=${limit}`;
+        const url = `${API}/similar/${encodeURIComponent(key)}?days=${days}&limit=${limit}`;
+        const data = await jfetch(url);
 
-    const data = await jfetch(url);
+        const tb = document.getElementById('similarTbody');
+        tb.innerHTML = (data||[]).map(r => {
+          const bImg = imgTag(pickImageSrcFromRecord(r), r.cardName || '기준 카드');
+          const bName = r.cardName || '(이름없음)';
+          const bNum  = r.cardNo ? `#${r.cardNo}` : '';
+          const b1 = r.cardProductUrl ? `<a href="${r.cardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
+          const b2 = r.cardProductUrl ? `</a>` : '';
 
-    const tb = document.getElementById('similarTbody');
-    tb.innerHTML = (data||[]).map(r => {
-      const bImg = imgTag(pickImageSrcFromRecord(r), r.cardName || '기준 카드');
-      const bName = r.cardName || '(이름없음)';
-      const bNum  = r.cardNo ? `#${r.cardNo}` : '';
-      const b1 = r.cardProductUrl ? `<a href="${r.cardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
-      const b2 = r.cardProductUrl ? `</a>` : '';
+          const sImg = imgTag(pickImageSrcFromRecord({
+            cardImageUrl: r.otherCardImageUrl,
+            cardProductUrl: r.otherCardProductUrl
+          }), r.otherCardName || '유사 카드');
+          const sName = r.otherCardName || '(이름없음)';
+          const sNum  = r.otherCardNo ? `#${r.otherCardNo}` : '';
+          const s1 = r.otherCardProductUrl ? `<a href="${r.otherCardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
+          const s2 = r.otherCardProductUrl ? `</a>` : '';
 
-      const sImg = imgTag(pickOtherImageSrcFromRecord(r), r.otherCardName || '유사 카드');
-      const sName = r.otherCardName || '(이름없음)';
-      const sNum  = r.otherCardNo ? `#${r.otherCardNo}` : '';
-      const s1 = r.otherCardProductUrl ? `<a href="${r.otherCardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
-      const s2 = r.otherCardProductUrl ? `</a>` : '';
+          return `
+            <tr>
+              <td>
+                ${b1}
+                <div class="cardcell">${bImg}<div><div class="cardname">${bName}</div><div class="cardno">${bNum}</div></div></div>
+                ${b2}
+              </td>
+              <td>
+                ${s1}
+                <div class="cardcell">${sImg}<div><div class="cardname">${sName}</div><div class="cardno">${sNum}</div></div></div>
+                ${s2}
+              </td>
+              <td class="right">${fmt(r.simScore)}</td>
+            </tr>
+          `;
+        }).join('') || `<tr><td colspan="3" class="muted">데이터 없음</td></tr>`;
+      } catch (e){
+        alert('유사 카드 조회 실패: ' + e.message);
+      }
+    }
 
+    // ====== 이름/번호 동시 입력 & 자동완성 ======
+    const isNum = (v) => /^\d+$/.test(String(v||'').trim());
+    function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+
+    async function searchCards(q){
+      const res = await fetch(`${API}/search/cards?q=${encodeURIComponent(q)}`, {headers:{'Accept':'application/json'}});
+      return res.ok ? res.json() : [];
+    }
+    async function searchMembers(q){
+      const res = await fetch(`${API}/search/members?q=${encodeURIComponent(q)}`, {headers:{'Accept':'application/json'}});
+      return res.ok ? res.json() : [];
+    }
+    function fillDatalist(el, items, type){
+      el.innerHTML = items.map(it=>{
+        if(type==='card'){
+          const label = `${it.cardName||'(이름없음)'} #${it.cardNo}`;
+          return `<option value="${label}" data-id="${it.cardNo}"></option>`;
+        }else{
+          const label = `${it.memberName||'(이름없음)'} #${it.memberNo}`;
+          return `<option value="${label}" data-id="${it.memberNo}"></option>`;
+        }
+      }).join('');
+    }
+    function pickIdFromDatalist(inputEl, datalistEl){
+      const val = inputEl.value.trim();
+      const hash = /#(\d+)\s*$/.exec(val);
+      if(hash) return hash[1];
+      const opt = Array.from(datalistEl.options).find(o => o.value === val);
+      return opt ? opt.getAttribute('data-id') : null;
+    }
+    async function resolveCardNo(){
+      const input = document.getElementById('logCardKey');
+      const list  = document.getElementById('cardHints');
+      const raw   = (input.value||'').trim();
+      if(!raw) return null;
+      if(isNum(raw)) return raw;
+      const picked = pickIdFromDatalist(input, list);
+      if(picked) return picked;
+      const results = await searchCards(raw);
+      if(results.length === 1) return results[0].cardNo;
+      return null;
+    }
+    async function resolveMemberNo(){
+      const input = document.getElementById('logMemberKey');
+      const list  = document.getElementById('memberHints');
+      const raw   = (input.value||'').trim();
+      if(!raw) return null;
+      if(isNum(raw)) return raw;
+      const picked = pickIdFromDatalist(input, list);
+      if(picked) return picked;
+      const results = await searchMembers(raw);
+      if(results.length === 1) return results[0].memberNo;
+      return null;
+    }
+    function bindTypeahead(){
+      const $card   = document.getElementById('logCardKey');
+      const $cardL  = document.getElementById('cardHints');
+      const $member = document.getElementById('logMemberKey');
+      const $memL   = document.getElementById('memberHints');
+
+      $card.addEventListener('input', debounce(async (e)=>{
+        const q = e.target.value.trim();
+        if(!q || isNum(q)) { $cardL.innerHTML=''; return; }
+        const items = await searchCards(q);
+        fillDatalist($cardL, items, 'card');
+      }, 200));
+
+      $member.addEventListener('input', debounce(async (e)=>{
+        const q = e.target.value.trim();
+        if(!q || isNum(q)) { $memL.innerHTML=''; return; }
+        const items = await searchMembers(q);
+        fillDatalist($memL, items, 'member');
+      }, 200));
+    }
+
+    // ====== 로그 테이블용 메타(카드/회원) 캐시 & 하이드레이션 ======
+    const CardCache = new Map();   // cardNo -> {cardNo, cardName, cardImageUrl, cardProductUrl}
+    const MemberCache = new Map(); // memberNo -> {memberNo, memberName}
+
+    async function fetchCardMetaOne(id){
+      const url = `${API}/cards/${id}`; // 단건 폴백 엔드포인트(없으면 404→무시)
+      try{ const r = await jfetch(url); return r; }catch{ return null; }
+    }
+    async function fetchMemberMetaOne(id){
+      const url = `${API}/members/${id}`; // 단건 폴백 엔드포인트(없으면 404→무시)
+      try{ const r = await jfetch(url); return r; }catch{ return null; }
+    }
+
+    async function hydrateCardMeta(ids){
+      const need = ids.filter(id => id && !CardCache.has(id));
+      if(need.length === 0) return;
+
+      // 1) 배치 시도
+      try{
+        const q = need.join(',');
+        const arr = await jfetch(`${API}/cards/meta?ids=${encodeURIComponent(q)}`);
+        if(Array.isArray(arr)){
+          arr.forEach(x => { if(x?.cardNo) CardCache.set(String(x.cardNo), x); });
+        }
+      }catch{/* ignore */}
+
+      // 2) 폴백: 단건 조회
+      const still = need.filter(id => !CardCache.has(id));
+      await Promise.all(still.map(async id=>{
+        const meta = await fetchCardMetaOne(id);
+        if(meta?.cardNo) CardCache.set(String(meta.cardNo), meta);
+      }));
+    }
+
+    async function hydrateMemberMeta(ids){
+      const need = ids.filter(id => id && !MemberCache.has(id));
+      if(need.length === 0) return;
+
+      // 1) 배치 시도
+      try{
+        const q = need.join(',');
+        const arr = await jfetch(`${API}/members/meta?ids=${encodeURIComponent(q)}`);
+        if(Array.isArray(arr)){
+          arr.forEach(x => { if(x?.memberNo) MemberCache.set(String(x.memberNo), x); });
+        }
+      }catch{/* ignore */}
+
+      // 2) 폴백: 단건 조회
+      const still = need.filter(id => !MemberCache.has(id));
+      await Promise.all(still.map(async id=>{
+        const meta = await fetchMemberMetaOne(id);
+        if(meta?.memberNo) MemberCache.set(String(meta.memberNo), meta);
+      }));
+    }
+
+    function memberAvatarMarkup(name){
+      const initial = (name||'').trim()[0] || '?';
+      return `<div class="avatar" aria-hidden="true">${initial}</div>`;
+    }
+
+    function renderMemberCell(r){
+      const meta = MemberCache.get(String(r.memberNo)) || {};
+      const name = meta.memberName || '(이름없음)';
+      const no   = r.memberNo ? `#${r.memberNo}` : '';
       return `
-        <tr>
-          <td>
-            ${b1}
-            <div class="cardcell">${bImg}<div><div class="cardname">${bName}</div><div class="cardno">${bNum}</div></div></div>
-            ${b2}
-          </td>
-          <td>
-            ${s1}
-            <div class="cardcell">${sImg}<div><div class="cardname">${sName}</div><div class="cardno">${sNum}</div></div></div>
-            ${s2}
-          </td>
-          <td class="right">${fmt(r.simScore)}</td>
-        </tr>
+        <div class="memberwrap">
+          ${memberAvatarMarkup(name)}
+          <div>
+            <div class="membername">${name}</div>
+            <div class="memberno">${no}</div>
+          </div>
+        </div>
       `;
-    }).join('') || `<tr><td colspan="3" class="muted">데이터 없음</td></tr>`;
-  } catch (e){
-    alert('유사 카드 조회 실패: ' + e.message);
-  }
-}
+    }
 
+    function renderCardCell(r){
+      const meta = CardCache.get(String(r.cardNo)) || {};
+      const src  = pickImageSrcFromRecord(meta);
+      const img  = imgTag(src, meta.cardName || '카드');
+      const name = meta.cardName || '(이름없음)';
+      const no   = r.cardNo ? `#${r.cardNo}` : '';
+      const a1 = meta.cardProductUrl ? `<a href="${meta.cardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
+      const a2 = meta.cardProductUrl ? `</a>` : '';
+      return `
+        ${a1}
+        <div class="cardcell">
+          ${img}
+          <div>
+            <div class="cardname">${name}</div>
+            <div class="cardno">${no}</div>
+          </div>
+        </div>
+        ${a2}
+      `;
+    }
 
-    // 로그
+    // ====== 로그 ======
     let state = { page: 1, size: 20 };
     async function loadLogs(opt){
       try {
-        const memberNo = document.getElementById('logMemberNo').value;
-        const cardNo   = document.getElementById('logCardNo').value;
-        const type     = document.getElementById('logType').value;
-        const from     = document.getElementById('logFrom').value;
-        const to       = document.getElementById('logTo').value;
-
         if(opt && opt.delta){
           state.page = Math.max(1, state.page + opt.delta);
           document.getElementById('logPage').value = state.page;
@@ -385,6 +533,14 @@
           state.page = parseInt(document.getElementById('logPage').value || '1', 10);
           state.size = parseInt(document.getElementById('logSize').value || '20', 10);
         }
+
+        // 필터 파라미터
+        const type = document.getElementById('logType').value;
+        const from = document.getElementById('logFrom').value;
+        const to   = document.getElementById('logTo').value;
+
+        const memberNo = await resolveMemberNo();
+        const cardNo   = await resolveCardNo();
 
         const p = new URLSearchParams();
         if(memberNo) p.set('memberNo', memberNo);
@@ -395,13 +551,21 @@
         p.set('page', state.page);
         p.set('size', state.size);
 
-        const data = await jfetch(`${API}/logs?` + p.toString());
+        // 1) 로그 데이터 조회
+        const rows = await jfetch(`${API}/logs?` + p.toString());
+
+        // 2) 필요한 카드/회원 meta 미리 하이드레이트(캐시 채우기)
+        const cardIds   = [...new Set((rows||[]).map(r=> String(r.cardNo||'')).filter(Boolean))];
+        const memberIds = [...new Set((rows||[]).map(r=> String(r.memberNo||'')).filter(Boolean))];
+        await Promise.all([hydrateCardMeta(cardIds), hydrateMemberMeta(memberIds)]);
+
+        // 3) 렌더링(이미지/이름 포함)
         const tb = document.getElementById('logsTbody');
-        tb.innerHTML = (data||[]).map(r => `
+        tb.innerHTML = (rows||[]).map(r => `
           <tr>
             <td>${r.logNo ?? ''}</td>
-            <td>${r.memberNo ?? ''}</td>
-            <td>${r.cardNo ?? ''}</td>
+            <td>${renderMemberCell(r)}</td>
+            <td>${renderCardCell(r)}</td>
             <td>${r.behaviorType ?? ''}</td>
             <td>${(r.behaviorTime||'').toString().replace('T',' ').substring(0,19)}</td>
             <td>${r.deviceType ?? ''}</td>
@@ -419,11 +583,11 @@
     document.getElementById('btnLoadPopular').addEventListener('click', loadPopular);
     document.getElementById('btnLoadSimilar').addEventListener('click', loadSimilar);
     document.getElementById('btnLoadLogs').addEventListener('click', () => loadLogs());
-
     document.getElementById('prevPage').addEventListener('click', () => loadLogs({delta:-1}));
     document.getElementById('nextPage').addEventListener('click', () => loadLogs({delta:+1}));
 
     // 초기 로드
+    bindTypeahead();
     loadKpi();
     loadPopular();
   </script>
