@@ -5,117 +5,151 @@
 
 <mapper namespace="com.busanbank.card.user.mapper.ChatMapper">
 
-  <!-- 채팅방 생성 -->
-  <insert id="insertChatRoom"
-          parameterType="com.busanbank.card.user.dto.ChatRoomDto"
-          useGeneratedKeys="true" keyProperty="roomId" keyColumn="ROOM_ID">
-    INSERT INTO CHAT_ROOM
-      (ROOM_ID, MEMBER_NO, UNREAD_COUNT, CREATED_AT)
-    VALUES
-      (SEQ_CHAT_ROOM.NEXTVAL, #{memberNo}, 0, SYSDATE)
-  </insert>
+	<!-- 채팅방 생성 -->
+	<!-- 채팅방 생성 (권장안) -->
+	<insert id="insertChatRoom"
+		parameterType="com.busanbank.card.user.dto.ChatRoomDto">
+		<selectKey keyProperty="roomId" resultType="long"
+			order="BEFORE">
+			SELECT SEQ_CHAT_ROOM.NEXTVAL FROM DUAL
+		</selectKey>
+		INSERT INTO CHAT_ROOM
+		(ROOM_ID, MEMBER_NO, UNREAD_COUNT, CREATED_AT)
+		VALUES
+		(#{roomId}, #{memberNo}, 0, SYSDATE)
+	</insert>
+	<!-- 현재 시퀀스 -->
+	<select id="selectCurrRoomId" resultType="long">
+		SELECT
+		SEQ_CHAT_ROOM.CURRVAL FROM DUAL
+	</select>
 
-  <!-- 현재 시퀀스 -->
-  <select id="selectCurrRoomId" resultType="long">
-    SELECT SEQ_CHAT_ROOM.CURRVAL FROM DUAL
-  </select>
+	<!-- 기존 오픈된 채팅방 -->
+	<!-- 기존 오픈(미종료) 방 중 최신 1건 -->
+	<select id="selectRoomIdByMember" parameterType="long"
+		resultType="long">
+		SELECT ROOM_ID
+		FROM (
+		SELECT ROOM_ID
+		FROM CHAT_ROOM
+		WHERE
+		MEMBER_NO = #{memberNo}
+		AND CLOSED_AT IS NULL
+		ORDER BY NVL(LAST_MSG_AT,
+		CREATED_AT) DESC
+		)
+		WHERE ROWNUM = 1
+	</select>
 
-  <!-- 기존 오픈된 채팅방 -->
-  <select id="selectRoomIdByMember" resultType="long">
-    SELECT ROOM_ID
-    FROM CHAT_ROOM
-    WHERE MEMBER_NO = #{memberNo}
-      AND CLOSED_AT IS NULL
-  </select>
 
-  <!-- 가장 최근 열려 있는 채팅방 -->
-  <select id="selectLatestOpenRoomIdByMember" parameterType="long" resultType="long">
-    SELECT ROOM_ID
-    FROM (
-        SELECT ROOM_ID
-        FROM CHAT_ROOM
-        WHERE MEMBER_NO = #{memberNo}
-          AND CLOSED_AT IS NULL
-        ORDER BY CREATED_AT DESC
-    )
-    WHERE ROWNUM = 1
-  </select>
+	<!-- 가장 최근 열려 있는 채팅방 -->
+	<select id="selectLatestOpenRoomIdByMember" parameterType="long"
+		resultType="long">
+		SELECT ROOM_ID
+		FROM (
+		SELECT ROOM_ID
+		FROM CHAT_ROOM
+		WHERE
+		MEMBER_NO = #{memberNo}
+		AND CLOSED_AT IS NULL
+		ORDER BY CREATED_AT DESC
+		)
+		WHERE ROWNUM = 1
+	</select>
 
-  <!-- 채팅방 정보 조회 -->
-  <select id="selectChatRoom" resultType="com.busanbank.card.user.dto.ChatRoomDto">
-    SELECT
-      ROOM_ID      AS roomId,
-      MEMBER_NO    AS memberNo,
-      ADMIN_NO     AS adminNo,
-      UNREAD_COUNT AS unreadCount,
-      CREATED_AT   AS createdAt,
-      CLOSED_AT    AS closedAt,
-      LAST_MSG_AT  AS lastMessageAt
-    FROM CHAT_ROOM
-    WHERE ROOM_ID = #{roomId}
-  </select>
+	<!-- 채팅방 정보 조회 -->
+	<select id="selectChatRoom"
+		resultType="com.busanbank.card.user.dto.ChatRoomDto">
+		SELECT
+		ROOM_ID AS roomId,
+		MEMBER_NO AS memberNo,
+		ADMIN_NO AS
+		adminNo,
+		UNREAD_COUNT AS unreadCount,
+		CREATED_AT AS createdAt,
+		CLOSED_AT
+		AS closedAt,
+		LAST_MSG_AT AS lastMessageAt
+		FROM CHAT_ROOM
+		WHERE ROOM_ID =
+		#{roomId}
+	</select>
 
-  <!-- 메시지 저장 (USER, ADMIN 공통) -->
-  <insert id="insertChatMessage" parameterType="com.busanbank.card.user.dto.ChatMessageDto">
-    INSERT INTO CHAT_MESSAGE
-      (MSG_ID, ROOM_ID, SENDER_TYPE, SENDER_ID, MESSAGE, SENT_AT)
-    VALUES
-      (SEQ_CHAT_MESSAGE.NEXTVAL, #{roomId}, #{senderType}, #{senderId}, #{message}, SYSDATE)
-  </insert>
+	<!-- 메시지 저장 (USER, ADMIN 공통) -->
+	<insert id="insertChatMessage"
+		parameterType="com.busanbank.card.user.dto.ChatMessageDto">
+		INSERT INTO CHAT_MESSAGE
+		(MSG_ID, ROOM_ID, SENDER_TYPE,
+		SENDER_ID, MESSAGE, SENT_AT)
+		VALUES
+		(SEQ_CHAT_MESSAGE.NEXTVAL,
+		#{roomId}, #{senderType}, #{senderId}, #{message}, SYSDATE)
+	</insert>
 
-  <!-- 최신 메시지 시간 업데이트 -->
-  <update id="updateRoomLastMsgAt">
-    UPDATE CHAT_ROOM
-    SET LAST_MSG_AT = SYSDATE
-    WHERE ROOM_ID = #{roomId}
-  </update>
+	<!-- 최신 메시지 시간 업데이트 -->
+	<update id="updateRoomLastMsgAt">
+		UPDATE CHAT_ROOM
+		SET LAST_MSG_AT = SYSDATE
+		WHERE
+		ROOM_ID = #{roomId}
+	</update>
 
-  <!-- 안읽은 수 증가 -->
-  <update id="increaseUnreadCount">
-    UPDATE CHAT_ROOM
-    SET UNREAD_COUNT = UNREAD_COUNT + 1
-    WHERE ROOM_ID = #{roomId}
-  </update>
+	<!-- 안읽은 수 증가 -->
+	<update id="increaseUnreadCount">
+		UPDATE CHAT_ROOM
+		SET UNREAD_COUNT = UNREAD_COUNT + 1
+		WHERE ROOM_ID = #{roomId}
+	</update>
 
-  <!-- 메시지 전체 조회 -->
-  <select id="selectMessages" resultType="com.busanbank.card.user.dto.ChatMessageDto">
-    SELECT
-      ROOM_ID     AS roomId,
-      SENDER_TYPE AS senderType,
-      SENDER_ID   AS senderId,
-      MESSAGE     AS message,
-      SENT_AT     AS sentAt
-    FROM CHAT_MESSAGE
-    WHERE ROOM_ID = #{roomId}
-    ORDER BY SENT_AT
-  </select>
+	<!-- 메시지 전체 조회 -->
+	<!-- 메시지 전체 조회 (ASC + MSG_ID 포함) -->
+	<select id="selectMessages"
+		resultType="com.busanbank.card.user.dto.ChatMessageDto">
+		SELECT
+		MSG_ID AS messageId, -- ⬅ 권장: PK 포함
+		ROOM_ID AS roomId,
+		SENDER_TYPE AS senderType,
+		SENDER_ID AS senderId,
+		MESSAGE AS message,
+		SENT_AT AS sentAt
+		FROM CHAT_MESSAGE
+		WHERE ROOM_ID = #{roomId}
+		ORDER BY SENT_AT ASC, MSG_ID ASC
+	</select>
 
-  <!-- 관리자용 전체 채팅방 조회 (최근 메시지 순) -->
-  <select id="selectAllRooms" resultType="com.busanbank.card.user.dto.ChatRoomDto">
-    SELECT
-      ROOM_ID      AS roomId,
-      MEMBER_NO    AS memberNo,
-      ADMIN_NO     AS adminNo,
-      UNREAD_COUNT AS unreadCount,
-      CREATED_AT   AS createdAt,
-      CLOSED_AT    AS closedAt,
-      LAST_MSG_AT  AS lastMessageAt
-    FROM CHAT_ROOM
-    ORDER BY NVL(LAST_MSG_AT, CREATED_AT) DESC
-  </select>
 
-  <!-- 관리자 배정 -->
-  <update id="assignAdminToRoom">
-    UPDATE CHAT_ROOM
-    SET ADMIN_NO = #{adminNo}
-    WHERE ROOM_ID = #{roomId}
-  </update>
+	<!-- 관리자용 전체 채팅방 조회 (최근 메시지 순) -->
+	<select id="selectAllRooms"
+		resultType="com.busanbank.card.user.dto.ChatRoomDto">
+		SELECT
+		ROOM_ID AS roomId,
+		MEMBER_NO AS memberNo,
+		ADMIN_NO AS
+		adminNo,
+		UNREAD_COUNT AS unreadCount,
+		CREATED_AT AS createdAt,
+		CLOSED_AT
+		AS closedAt,
+		LAST_MSG_AT AS lastMessageAt
+		FROM CHAT_ROOM
+		ORDER BY
+		NVL(LAST_MSG_AT, CREATED_AT) DESC
+	</select>
 
-  <!-- 채팅방 종료 -->
-  <update id="closeRoom">
-    UPDATE CHAT_ROOM
-    SET CLOSED_AT = SYSDATE
-    WHERE ROOM_ID = #{roomId}
-  </update>
+	<!-- 관리자 배정 -->
+	<update id="assignAdminToRoom">
+		UPDATE CHAT_ROOM
+		SET ADMIN_NO = #{adminNo}
+		WHERE
+		ROOM_ID = #{roomId}
+	</update>
+
+	<!-- 채팅방 종료 -->
+	<update id="closeRoom">
+		UPDATE CHAT_ROOM
+		SET CLOSED_AT = SYSDATE
+		WHERE ROOM_ID
+		= #{roomId}
+	</update>
 
 </mapper>
