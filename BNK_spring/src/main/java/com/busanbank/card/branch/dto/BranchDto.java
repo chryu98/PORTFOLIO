@@ -1,10 +1,8 @@
 package com.busanbank.card.branch.dto;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
-@Getter
-@Setter
+@Data
 public class BranchDto {
 	private Long branchNo;
     private String branchName;

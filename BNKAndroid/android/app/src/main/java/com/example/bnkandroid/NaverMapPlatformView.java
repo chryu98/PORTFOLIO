@@ -1,7 +1,7 @@
 package com.example.bnkandroid;
 
 import android.content.Context;
-import android.util.Log;
+import android.graphics.PointF;
 import android.view.View;
 
 import androidx.annotation.NonNull;
@@ -13,7 +13,6 @@ import com.naver.maps.map.CameraUpdate;
 import com.naver.maps.map.MapView;
 import com.naver.maps.map.NaverMap;
 import com.naver.maps.map.NaverMapOptions;
-import com.naver.maps.map.OnMapReadyCallback;
 import com.naver.maps.map.overlay.Marker;
 
 import java.util.ArrayList;
@@ -25,136 +24,163 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.platform.PlatformView;
 
-public class NaverMapPlatformView implements PlatformView, MethodChannel.MethodCallHandler, OnMapReadyCallback {
+public class NaverMapPlatformView implements PlatformView, MethodChannel.MethodCallHandler {
 
-    private static final String CHANNEL = "com.example.bnkandroid/naver_map";
+    private static final String CHANNEL_NAME = "naver_map_channel";
 
     private final MapView mapView;
     private final MethodChannel channel;
     private NaverMap naverMap;
 
-    // onMapReady 전에 들어온 데이터 임시 저장
+    private final List<Marker> currentMarkers = new ArrayList<>();
     private final List<Map<String, Object>> pendingMarkers = new ArrayList<>();
 
-    // ✅ 팩토리에서 호출하는 생성자와 정확히 맞춤!
-    public NaverMapPlatformView(Context context, BinaryMessenger messenger, int id) {
+    public NaverMapPlatformView(Context context, BinaryMessenger messenger) {
         mapView = new MapView(context, new NaverMapOptions());
         mapView.onCreate(null);
-        mapView.onStart();
         mapView.onResume();
-        mapView.getMapAsync(this);
 
-        channel = new MethodChannel(messenger, CHANNEL);
+        channel = new MethodChannel(messenger, CHANNEL_NAME);
         channel.setMethodCallHandler(this);
+
+        mapView.getMapAsync(map -> {
+            naverMap = map;
+            // ✅ Flutter에 지도 준비 완료 이벤트 송신
+            channel.invokeMethod("onMapReady", null);
+
+            // 지도 준비 전에 들어온 setMarkers 요청이 있으면 여기서 반영
+            if (!pendingMarkers.isEmpty()) {
+                setMarkersInternal(pendingMarkers);
+                pendingMarkers.clear();
+            }
+        });
     }
 
-    @Override
-    public View getView() { return mapView; }
+    @NonNull @Override
+    public View getView() {
+        return mapView;
+    }
 
     @Override
     public void dispose() {
         channel.setMethodCallHandler(null);
+        for (Marker m : currentMarkers) m.setMap(null);
+        currentMarkers.clear();
         mapView.onPause();
-        mapView.onStop();
         mapView.onDestroy();
     }
 
     @Override
-    public void onMapReady(@NonNull NaverMap map) {
-        this.naverMap = map;
-        Log.d("NaverMapView", "✅ onMapReady called");
+    public void onMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
+        android.util.Log.d(TAG, "onMethodCall: " + call.method);
+        switch (call.method) {
+            case "setMarkers": {
+                // args: { "markers": [ {"lat":..,"lng":..,"title":..,"snippet":..}, ... ] }
+                @SuppressWarnings("unchecked")
+                Map<String, Object> args = (Map<String, Object>) call.arguments;
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> markers = (List<Map<String, Object>>) args.get("markers");
 
-        LatLng busan = new LatLng(35.1796, 129.0756);
-        naverMap.moveCamera(CameraUpdate.scrollAndZoomTo(busan, 14.0));
+                if (markers == null) {
+                    result.success(null);
+                    return;
+                }
 
-        // ★ 하드코딩 마커
-        Marker test = new Marker();
-        test.setPosition(busan);
-        test.setCaptionText("TEST");
-        test.setMap(naverMap);
-        Log.d("NaverMapView", "✅ hardcoded marker set, map? " + (test.getMap() != null));
-    }
+                if (naverMap == null) {
+                    // 지도 준비 전: 대기 큐에 저장
+                    pendingMarkers.clear();
+                    pendingMarkers.addAll(markers);
+                    result.success(null);
+                    return;
+                }
 
-    @Override
-    public void onMethodCall(MethodCall call, MethodChannel.Result result) {
-        if ("setMarkers".equals(call.method)) {
-            Map<String, Object> args = (Map<String, Object>) call.arguments;
-
-            List<Map<String, Object>> incoming =
-                    (List<Map<String, Object>>) args.get("markers");
-            if (incoming == null) {
-                incoming = (List<Map<String, Object>>) args.get("branches");
+                setMarkersInternal(markers);
+                result.success(null);
+                break;
             }
+            case "moveCamera": {
+                if (naverMap == null) {
+                    result.error("MAP_NOT_READY", "NaverMap not ready", null);
+                    return;
+                }
+                @SuppressWarnings("unchecked")
+                Map<String, Object> args = (Map<String, Object>) call.arguments;
+                double lat = toDouble(args.get("lat"), 0);
+                double lng = toDouble(args.get("lng"), 0);
+                float zoom = args.get("zoom") != null ? ((Number) args.get("zoom")).floatValue() : 16f;
+                boolean animate = args.get("animate") != null && (boolean) args.get("animate");
 
-            if (incoming == null) {
-                result.error("NO_MARKERS", "markers/branches not found", null);
-                return;
-            }
+                CameraUpdate cu = CameraUpdate.zoomTo(zoom)
+                        .animate(animate ? CameraAnimation.Easing : CameraAnimation.None)
+                        .pivot(new PointF(0.5f, 0.5f))
+                        .scrollTo(new LatLng(lat, lng));
+                naverMap.moveCamera(cu);
 
-            if (naverMap == null) {
-                pendingMarkers.clear();
-                pendingMarkers.addAll(incoming);
-            } else {
-                applyMarkers(incoming);
+                result.success(null);
+                break;
             }
-            result.success(null);
-        } else {
-            result.notImplemented();
+            case "fitBounds": {
+                if (naverMap == null) {
+                    result.error("MAP_NOT_READY", "NaverMap not ready", null);
+                    return;
+                }
+                @SuppressWarnings("unchecked")
+                Map<String, Object> args = (Map<String, Object>) call.arguments;
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> points = (List<Map<String, Object>>) args.get("points");
+                int padding = args.get("padding") != null ? ((Number) args.get("padding")).intValue() : 80;
+
+                if (points == null || points.isEmpty()) {
+                    result.success(null);
+                    return;
+                }
+
+                LatLngBounds.Builder b = new LatLngBounds.Builder();
+                for (Map<String, Object> p : points) {
+                    double lat = toDouble(p.get("lat"), toDouble(p.get("latitude"), 0));
+                    double lng = toDouble(p.get("lng"), toDouble(p.get("longitude"), 0));
+                    b.include(new LatLng(lat, lng));
+                }
+                CameraUpdate cu = CameraUpdate.fitBounds(b.build(), padding);
+                naverMap.moveCamera(cu);
+
+                result.success(null);
+                break;
+            }
+            default:
+                result.notImplemented();
         }
     }
 
-    private void applyMarkers(List<Map<String, Object>> markers) {
-        if (naverMap == null || markers == null || markers.isEmpty()) return;
+    private void setMarkersInternal(List<Map<String, Object>> markers) {
+        // 기존 마커 제거
+        for (Marker m : currentMarkers) m.setMap(null);
+        currentMarkers.clear();
 
-        LatLngBounds.Builder bounds = new LatLngBounds.Builder();
-        int placed = 0;
+        for (Map<String, Object> item : markers) {
+            // ✅ 키 호환: lat/lng 또는 latitude/longitude 모두 지원
+            double lat = toDouble(item.get("lat"), toDouble(item.get("latitude"), 0));
+            double lng = toDouble(item.get("lng"), toDouble(item.get("longitude"), 0));
+            String title = getString(item.get("title"), getString(item.get("branchName"), ""));
+            String snippet = getString(item.get("snippet"), "");
 
-        for (Map<String, Object> data : markers) {
-            Double lat = toDouble(data.get("lat"));
-            if (lat == null) lat = toDouble(data.get("latitude"));
-            Double lng = toDouble(data.get("lng"));
-            if (lng == null) lng = toDouble(data.get("longitude"));
-
-            if (lat == null || lng == null) {
-                Log.w("NaverMapView", "Skipping (no lat/lng): " + data);
-                continue;
-            }
-
-            String name = "";
-            if (data.get("name") != null) name = String.valueOf(data.get("name"));
-            else if (data.get("branchName") != null) name = String.valueOf(data.get("branchName"));
-
-            LatLng pos = new LatLng(lat, lng);
-            Marker marker = new Marker();
-            marker.setPosition(pos);
-            marker.setCaptionText(name);
-            marker.setMap(naverMap);
-
-            bounds.include(pos);
-            placed++;
+            Marker mk = new Marker();
+            mk.setPosition(new LatLng(lat, lng));
+            mk.setCaptionText(title != null ? title : "");
+            mk.setSubCaptionText(snippet != null ? snippet : "");
+            mk.setMap(naverMap);
+            currentMarkers.add(mk);
         }
-
-        if (placed == 0) return;
-
-        if (placed == 1) {
-            naverMap.moveCamera(CameraUpdate.scrollTo(bounds.build().getCenter()));
-        } else {
-            try {
-                naverMap.moveCamera(
-                        CameraUpdate.fitBounds(bounds.build()).animate(CameraAnimation.Easing)
-                );
-            } catch (IllegalStateException e) {
-                naverMap.moveCamera(CameraUpdate.scrollTo(bounds.build().getCenter()));
-            }
-        }
+        android.util.Log.d(TAG, "markers applied=" + currentMarkers.size());
     }
 
-    private Double toDouble(Object v) {
-        if (v == null) return null;
+    private static double toDouble(Object v, double def) {
+        if (v == null) return def;
         if (v instanceof Number) return ((Number) v).doubleValue();
-        if (v instanceof String) {
-            try { return Double.parseDouble((String) v); } catch (NumberFormatException ignore) {}
-        }
-        return null;
+        try { return Double.parseDouble(String.valueOf(v)); } catch (Exception ignored) { return def; }
+    }
+
+    private static String getString(Object v, String def) {
+        return v == null ? def : String.valueOf(v);
     }
 }
