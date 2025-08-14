@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'ApplicationStep1Page.dart' show ApplicationFormData; // ← public 클래스만 import
+import 'ApplicationStep3JobPage.dart';
 import 'user/service/card_apply_service.dart';
 
 const kPrimaryRed = Color(0xffB91111);
@@ -135,14 +136,16 @@ class _ApplicationStep2PageState extends State<ApplicationStep2Page> {
           ..email = email
           ..phone = phone;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('연락처 저장 완료')),
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ApplicationStep3JobPage(
+              applicationNo: widget.data.applicationNo!, // Step1에서 받은 신청번호 그대로 전달
+            ),
+          ),
         );
 
-        // TODO: 다음 단계로 이동
-        // Navigator.push(context, MaterialPageRoute(builder: (_) => NextStepPage(...)));
-
-        Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('연락처 저장 실패')),
@@ -195,7 +198,7 @@ class _ApplicationStep2PageState extends State<ApplicationStep2Page> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           children: [
-            const _StepHeader2(current: 2, total: 2),
+            const _StepHeader2(current: 2, total: 3),
             const SizedBox(height: 12),
             const Align(
               alignment: Alignment.centerLeft,
