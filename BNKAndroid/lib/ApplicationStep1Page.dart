@@ -61,6 +61,7 @@ class _StepHeader extends StatelessWidget {
 
 InputDecoration _fieldDec(String hint) => InputDecoration(
   hintText: hint,
+  hintStyle: TextStyle(color: Colors.grey.shade400), // 빈 칸 힌트 색도 옅은 회색
   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
   enabledBorder: OutlineInputBorder(
@@ -101,9 +102,22 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
   bool _submitting = false;
   bool _prefilling = false;
 
+  Color _colorFor(TextEditingController c) =>
+      c.text.isEmpty ? Colors.grey.shade400 : Colors.black87;
+
+  void _attachFieldListeners() {
+    // 입력 변화 시 재빌드 → 텍스트 색 즉시 업데이트
+    for (final c in [_name, _engFirst, _engLast, _rrnFront, _rrnBack]) {
+      c.addListener(() {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _attachFieldListeners();
     _loadPrefill(); // ← 로그인 기반 프리필 시도
   }
 
@@ -124,7 +138,8 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
       if (p != null) {
         if ((_name.text).trim().isEmpty) _name.text = p['name'] ?? '';
         if ((_rrnFront.text).trim().isEmpty) _rrnFront.text = p['rrnFront'] ?? '';
-        setState(() {}); // 반영
+        // 프리필되면 텍스트가 존재 → 자동으로 검정색(style에서 처리)
+        if (mounted) setState(() {});
       }
     } on ApiException catch (e) {
       // 401 등: 로그인 필요. 여기선 안내만 하고 계속 진행(수동 입력)
@@ -217,8 +232,10 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
             const SizedBox(height: 12),
             const Align(
               alignment: Alignment.centerLeft,
-              child: Text('정보를 입력해주세요',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+              child: Text(
+                '정보를 입력해주세요',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
             ),
             const SizedBox(height: 8),
             Expanded(
@@ -230,6 +247,7 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
                     TextFormField(
                       controller: _name,
                       decoration: _fieldDec('이름'),
+                      style: TextStyle(color: _colorFor(_name)),
                       textInputAction: TextInputAction.next,
                       validator: (v) =>
                       (v == null || v.trim().isEmpty) ? '이름을 입력하세요' : null,
@@ -245,6 +263,7 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
                     TextFormField(
                       controller: _engLast,
                       decoration: _fieldDec('영문 성'),
+                      style: TextStyle(color: _colorFor(_engLast)),
                       textCapitalization: TextCapitalization.characters,
                       textInputAction: TextInputAction.next,
                       validator: (v) =>
@@ -254,6 +273,7 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
                     TextFormField(
                       controller: _engFirst,
                       decoration: _fieldDec('영문 이름'),
+                      style: TextStyle(color: _colorFor(_engFirst)),
                       textCapitalization: TextCapitalization.characters,
                       textInputAction: TextInputAction.next,
                       validator: (v) =>
@@ -265,6 +285,7 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
                     TextFormField(
                       controller: _rrnFront,
                       decoration: _fieldDec('주민등록번호 앞자리'),
+                      style: TextStyle(color: _colorFor(_rrnFront)),
                       keyboardType: TextInputType.number,
                       inputFormatters: [
                         FilteringTextInputFormatter.digitsOnly,
@@ -280,6 +301,7 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
                     TextFormField(
                       controller: _rrnBack,
                       decoration: _fieldDec('주민등록번호 뒷자리'),
+                      style: TextStyle(color: _colorFor(_rrnBack)),
                       obscureText: true,
                       keyboardType: TextInputType.number,
                       inputFormatters: [
@@ -307,7 +329,8 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: kPrimaryRed,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: isBusy ? null : _submit,
               child: isBusy
