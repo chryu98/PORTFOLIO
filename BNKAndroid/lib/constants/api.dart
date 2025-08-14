@@ -6,7 +6,7 @@ class API {
 
   /// 앱 실행 시 호출해 baseUrl 자동 세팅
   static Future<void> initBaseUrl() async {
-    const fallbackIp = '192.168.0.229';
+    const fallbackIp = '192.168.100.106';
     try {
       final r = await http.get(Uri.parse('http://$fallbackIp:8090/api/config/base-url'));
       if (r.statusCode == 200) {
@@ -56,4 +56,6 @@ class API {
   static String get jwtLogin  => _j('/jwt/api/login');
   static String get jwtLogout => _j('/jwt/api/logout'); // 선택
   static String get jwtRefresh => _j('/jwt/api/refresh'); // 선택
+
+  static String get applySaveJobInfo => _j('/card/apply/api/saveJobInfo');
 }
