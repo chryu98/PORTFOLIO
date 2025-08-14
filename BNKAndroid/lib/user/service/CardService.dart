@@ -1,7 +1,8 @@
 import 'dart:convert';
+import '../../constants/api.dart';
 import '../model/CardModel.dart';
 import 'package:http/http.dart' as http;
-import 'package:bnkandroid/constants/api.dart'; // 또는 상대경로로 수정
+
 
 class CardService {
   /// 전체 카드 목록 조회
