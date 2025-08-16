@@ -1,13 +1,15 @@
 // lib/chat/widgets/chatbot_modal.dart
-import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
-// 기존 챗봇 서비스/모델 (네 프로젝트 경로 유지)
-import './chat_message.dart';
-import './chat_socket_service.dart';
+import 'package:bnkandroid/constants/api.dart';
+import 'package:bnkandroid/chat/widgets/chat_message.dart';
 
-// 실시간 상담(STOMP) 서비스 (파일 경로 주의: lib/chat/live_socket_service.dart)
-import '../live_socket_service.dart';
+// 별칭으로 import (충돌 방지)
+import 'package:bnkandroid/chat/chat_socket_service.dart' as bot;
+import 'package:bnkandroid/chat/live_socket_service.dart' as live;
 
 class ChatbotModal extends StatefulWidget {
   const ChatbotModal({super.key});
@@ -19,299 +21,226 @@ class _ChatbotModalState extends State<ChatbotModal> {
   static const _bnkRed = Color(0xFFE60012);
   static const _ink = Color(0xFF222222);
 
-  // 1) 챗봇용(기존)
-  final _svc = ChatSocketService();
   final _msgCtrl = TextEditingController();
   final _scroll = ScrollController();
+  final _bot = bot.ChatSocketService();
+  final _live = live.LiveSocketService();
 
-  final List<ChatMessage> _msgs = [];
-  bool _sending = false;
-  StreamSubscription? _sub;
-
-  // 2) 실시간 상담용(STOMP)
-  final _live = LiveSocketService();
-  bool _liveReady = false;                 // 상담 연결 후 true
-  final String _wsBase = 'ws://192.168.0.5:8090'; // 서버 IP:PORT
-  String _roomId = 'user-6';               // 관리자/웹과 동일 규칙
-  String _sender = 'user6';                // 로그인 사용자명
-
-  @override
-  void initState() {
-    super.initState();
-
-    // 챗봇 스트림
-    _svc.ensureConnected();
-    _sub = _svc.stream.listen((m) {
-      setState(() => _msgs.add(m));
-      _autoScroll();
-      // 실패 문구 수신 시 배너는 build에서 표시 (조건만 충족)
-    });
-
-    // 오프닝 메시지
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        _msgs.add(ChatMessage(
-          role: 'assistant',
-          content: '안녕하세요! 부산은행 챗봇입니다. 무엇을 도와드릴까요?',
-        ));
-      });
-      _autoScroll();
-    });
-  }
-
-  // ❗ 스샷 기준 실패 문구 포함
-  bool _looksLikeFallback(String text) {
-    return text.contains('이해하지 못했') ||    // ← 스샷 문구
-        text.contains('답변을 찾지 못했') ||
-        text.contains('상담사') ||
-        text.contains('연결해드릴까요');
-  }
-
-  Future<void> _connectLive() async {
-    await _live.connect(
-      wsBase: _wsBase,
-      roomId: _roomId,
-      sender: _sender,
-    );
-
-    _live.onMessage = (m) {
-      setState(() {
-        final txt = (m['message'] ?? '').toString();
-        _msgs.add(ChatMessage(role: 'assistant', content: txt));
-      });
-      _autoScroll();
-    };
-
-    // 최초 알림(선택)
-    _live.sendText('[사용자 연결] 챗봇에서 실시간 상담으로 전환 요청');
-    setState(() => _liveReady = true);
-  }
-
-  void _autoScroll() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scroll.hasClients) return;
-      _scroll.animateTo(
-        _scroll.position.maxScrollExtent + 80,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-      );
-    });
-  }
+  final List<ChatMessage> _messages = [];
+  int _botFailCount = 0;
+  bool _escalated = false;
+  int? _roomId;
 
   @override
   void dispose() {
-    _sub?.cancel();
-    _svc.close();
     _live.disconnect();
     _msgCtrl.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
-  Future<void> _send() async {
-    final t = _msgCtrl.text.trim();
-    if (t.isEmpty || _sending) return;
+  bool _isBotFail(Map<String, dynamic> r) {
+    if (r.containsKey('found') && r['found'] == false) return true;
+    if (r.containsKey('confidence') && (r['confidence'] ?? 1.0) < 0.45) return true;
+    final text = (r['answer'] ?? r['message'] ?? '').toString();
+    final bad = ['모르겠', '어려워', '담당자', '연결'];
+    return bad.any((kw) => text.contains(kw));
+  }
 
-    // 상담 모드면 STOMP로 전송
-    if (_liveReady) {
-      _msgCtrl.clear();
-      setState(() => _msgs.add(ChatMessage(role: 'user', content: t)));
-      _autoScroll();
-      _live.sendText(t);
+  Future<void> _sendToBot(String userText) async {
+    setState(() => _messages.add(ChatMessage(fromUser: true, text: userText)));
+
+    final r = await _bot.ask(userText);
+    final botText = (r['answer'] ?? r['message'] ?? '답변을 생성할 수 없습니다.').toString();
+    setState(() => _messages.add(ChatMessage(fromUser: false, text: botText)));
+
+    if (_isBotFail(r)) {
+      _botFailCount++;
+      if (_botFailCount >= 2 && !_escalated) {
+        await _escalateToHuman();
+      } else {
+        setState(() {});
+      }
+    }
+
+    _scrollToEnd();
+  }
+
+  Future<void> _escalateToHuman() async {
+    final rid = await _openRoomOnServer();
+    if (rid == null) {
+      setState(() {
+        _messages.add(ChatMessage(fromUser: false, text: '상담사 연결에 실패했습니다. 잠시 후 다시 시도하세요.'));
+      });
       return;
     }
+    await _live.connect(
+      roomId: rid,
+      onMessage: (m) {
+        final text = m['message']?.toString() ?? m['raw']?.toString() ?? '';
+        setState(() => _messages.add(ChatMessage(fromUser: false, text: text)));
+        _scrollToEnd();
+      },
+    );
 
-    // 기본: 챗봇으로 전송
-    setState(() => _sending = true);
-    _msgCtrl.clear();
-    try {
-      await _svc.send(t);
-    } finally {
-      if (mounted) setState(() => _sending = false);
+    setState(() {
+      _roomId = rid;
+      _escalated = true;
+      _messages.add(ChatMessage(fromUser: false, text: '상담사와 연결되었습니다. 질문을 입력해 주세요.'));
+    });
+  }
+
+  Future<int?> _openRoomOnServer() async {
+    final sp = await SharedPreferences.getInstance();
+    final token = sp.getString('jwt_token');
+    if (token == null || token.isEmpty) {
+      setState(() => _messages.add(ChatMessage(fromUser: false, text: '로그인이 필요합니다.')));
+      return null;
     }
-    _autoScroll();
+    final uri = Uri.parse('${API.baseUrl}/chat/room/open');
+    final resp = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'type': 'ONE_TO_ONE'}),
+    );
+    if (resp.statusCode >= 200 && resp.statusCode < 300) {
+      try {
+        final j = jsonDecode(resp.body);
+        final rid = j['roomId'];
+        if (rid is int) return rid;
+        return int.tryParse('$rid');
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  void _sendToHuman(String text) {
+    if (!_live.connected || _roomId == null) return;
+    _live.sendToRoom(_roomId!, {
+      'roomId': _roomId,
+      'message': text,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+    setState(() => _messages.add(ChatMessage(fromUser: true, text: text)));
+    _scrollToEnd();
+  }
+
+  void _scrollToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent + 80,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final bottomPad = mq.viewInsets.bottom;
+    final hint = _escalated ? '상담사에게 메시지 보내기…' : '질문을 입력하세요…';
 
-    // 실패 메시지 하나라도 있고, 아직 상담 연결 안 됐으면 배너 표시
-    final showHandoff = !_liveReady &&
-        _msgs.any((m) => m.role == 'assistant' && _looksLikeFallback(m.content));
-
-    return Material(
-      // Flutter 버전에 따라 withValues가 없으면 withOpacity(0.36)로 바꾸세요.
-      color: Colors.black.withValues(alpha: 0.36),
-      child: SafeArea(
-        child: Center(
-          child: Container(
-            width: mq.size.width > 560 ? 520 : double.infinity,
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-            padding: const EdgeInsets.only(top: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 24,
-                  offset: const Offset(0, 10),
+    return Dialog(
+      insetPadding: const EdgeInsets.all(12),
+      child: SizedBox(
+        width: 420,
+        height: 600,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              color: _bnkRed,
+              child: const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'BNK 상담 챗봇',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
                 ),
-              ],
+              ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 헤더
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-                  child: Row(
-                    children: [
-                      const Text('부산은행 챗봇', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
-                        color: _ink,
-                        tooltip: '닫기',
+            Expanded(
+              child: ListView.builder(
+                controller: _scroll,
+                padding: const EdgeInsets.all(12),
+                itemCount: _messages.length + ((_botFailCount == 1 && !_escalated) ? 1 : 0),
+                itemBuilder: (_, idx) {
+                  if (_botFailCount == 1 && !_escalated && idx == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Text(
+                        '정확한 답변이 어려워요. 한 번 더 실패하면 상담사에게 연결합니다.',
+                        style: TextStyle(color: Colors.grey[700]),
                       ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
+                    );
+                  }
+                  final m = _messages[_botFailCount == 1 && !_escalated ? idx - 1 : idx];
+                  final align = m.fromUser ? Alignment.centerRight : Alignment.centerLeft;
+                  final bg = m.fromUser ? Colors.grey[200] : Colors.white;
+                  final fg = _ink;
 
-                // 메시지 리스트
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    color: const Color(0xFFF9FAFB),
-                    child: ListView.builder(
-                      controller: _scroll,
-                      itemCount: _msgs.length,
-                      itemBuilder: (_, i) => _bubble(_msgs[i]),
-                    ),
-                  ),
-                ),
-
-                // 전환 배너
-                if (showHandoff)
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7E6),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.black.withValues(alpha: 0.07)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            '챗봇이 해결하지 못했어요. 실시간 상담사에게 연결할까요?',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: _connectLive,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _bnkRed,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            elevation: 0,
-                          ),
-                          child: const Text('상담 연결'),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // 입력 박스
-                Padding(
-                  padding: EdgeInsets.fromLTRB(12, 8, 12, 12 + bottomPad),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _msgCtrl,
-                          minLines: 1,
-                          maxLines: 4,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) => _send(),
-                          decoration: InputDecoration(
-                            hintText: _liveReady ? '상담사에게 메시지 보내기' : '질문을 입력하세요',
-                            filled: true,
-                            fillColor: Colors.white,
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
-                            ),
-                            focusedBorder: const OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(14)),
-                              borderSide: BorderSide(color: _bnkRed, width: 1.2),
-                            ),
-                          ),
-                        ),
+                  return Align(
+                    alignment: align,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: bg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.black12),
                       ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        height: 44,
-                        child: ElevatedButton(
-                          onPressed: _sending ? null : _send,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _bnkRed,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
-                          ),
-                          child: _sending
-                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                              : Text(_liveReady ? '보내기(상담)' : '보내기'),
-                        ),
-                      )
-                    ],
-                  ),
-                ),
-              ],
+                      child: Text(m.text, style: TextStyle(color: fg)),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _msgCtrl,
+                      decoration: InputDecoration(
+                        hintText: hint,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: const OutlineInputBorder(),
+                      ),
+                      onSubmitted: (v) {
+                        final t = v.trim();
+                        if (t.isEmpty) return;
+                        if (_escalated) {
+                          _sendToHuman(t);
+                        } else {
+                          _sendToBot(t);
+                        }
+                        _msgCtrl.clear();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {
+                      final t = _msgCtrl.text.trim();
+                      if (t.isEmpty) return;
+                      if (_escalated) {
+                        _sendToHuman(t);
+                      } else {
+                        _sendToBot(t);
+                      }
+                      _msgCtrl.clear();
+                    },
+                    child: const Text('전송'),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ),
-    );
-  }
-
-  Widget _bubble(ChatMessage m) {
-    final isUser = m.role == 'user';
-    final bg = isUser ? const Color(0xFFE6F3FF) : Colors.white;
-    final align = isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final radius = isUser
-        ? const BorderRadius.only(
-        topLeft: Radius.circular(14), topRight: Radius.circular(14),
-        bottomLeft: Radius.circular(14))
-        : const BorderRadius.only(
-        topLeft: Radius.circular(14), topRight: Radius.circular(14),
-        bottomRight: Radius.circular(14));
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        crossAxisAlignment: align,
-        children: [
-          Container(
-            constraints: const BoxConstraints(maxWidth: 540),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: radius,
-              border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-            ),
-            child: Text(m.content, style: const TextStyle(height: 1.45)),
-          ),
-        ],
       ),
     );
   }

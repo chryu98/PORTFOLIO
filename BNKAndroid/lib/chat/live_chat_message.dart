@@ -1,31 +1,30 @@
+// lib/chat/live_chat_message.dart
 class LiveChatMessage {
   final int roomId;
-  final String senderType; // 'USER' | 'ADMIN'
-  final int senderId;
+  final String sender;   // username 또는 'admin'
   final String message;
-  final DateTime sentAt;
+  final DateTime at;
 
   LiveChatMessage({
     required this.roomId,
-    required this.senderType,
-    required this.senderId,
+    required this.sender,
     required this.message,
-    required this.sentAt,
-  });
+    DateTime? at,
+  }) : at = at ?? DateTime.now();
 
-  factory LiveChatMessage.fromJson(Map<String, dynamic> j) => LiveChatMessage(
-    roomId: (j['roomId'] as num).toInt(),
-    senderType: j['senderType'] as String,
-    senderId: (j['senderId'] as num).toInt(),
-    message: (j['message'] ?? '') as String,
-    sentAt: DateTime.parse(j['sentAt'] as String),
-  );
+  factory LiveChatMessage.fromJson(Map<String, dynamic> j) {
+    return LiveChatMessage(
+      roomId: j['roomId'] is int ? j['roomId'] : int.tryParse('${j['roomId']}') ?? 0,
+      sender: j['sender']?.toString() ?? 'unknown',
+      message: j['message']?.toString() ?? '',
+      at: DateTime.tryParse(j['timestamp']?.toString() ?? '') ?? DateTime.now(),
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     'roomId': roomId,
-    'senderType': senderType,
-    'senderId': senderId,
+    'sender': sender,
     'message': message,
-    'sentAt': sentAt.toIso8601String(),
+    'timestamp': at.toIso8601String(),
   };
 }

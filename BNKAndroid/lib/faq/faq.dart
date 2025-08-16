@@ -509,11 +509,11 @@ void main() async {
 
   await API.initBaseUrl();
   // 스프링 FAQ 서버(필수)
-  FAQApi.useLan(ip: '192.168.0.5', port: 8090); // 본인 IP
+  FAQApi.useLan(ip: '192.168.35.123', port: 8090); // 본인 IP
   FAQApi.setPathPrefix('/api');                 // 백엔드가 /api/faq 라우트일 때
 
   // 챗봇 서버 선택(둘 중 하나)
-  ChatAPI.useFastAPI(ip: '192.168.0.5', port: 8000);      // FastAPI 직접
+  ChatAPI.useFastAPI(ip: '192.168.35.123', port: 8000);      // FastAPI 직접
   // ChatAPI.useSpringProxy(ip: '192.168.0.5', port: 8090); // 스프링 프록시
 
   runApp(const MaterialApp(debugShowCheckedModeBanner: false, home: FaqPage()));

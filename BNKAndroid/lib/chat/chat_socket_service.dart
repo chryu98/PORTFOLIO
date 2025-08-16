@@ -1,77 +1,37 @@
 // lib/chat/chat_socket_service.dart
 import 'dart:convert';
-import 'package:stomp_dart_client/stomp_dart_client.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:bnkandroid/constants/api.dart';
 
 class ChatSocketService {
-  StompClient? _client;
-  bool _connected = false;
+  Future<Map<String, dynamic>> ask(String userText) async {
+    final sp = await SharedPreferences.getInstance();
+    final token = sp.getString('jwt_token');
 
-  late String _roomId;
-  late String _sender;
-
-  // 메시지 수신 콜백 주입 방식 (UI에서 등록)
-  void Function(Map<String, dynamic> msg)? onMessage;
-
-  /// wsBase 예: ws://192.168.0.5:8090
-  Future<void> connect({
-    required String wsBase,
-    required String roomId,
-    required String sender,
-    Map<String, String>? headers,
-  }) async {
-    _roomId = roomId;
-    _sender = sender;
-
-    // SockJS endpoint는 '/ws/chat', 실제 WS는 '/ws/chat/websocket'
-    final url = '$wsBase/ws/chat/websocket';
-
-    _client = StompClient(
-      config: StompConfig(
-        url: url,
-        onConnect: _onConnect,
-        onStompError: (f) => print('STOMP error: ${f.body}'),
-        onWebSocketError: (e) => print('WS error: $e'),
-        stompConnectHeaders: headers ?? {},
-        webSocketConnectHeaders: headers ?? {},
-        heartbeatOutgoing: const Duration(seconds: 10),
-        heartbeatIncoming: const Duration(seconds: 10),
-        connectionTimeout: const Duration(seconds: 5),
-      ),
-    );
-
-    _client!.activate();
-  }
-
-  void _onConnect(StompFrame frame) {
-    _connected = true;
-
-    // 서버 config: enableSimpleBroker("/topic")
-    // 구독 경로
-    _client?.subscribe(
-      destination: '/topic/room/$_roomId',
-      callback: (StompFrame f) {
-        if (f.body == null) return;
-        final data = jsonDecode(f.body!);
-        onMessage?.call(data);
+    final uri = Uri.parse('${API.baseUrl}/api/chatbot/ask');
+    final resp = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
       },
+      body: jsonEncode({'query': userText}),
     );
-  }
 
-  void sendText(String text) {
-    if (!_connected) return;
-    final body = jsonEncode({
-      'roomId': _roomId,
-      'sender': _sender,
-      'message': text,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-    });
+    if (resp.statusCode >= 200 && resp.statusCode < 300) {
+      try {
+        final j = jsonDecode(resp.body);
+        if (j is Map<String, dynamic>) return j;
+      } catch (_) {}
+      return {'answer': resp.body};
+    }
 
-    // 서버 @MessageMapping("/chat.sendMessage") + setApplicationDestinationPrefixes("/app")
-    _client?.send(destination: '/app/chat.sendMessage', body: body);
-  }
-
-  void disconnect() {
-    _client?.deactivate();
-    _connected = false;
+    return {
+      'answer': '서버 오류가 발생했습니다. 잠시 후 다시 시도하세요.',
+      'found': false,
+      'confidence': 0.0,
+      'status': resp.statusCode,
+    };
   }
 }

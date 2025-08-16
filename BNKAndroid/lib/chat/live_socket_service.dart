@@ -1,61 +1,79 @@
+// lib/chat/live_socket_service.dart
 import 'dart:convert';
-import 'package:stomp_dart_client/stomp_dart_client.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+// 한 줄만 사용하되 별칭으로 고정 (충돌/IDE 꼬임 방지)
+import 'package:stomp_dart_client/stomp_dart_client.dart' as stomp;
+
+typedef OnLiveMessage = void Function(Map<String, dynamic> body);
 
 class LiveSocketService {
-  StompClient? _client;
-  bool _connected = false;
-  late String _roomId;
-  late String _sender;
-  void Function(Map<String, dynamic> msg)? onMessage;
+  stomp.StompClient? _stomp;
+  String? _token;
+  String? _username;
+
+  Future<void> _loadAuth() async {
+    final sp = await SharedPreferences.getInstance();
+    _token = sp.getString('jwt_token');
+    _username = sp.getString('username');
+  }
+
+  bool get connected => _stomp?.connected ?? false;
 
   Future<void> connect({
-    required String wsBase,
-    required String roomId,
-    required String sender,
-    Map<String, String>? headers,
+    required int roomId,
+    required OnLiveMessage onMessage,
+    String url = 'ws://192.168.35.123:8090/ws-stomp/websocket',
   }) async {
-    _roomId = roomId;
-    _sender = sender;
-    final url = '$wsBase/ws/chat/websocket';
+    if (connected) return;
+    await _loadAuth();
 
-    _client = StompClient(
-      config: StompConfig(
+    final headers = <String, String>{
+      if (_token != null && _token!.isNotEmpty) 'Authorization': 'Bearer $_token',
+      if (_username != null && _username!.isNotEmpty) 'X-Username': _username!,
+    };
+
+    _stomp = stomp.StompClient(
+      config: stomp.StompConfig(
         url: url,
-        onConnect: (frame) {
-          _connected = true;
-          _client?.subscribe(
-            destination: '/topic/room/$_roomId',
-            callback: (f) {
-              if (f.body == null) return;
-              onMessage?.call(jsonDecode(f.body!));
+        onConnect: (stomp.StompFrame frame) {
+          _stomp?.subscribe(
+            destination: '/topic/room/$roomId',
+            headers: headers,
+            callback: (stomp.StompFrame f) {
+              final body = f.body;
+              if (body != null) {
+                try {
+                  final m = jsonDecode(body);
+                  onMessage(m is Map<String, dynamic> ? m : {'raw': body});
+                } catch (_) {
+                  onMessage({'raw': body});
+                }
+              }
             },
           );
         },
-        onStompError: (f) => print('STOMP error: ${f.body}'),
-        onWebSocketError: (e) => print('WS error: $e'),
-        stompConnectHeaders: headers ?? {},
-        webSocketConnectHeaders: headers ?? {},
-        heartbeatOutgoing: const Duration(seconds: 10),
-        heartbeatIncoming: const Duration(seconds: 10),
-        connectionTimeout: const Duration(seconds: 5),
+        onWebSocketError: (e) => print('STOMP error: $e'),
+        stompConnectHeaders: headers,
+        webSocketConnectHeaders: headers,
+        heartbeatOutgoing: const Duration(seconds: 5),
+        heartbeatIncoming: const Duration(seconds: 5),
+        reconnectDelay: const Duration(milliseconds: 800),
       ),
     );
-    _client!.activate();
+
+    _stomp!.activate();
   }
 
-  void sendText(String text) {
-    if (!_connected) return;
-    final body = jsonEncode({
-      'roomId': _roomId,
-      'sender': _sender,
-      'message': text,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-    });
-    _client?.send(destination: '/app/chat.sendMessage', body: body);
+  void sendToRoom(int roomId, Map<String, dynamic> payload) {
+    if (!connected) return;
+    _stomp!.send(
+      destination: '/app/chat.send/$roomId',
+      body: jsonEncode(payload),
+    );
   }
 
   void disconnect() {
-    _client?.deactivate();
-    _connected = false;
+    _stomp?.deactivate(); // void 반환 → await 제거
+    _stomp = null;
   }
 }
