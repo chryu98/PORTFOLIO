@@ -5,8 +5,188 @@
 <head>
     <meta charset="UTF-8">
     <title>상품 약관 관리</title>
+<link rel="stylesheet" href="/css/adminstyle.css">
+<style>
+/* ===== 기본 ===== */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: #fff;               /* 전체 화이트 */
+  color: #111827;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* 가운데 정렬 + 페이지 폭 (별도 래퍼 없어도 적용) */
+:where(h2, form, table, #editFormWrapper) {
+  width: min(1100px, 92vw);
+  margin-inline: auto;
+}
+
+/* 제목 */
+h2 {
+  margin: 0px auto 14px;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* h3 제목 스타일 */
+h3 {
+  width: min(1100px, 92vw);   /* 테이블과 동일한 폭 */
+  margin: 20px auto 10px;     /* 가운데 정렬 */
+  text-align: center;         /* 텍스트도 가운데 정렬 */
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+
+/* ===== 폼 공통 ===== */
+form {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+  margin: 12px auto 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.05);
+}
+
+label {
+  display: inline-block;
+  font-size: 13px;
+  color: #6b7280;
+  margin: 8px 0 6px;
+}
+
+input[type="text"],
+input[type="file"],
+select,
+button {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 14px;
+  background: #fff;
+  color: #111827;
+  outline: none;
+  transition: border-color .18s, box-shadow .18s, transform .05s, filter .12s;
+}
+
+input[type="text"],
+input[type="file"],
+select {
+  width: min(520px, 92vw);
+  max-width: 100%;
+}
+
+input:focus,
+select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+
+/* 라디오 그룹 (약관 범위) */
+input[type="radio"] { margin-right: 6px; }
+input[type="radio"] + label { margin-right: 16px; }
+
+/* 버튼 */
+button {
+  cursor: pointer;
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+button:hover { filter: brightness(0.98); }
+button:active { transform: translateY(1px); }
+
+/* 보조 버튼 (취소 등) */
+button[type="button"] {
+  background: #fff;
+  color: #111827;
+  border-color: #d1d5db;
+}
+
+/* ===== 수정 폼(모달 느낌 카드) ===== */
+#editFormWrapper {
+  border: 1px solid #e5e7eb !important;
+  border-radius: 14px;
+  padding: 16px !important;
+  margin-top: 20px !important;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0,0,0,.08);
+}
+#editFormWrapper h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* ===== 테이블 ===== */
+/* HTML에 border="1"이 있어도 아래가 우선 적용됨 */
+table {
+  width: min(1100px, 92vw);
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 10px auto 24px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.05);
+}
+thead th {
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+  font-size: 14px;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 14px;
+  vertical-align: middle;
+}
+tbody tr:hover { background: #fafafa; }
+
+/* 링크 */
+a { color: #2563eb; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* 버튼 in 테이블 */
+td button {
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+
+/* ===== 접근성 ===== */
+:focus-visible {
+  outline: 3px solid rgba(37,99,235,.35);
+  outline-offset: 2px;
+}
+
+/* ===== 반응형 ===== */
+@media (max-width: 720px) {
+  h2 { font-size: 20px; }
+  thead th, tbody td { padding: 10px 12px; font-size: 13px; }
+  form { padding: 14px; }
+  input[type="text"], input[type="file"], select { width: 100%; }
+}
+
+/* ===== 프린트 ===== */
+@media print {
+  form, #editFormWrapper { box-shadow: none; border-color: #ddd; }
+  button { display: none !important; }
+}
+
+</style>
 </head>
 <body>
+<jsp:include page="../fragments/header.jsp"></jsp:include>
 <h2>상품 약관 관리</h2>
 
 <!-- 업로드 폼 -->
@@ -99,6 +279,7 @@
     <tbody id="inactiveTableBody"></tbody>
 </table>
 
+<script src="/js/adminHeader.js"></script>
 <script>
     // 업로드
     document.getElementById("uploadForm").addEventListener("submit", async function (event) {
