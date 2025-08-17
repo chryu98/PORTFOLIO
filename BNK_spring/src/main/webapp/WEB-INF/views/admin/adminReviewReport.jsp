@@ -12,39 +12,131 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
-  :root { --bg:#f7f8fb; --card:#fff; --border:#e5e7eb; --text:#111827; --muted:#6b7280; --brand:#10b981; }
-  * { box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); margin:0; }
-  header { padding: 24px; border-bottom: 1px solid var(--border); background: var(--card); position: sticky; top:0; z-index:10; }
-  h1 { margin:0; font-size: 20px; }
-  .container { padding: 20px; max-width: 1200px; margin: 0 auto; }
-  .toolbar { display:flex; gap:10px; align-items:center; flex-wrap: wrap; margin-top: 8px; }
-  input[type=date], button { padding: 8px 10px; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--text); }
-  .btn { cursor:pointer; }
-  .btn-primary { background: var(--brand); color:#fff; border-color: var(--brand); }
+/* ===== 기본 ===== */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #fff;
+  color: #111827;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
 
-  .grid { display:grid; gap:16px; }
-  .grid-2 { grid-template-columns: 1fr 1fr; }
-  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
-  @media (max-width: 900px){ .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+/* ===== 페이지 컨테이너 ===== */
+.container {
+  width: min(1000px, 95vw);
+  margin: 0 auto;
+  padding: 20px;
+}
 
-  .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; }
-  .card h2 { font-size:16px; margin:0 0 10px; }
-  .kpi { display:flex; align-items:center; justify-content:space-between; padding:14px; border:1px solid var(--border); border-radius:12px; background:#fff; }
-  .kpi .value { font-weight:700; font-size:22px; }
-  .kpi .delta { font-size:12px; color: var(--muted); }
-  .kpi .delta.up { color:#16a34a; } .kpi .delta.down { color:#dc2626; }
+/* ===== 제목 ===== */
+h1 {
+  margin: 20px auto 16px;
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;  /* 가운데 정렬 */
+}
 
-  table { width: 100%; border-collapse: collapse; background:#fff; border-radius:12px; overflow:hidden; border:1px solid var(--border); }
-  th, td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
-  th { background: #f3f4f6; font-weight: 600; }
+/* ===== 툴바 ===== */
+.toolbar {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+input[type=date], button {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+  font-size: 14px;
+}
+button {
+  cursor: pointer;
+}
+.btn-primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-  .muted { color: var(--muted); font-size: 12px; }
-  .actions { display:flex; gap:8px; flex-wrap:wrap; }
+/* ===== KPI 박스 ===== */
+.kpi {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,.05);
+}
+.kpi .muted { font-size: 13px; color: #6b7280; margin-bottom: 4px; }
+.kpi .value { font-size: 22px; font-weight: 700; }
+.kpi .delta { font-size: 12px; color: #6b7280; margin-top: 4px; }
+.kpi .delta.up { color: #16a34a; }
+.kpi .delta.down { color: #dc2626; }
+
+/* ===== 카드 공통 ===== */
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+  margin-top: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.05);
+}
+.card h2 {
+  font-size: 16px;
+  margin: 0 0 10px;
+}
+
+/* ===== 그리드 레이아웃 ===== */
+.grid { display: grid; gap: 16px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 900px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+}
+
+/* ===== 표 ===== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+th, td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: left;
+  font-size: 14px;
+}
+th {
+  background: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ===== 보조 텍스트 ===== */
+.muted {
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+  margin-top: 6px;
+}
+
 </style>
+
+
+
+<link rel="stylesheet" href="/css/adminstyle.css">
 </head>
 <body>
-<header>
+<jsp:include page="../fragments/header.jsp"></jsp:include>
+
   <div class="container">
     <h1>가입자/판매 리포트</h1>
     <div class="toolbar">
@@ -62,7 +154,6 @@
     </div>
     <div class="muted">* 보고 범위: [from, to] 날짜의 신청/판매 데이터 (판매=ISSUED)</div>
   </div>
-</header>
 
 <div class="container" id="reportRoot">
 
@@ -138,6 +229,7 @@
 
 </div>
 
+<script src="/js/adminHeader.js"></script>
 <script>
   /* ===== 공통 유틸 ===== */
   function apiBase() {
