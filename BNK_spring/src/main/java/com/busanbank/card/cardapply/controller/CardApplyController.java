@@ -1,6 +1,7 @@
 package com.busanbank.card.cardapply.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,66 +21,74 @@ public class CardApplyController {
 
 	@Autowired
 	private IUserDao userDao;
-	
+
 	@GetMapping("/termsAgree")
-	public String contactInfo(@RequestParam("cardNo") long cardNo,
-							  HttpSession session, Model model) {		
-		
-		Integer memberNo = (Integer) session.getAttribute("loginMemberNo");		
+	public String contactInfo(@RequestParam("cardNo") long cardNo, HttpSession session, Model model) {
+
+		Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
 
 		System.out.println("cardNo: " + cardNo);
-		
-		if(memberNo == null) {
+
+		if (memberNo == null) {
 			model.addAttribute("msg", "로그인이 필요한 서비스입니다.");
 			return "user/userLogin";
 		}
-		
+
 		model.addAttribute("cardNo", cardNo);
 		return "cardapply/termsAgree";
 	}
-	
-	@GetMapping("/customer-info")
-	public String customerInfo(@RequestParam("cardNo") int cardNo,
-							   HttpSession session, Model model,
-							   RedirectAttributes rttr) throws Exception {
-		
-		Integer memberNo = (Integer) session.getAttribute("loginMemberNo");		
 
-		if(memberNo == null) {
+	@GetMapping("/customer-info")
+	public String customerInfo(@RequestParam("cardNo") int cardNo, HttpSession session, Model model,
+			RedirectAttributes rttr) throws Exception {
+
+		Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
+
+		if (memberNo == null) {
 			model.addAttribute("msg", "로그인이 필요한 서비스입니다.");
 			return "user/userLogin";
 		}
-		
+
 		UserDto loginUser = userDao.findByMemberNo(memberNo);
-		
+
 		String rrnTailEnc = AESUtil.decrypt(loginUser.getRrnTailEnc());
 		String rrnBack = loginUser.getRrnGender() + rrnTailEnc;
-		
+
 		model.addAttribute("loginUser", loginUser);
 		model.addAttribute("rrnBack", rrnBack);
 		model.addAttribute("cardNo", cardNo);
-		
+
 		return "cardapply/customerInfo";
 	}
-	
+
 	@GetMapping("/contactInfo")
-	public String contactInfo(@RequestParam("applicationNo") Integer applicationNo,
-							  Model model) {
+	public String contactInfo(@RequestParam("applicationNo") Integer applicationNo, Model model) {
 		model.addAttribute("applicationNo", applicationNo);
 		return "cardapply/contactInfo";
 	}
 
 	@GetMapping("/jobInfo")
-	public String jobInfo(@RequestParam("applicationNo") Integer applicationNo,
-			  			  Model model) {		
+	public String jobInfo(@RequestParam("applicationNo") Integer applicationNo, Model model) {
 		model.addAttribute("applicationNo", applicationNo);
 		return "cardapply/jobInfo";
 	}
 
 	@GetMapping("/addressInfo")
-	public String addressInfo(@RequestParam("applicationNo") Integer applicationNo,
-			Model model) {		
+	public String addressInfo(@RequestParam("applicationNo") Integer applicationNo, Model model) {
 		model.addAttribute("applicationNo", applicationNo);
 		return "cardapply/addressInfo";
 	}
+
+	
+	// 계좌관리
+	@GetMapping("/accounts")
+	public String accounts(@RequestParam(value="cardNo", required=false) Integer cardNo,
+	                       HttpSession session, Model model, RedirectAttributes rttr) {
+	    // 필요하면 model.addAttribute("cardNo", cardNo);
+	    Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
+	    if (memberNo == null) { model.addAttribute("msg", "로그인이 필요한 서비스입니다."); return "user/userLogin"; }
+	    return "cardapply/accounts";
+	}
+
+
 }
