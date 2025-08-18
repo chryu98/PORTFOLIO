@@ -1,21 +1,27 @@
 // lib/navigation/guards.dart
 import 'package:flutter/material.dart';
-import 'package:bnkandroid/auth_state.dart';
-import 'package:bnkandroid/user/LoginPage.dart';
+import '../auth_state.dart';
+import '../user/LoginPage.dart';
 
-/// 로그인 필요 작업 실행 가드.
-/// 로그인 안 되어 있으면 LoginPage를 rootNavigator로 띄우고,
-/// 성공 시 true 리턴 후 [afterLogin]을 수행.
-Future<bool> ensureLoggedInAndRun(
+/// 로그인되어 있지 않으면 로그인 화면을 루트로 띄우고,
+/// 로그인 후 [action]을 실행한다.
+Future<void> ensureLoggedInAndRun(
     BuildContext context,
-    Future<void> Function() afterLogin,
+    Future<void> Function() action,
     ) async {
-  if (!AuthState.loggedIn.value) {
-    final ok = await Navigator.of(context, rootNavigator: true).push<bool>(
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-    );
-    if (ok != true) return false; // 로그인 취소/실패면 종료
+  // ✅ AuthState가 초기화되어 있고, 현재 로그인 상태면 바로 실행
+  if (AuthState.loggedIn.value) {
+    await action();
+    return;
   }
-  await afterLogin();
-  return true;
+
+  // ✅ 로그인 페이지를 루트 네비게이터로 띄움
+  final ok = await Navigator.of(context, rootNavigator: true).push<bool>(
+    MaterialPageRoute(builder: (_) => const LoginPage()),
+  );
+
+  // ✅ 로그인 성공 시: ok == true 이거나, 전역 상태가 true로 바뀌었으면 계속
+  if (ok == true || AuthState.loggedIn.value) {
+    await action();
+  }
 }

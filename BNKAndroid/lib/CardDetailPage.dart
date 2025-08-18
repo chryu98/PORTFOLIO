@@ -628,9 +628,9 @@ class _CardDetailPageState extends State<CardDetailPage> {
             foregroundColor: const Color(0xFF4E4E4E),
             bottom: hasCompare
                 ? PreferredSize(
-              preferredSize: const Size.fromHeight(56),
+              preferredSize: const Size.fromHeight(64), // 살짝 키움
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12), // ⬅ 위 10px 여백
                 child: _TopCompareBar(
                   count: ids.length,
                   onOpen: _showCompareModal,

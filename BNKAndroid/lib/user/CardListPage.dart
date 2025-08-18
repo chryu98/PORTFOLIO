@@ -126,8 +126,8 @@ class _CardListPageState extends State<CardListPage>
 
   /* ───── UI: 상단 고정 헤더(검색 + 비교함바) ───── */
   SliverAppBar _buildPinnedHeader({required bool showCompareBar}) {
-    final double baseHeight = 70;      // 비교함 바 없을 때
-    final double withBarHeight = 142;  // 비교함 바 있을 때
+    final double baseHeight = 76;  // 비교함 바 없을 때
+    final double withBarHeight = 150;  // 비교함 바 있을 때
 
     return SliverAppBar(
       pinned: true,

@@ -1,11 +1,9 @@
+// lib/app_shell.dart
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:bnkandroid/user/CardListPage.dart';
 import 'package:bnkandroid/user/LoginPage.dart';
-
-// 커스텀 애니메이티드 하단바
-import 'package:bnkandroid/ui/animated_nav_bar.dart';
+import 'package:bnkandroid/ui/toss_nav_bar.dart';
 
 import 'auth_state.dart';
 import 'idle/inactivity_service.dart';
@@ -23,6 +21,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+  late final PageController _pageCtl; // ✅ 방향성 전환용
 
   final _navKeys = {
     AppTab.cards: GlobalKey<NavigatorState>(),
@@ -34,6 +33,8 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    _pageCtl = PageController(initialPage: _index);
+
     AuthState.loggedIn.addListener(_onAuthChanged);
     InactivityService.instance.attachLifecycle();
 
@@ -58,6 +59,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    _pageCtl.dispose(); // ✅ 추가
     InactivityService.instance.stop();
     InactivityService.instance.detachLifecycle();
     AuthState.loggedIn.removeListener(_onAuthChanged);
@@ -73,7 +75,14 @@ class _AppShellState extends State<AppShell> {
       );
       return;
     }
-    setState(() => _index = i);
+    // ✅ 방향성 있는 슬라이드 전환
+    InactivityService.instance.ping();
+    await _pageCtl.animateToPage(
+      i,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeInOutCubicEmphasized,
+    );
+    // onPageChanged에서 _index 동기화
   }
 
   Widget _buildTabRoot(AppTab tab) {
@@ -106,29 +115,33 @@ class _AppShellState extends State<AppShell> {
       child: _ActivityCapture(
         onActivity: InactivityService.instance.ping,
         child: Scaffold(
-          body: IndexedStack(
-            index: _index,
-            children: tabs
-                .map((t) => Navigator(
-              key: _navKeys[t],
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => _buildTabRoot(t),
-                settings: settings,
-              ),
-            ))
-                .toList(),
+          // ✅ PageView로 변경: 탭 전환 시 오른쪽/왼쪽으로 "슥" 슬라이드
+          body: PageView(
+            controller: _pageCtl,
+            physics: const NeverScrollableScrollPhysics(), // 스와이프로도 넘기고 싶으면 주석 처리
+            onPageChanged: (i) => setState(() => _index = i),
+            children: tabs.map((t) {
+              return Navigator(
+                key: _navKeys[t],
+                onGenerateRoute: (settings) => MaterialPageRoute(
+                  builder: (_) => _buildTabRoot(t),
+                  settings: settings,
+                ),
+              );
+            }).toList(),
           ),
-          bottomNavigationBar: AnimatedAttachNavBar(
+
+          // ✅ 하단 썸(thumb)도 부드럽게 이동
+          bottomNavigationBar: TossNavBar(
             index: _index,
-            onTap: (i) {
-              InactivityService.instance.ping();
-              _selectTab(i);
-            },
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutQuint,
+            onTap: _selectTab,
             items: const [
-              AttachNavItem(Icons.credit_card, '카드'),
-              AttachNavItem(Icons.local_offer_outlined, '혜택'),
-              AttachNavItem(Icons.headset_mic_outlined, '문의'),
-              AttachNavItem(Icons.person_outline, '마이'),
+              TossNavItem(Icons.credit_card, '카드'),
+              TossNavItem(Icons.local_offer_outlined, '혜택'),
+              TossNavItem(Icons.headset_mic_outlined, '문의'),
+              TossNavItem(Icons.person_outline, '마이'),
             ],
           ),
         ),
@@ -137,6 +150,7 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
+/// 루트로 전체 화면 푸시 (발급 플로우 등)
 Future<T?> pushFullScreen<T>(BuildContext context, Widget page) {
   return Navigator.of(context, rootNavigator: true).push<T>(
     MaterialPageRoute(builder: (_) => page),
