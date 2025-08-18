@@ -1,4 +1,4 @@
-// lib/idle/inactivity_service.dart  (경로는 프로젝트에 맞춰주세요)
+// lib/idle/inactivity_service.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,21 +11,19 @@ class InactivityService with WidgetsBindingObserver {
   InactivityService._();
   static final InactivityService instance = InactivityService._();
 
-  /// 마지막 활동 시각을 저장하는 키 (ms since epoch)
-  static const _kLastAt = 'last_activity_at';
-
-  /// 무활동 한계/경고 시점
   Duration idleLimit = const Duration(minutes: 15);
   Duration warnBefore = const Duration(minutes: 1);
-  // Duration idleLimit = const Duration(seconds: 10);
-  // Duration warnBefore = const Duration(seconds: 5);
+  // 디버깅용 짧은 타임아웃이 필요하면 위 두 줄을 주석처리하고 아래 두 줄 사용
+  // Duration idleLimit = const Duration(seconds: 20);
+  // Duration warnBefore = const Duration(seconds: 10);
 
   Timer? _warnTimer;
   Timer? _logoutTimer;
   BuildContext? _ctx;
 
-  // ───────────────── lifecycle attachment ─────────────────
+  bool _firstResume = true; // ✅ 콜드스타트/첫 복귀는 즉시 로그아웃 방지
 
+  // ───────────────── lifecycle attachment ─────────────────
   void attachLifecycle() {
     WidgetsBinding.instance.addObserver(this);
   }
@@ -36,7 +34,8 @@ class InactivityService with WidgetsBindingObserver {
 
   void start(BuildContext context) {
     _ctx = context;
-    _markActivityNow(); // 시작 시각 기록
+    _firstResume = true;          // ✅ 새로운 세션 시작
+    AuthState.touchActivity();    // ✅ 시작 시각 기록
     _restartTimers();
   }
 
@@ -47,32 +46,31 @@ class InactivityService with WidgetsBindingObserver {
     _logoutTimer = null;
   }
 
-  /// 사용자 활동이 있을 때마다 호출해 주세요(터치/스크롤 등)
+  /// 사용자 활동이 있을 때마다 호출(터치/스크롤 등)
   void ping() {
     if (!AuthState.loggedIn.value) return;
-    _markActivityNow();
+    AuthState.touchActivity();
     _restartTimers();
   }
 
   // ───────────────── WidgetsBindingObserver ─────────────────
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      // ✅ 첫 복귀는 타이머만 재시작하고 로그아웃 체크는 스킵
+      if (_firstResume) {
+        _firstResume = false;
+        _restartTimers();
+        return;
+      }
       _checkElapsedSinceLastActivity();
     }
   }
 
   // ───────────────── internal helpers ─────────────────
-
-  Future<void> _markActivityNow() async {
-    final p = await SharedPreferences.getInstance();
-    await p.setInt(_kLastAt, DateTime.now().millisecondsSinceEpoch);
-  }
-
   Future<void> _checkElapsedSinceLastActivity() async {
     final p = await SharedPreferences.getInstance();
-    final last = p.getInt(_kLastAt) ?? 0;
+    final last = p.getInt(AuthState.kLastAt) ?? 0;
     if (last == 0) {
       _restartTimers();
       return;
@@ -103,7 +101,7 @@ class InactivityService with WidgetsBindingObserver {
 
     showDialog(
       context: ctx,
-      useRootNavigator: true, // ✅ 루트로 띄워 중첩 네비 문제 방지
+      useRootNavigator: true, // 루트로 띄워 중첩 네비 문제 방지
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: const Text('자동 로그아웃 안내'),
@@ -135,7 +133,7 @@ class InactivityService with WidgetsBindingObserver {
     // 열려 있는 화면을 안전하게 모두 닫고
     while (await nav.maybePop()) {}
 
-    // 홈(AppShell)로 복귀
+    // 홈(AppShell)로 복귀 (원하면 LoginPage로 바로 보내도 됨)
     nav.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const AppShell()),
           (route) => false,

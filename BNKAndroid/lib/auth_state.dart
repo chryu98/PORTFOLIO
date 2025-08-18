@@ -4,26 +4,34 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// 앱 전역 인증 상태
 class AuthState {
-  // 저장 키(단일화)
+  // 저장 키
   static const _kAccess = 'jwt_token';
   static const _kRefresh = 'refresh_token';
   static const _kRemember = 'remember_me';
+  static const kLastAt = 'last_activity_at'; // ✅ 최근 활동 시각(ms)
 
   /// 구독 가능한 로그인 상태
   static final ValueNotifier<bool> loggedIn = ValueNotifier<bool>(false);
 
-  /// 앱 시작 시 반드시 한 번 호출하세요 (main() 또는 Splash에서)
+  /// 앱 시작 시 반드시 한 번 호출 (main()에서)
   static Future<void> init() async {
     final p = await SharedPreferences.getInstance();
-    final t = p.getString(_kAccess);
-    loggedIn.value = t != null && t.isNotEmpty;
+    final token = p.getString(_kAccess);
+    final remember = p.getBool(_kRemember) ?? true; // 기본 ON
+
+    // 자동로그인이 켜져 있고 토큰이 있으면 로그인 유지
+    loggedIn.value = remember && token != null && token.isNotEmpty;
+
+    if (loggedIn.value) {
+      await touchActivity(); // 시작 시각 갱신
+    }
 
     if (kDebugMode) {
-      final head = t == null || t.isEmpty
+      final head = token == null || token.isEmpty
           ? 'null'
-          : t.substring(0, t.length > 12 ? 12 : t.length);
-      // ignore: avoid_print
-      print('[Auth] init loggedIn=${loggedIn.value} tokenHead=$head...');
+          : token.substring(0, token.length > 12 ? 12 : token.length);
+      debugPrint('[Auth] init loggedIn=${loggedIn.value} '
+          'remember=$remember tokenHead=$head...');
     }
   }
 
@@ -39,13 +47,12 @@ class AuthState {
     if (refresh != null && refresh.isNotEmpty) {
       await p.setString(_kRefresh, refresh);
     }
+    await touchActivity();   // ✅ 활동 시각 기록
     loggedIn.value = true;
 
     if (kDebugMode) {
-      final head =
-      access.substring(0, access.length > 12 ? 12 : access.length);
-      // ignore: avoid_print
-      print('[Auth] login saved jwt_token head=$head...');
+      final head = access.substring(0, access.length > 12 ? 12 : access.length);
+      debugPrint('[Auth] login saved jwt_token head=$head... remember=$remember');
     }
   }
 
@@ -55,17 +62,31 @@ class AuthState {
     await p.remove(_kAccess);
     await p.remove(_kRefresh);
     await p.remove(_kRemember);
+    await p.remove(kLastAt);
     loggedIn.value = false;
 
     if (kDebugMode) {
-      // ignore: avoid_print
-      print('[Auth] logged out (storage cleared)');
+      debugPrint('[Auth] logged out (storage cleared)');
     }
   }
 
-  /// 필요 시 직접 토큰을 가져와 사용할 때
+  /// 최근 활동 시각(ms) 저장
+  static Future<void> touchActivity() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setInt(kLastAt, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  /// 토큰을 직접 꺼내 쓸 때
   static Future<String?> getToken() async {
     final p = await SharedPreferences.getInstance();
     return p.getString(_kAccess);
+  }
+
+  /// (옵션) 디버그 상태 덤프
+  static Future<void> debugDump() async {
+    final p = await SharedPreferences.getInstance();
+    debugPrint('[AUTH] remember=${p.getBool(_kRemember)} '
+        'tokenLen=${(p.getString(_kAccess) ?? '').length} '
+        'lastAt=${p.getInt(kLastAt)}');
   }
 }
