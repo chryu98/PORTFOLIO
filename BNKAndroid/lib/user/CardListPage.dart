@@ -1,4 +1,4 @@
-// lib/card_list_page.dart
+// lib/user/CardListPage.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
@@ -10,9 +10,7 @@ import 'package:bnkandroid/constants/api.dart';
 import 'package:bnkandroid/user/service/CardService.dart';
 import '../CardDetailPage.dart';
 import '../ui/bnk_theme.dart';
-import 'LoginPage.dart';
 import 'model/CardModel.dart';
-
 
 /* ───────────────── Compare DTO ───────────────── */
 class CompareCard {
@@ -29,39 +27,17 @@ class CompareCard {
   Map<String, dynamic> toJson() => {'cardNo': cardNo, 'cardName': cardName, 'cardUrl': cardUrl};
 }
 
-/* ───────────────── Entry point ───────────────── */
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await API.initBaseUrl();
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'BNK',
-      theme: ThemeData(
-        scaffoldBackgroundColor: Colors.white, // 앱 기본 배경 흰색
-      ),
-      home: SplashPage(),
-    );
-  }
-}
-
-
 /* ───────────────── Main Page ───────────────── */
 class CardListPage extends StatefulWidget {
+  const CardListPage({super.key});
   @override
   State<CardListPage> createState() => _CardListPageState();
 }
 
 class _CardListPageState extends State<CardListPage>
     with AutomaticKeepAliveClientMixin {
-
-  static const double _GAP_AFTER_HEADER = 24;            // 헤더(검색/비교함) ↔ 캐러셀
-  static const double _GAP_CAROUSEL_TO_CHIPS = 24;       // 캐러셀 ↔ 세그먼트 칩(버튼)
+  static const double _GAP_AFTER_HEADER = 24;
+  static const double _GAP_CAROUSEL_TO_CHIPS = 24;
 
   @override
   bool get wantKeepAlive => true;
@@ -150,8 +126,8 @@ class _CardListPageState extends State<CardListPage>
 
   /* ───── UI: 상단 고정 헤더(검색 + 비교함바) ───── */
   SliverAppBar _buildPinnedHeader({required bool showCompareBar}) {
-    final double baseHeight = 70;      // 비교함 바 없을 때
-    final double withBarHeight = 142;  // 비교함 바 있을 때
+    final double baseHeight = 76;  // 비교함 바 없을 때
+    final double withBarHeight = 150;  // 비교함 바 있을 때
 
     return SliverAppBar(
       pinned: true,
@@ -262,8 +238,6 @@ class _CardListPageState extends State<CardListPage>
               return const Center(child: Text('카드가 없습니다.'));
             }
 
-
-
             final all = snap.data![0] as List<CardModel>;
             final popular = snap.data![1] as List<CardModel>;
 
@@ -324,11 +298,13 @@ class _CardListPageState extends State<CardListPage>
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
+                          mainAxisSize: MainAxisSize
+                              .min, // ✅ Sliver 안 Column 무한 높이 방지 (핵심)
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Padding(
-                              padding:
-                              const EdgeInsets.only(top: 10, bottom: 6, left: 4),
+                              padding: const EdgeInsets.only(
+                                  top: 10, bottom: 6, left: 4),
                               child: Text(
                                 (cur == '전체')
                                     ? '전체카드'
@@ -343,22 +319,26 @@ class _CardListPageState extends State<CardListPage>
                                 padding: EdgeInsets.symmetric(vertical: 40),
                                 child: Center(
                                   child: Text('검색 결과가 없어요',
-                                      style:
-                                      TextStyle(color: Colors.black54)),
+                                      style: TextStyle(color: Colors.black54)),
                                 ),
                               )
                             else
                               GridView.builder(
                                 shrinkWrap: true,
+                                primary:
+                                false, // ✅ 메인 스크롤러 아님을 명시 (핵심)
                                 physics:
                                 const NeverScrollableScrollPhysics(),
+                                addAutomaticKeepAlives:
+                                false, // (선택) 레이아웃 안전성 보강
+                                addRepaintBoundaries:
+                                false, // (선택) 레이아웃 안전성 보강
                                 itemCount: list.length,
                                 gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
                                   crossAxisSpacing: 13,
                                   mainAxisSpacing: 20,
-                                  // ⬇️ 살짝 여유를 더 줘서 overflow 방지
                                   mainAxisExtent: 304,
                                 ),
                                 itemBuilder: (context, i) {
@@ -366,7 +346,8 @@ class _CardListPageState extends State<CardListPage>
                                   return FractionallySizedBox(
                                     widthFactor: 0.92,
                                     heightFactor: 0.92,
-                                    child: ValueListenableBuilder<Set<String>>(
+                                    child:
+                                    ValueListenableBuilder<Set<String>>(
                                       valueListenable: compareIds,
                                       builder: (_, ids, __) => CardGridTile(
                                         card: card,
@@ -376,13 +357,14 @@ class _CardListPageState extends State<CardListPage>
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
-                                              builder: (_) => CardDetailPage(
-                                                cardNo:
-                                                card.cardNo.toString(),
-                                                compareIds: compareIds,
-                                                onCompareChanged:
-                                                _saveCompare,
-                                              ),
+                                              builder: (_) =>
+                                                  CardDetailPage(
+                                                    cardNo:
+                                                    card.cardNo.toString(),
+                                                    compareIds: compareIds,
+                                                    onCompareChanged:
+                                                    _saveCompare,
+                                                  ),
                                             ),
                                           );
                                         },
@@ -407,6 +389,7 @@ class _CardListPageState extends State<CardListPage>
       ),
     );
   }
+
 
   /* ───────────────── sub widgets ───────────────── */
 
@@ -679,7 +662,6 @@ class CardGridTile extends StatelessWidget {
     required this.selected,
   });
 
-  // 슬로건 영역 고정 높이(최대 2줄 + 여유)
   static const double _sloganBoxH = 36.0;
 
   @override
@@ -694,7 +676,7 @@ class CardGridTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 이미지 (상자/그림자 없음)
+          // 이미지
           AspectRatio(
             aspectRatio: 1.6,
             child: Stack(
@@ -734,7 +716,7 @@ class CardGridTile extends StatelessWidget {
 
           const SizedBox(height: 4),
 
-          // 슬로건(없어도 고정 높이 확보 → 버튼 위치 항상 동일)
+          // 슬로건 (고정 높이)
           SizedBox(
             height: _sloganBoxH,
             child: (card.cardSlogan ?? '').isEmpty
@@ -840,7 +822,6 @@ class _CompareToggle extends StatelessWidget {
 }
 
 /* ───────────────── util widgets (태그, 모달) ───────────────── */
-
 List<Widget> extractCategories(String text, {int max = 5}) {
   const keys = {
     '커피': ['커피', '스타벅스', '이디야', '카페베네'],
@@ -876,16 +857,14 @@ List<Widget> extractCategories(String text, {int max = 5}) {
       .map((t) => Padding(
     padding: const EdgeInsets.only(top: 4),
     child: Container(
-      padding:
-      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.red.shade50,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.red.shade200),
       ),
       child: Text('#$t',
-          style:
-          const TextStyle(fontSize: 12, color: Colors.red)),
+          style: const TextStyle(fontSize: 12, color: Colors.red)),
     ),
   ))
       .toList();
@@ -929,8 +908,7 @@ class _TagFilterModalState extends State<TagFilterModal> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding:
-      EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 40),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 40),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: const BoxDecoration(
@@ -952,19 +930,18 @@ class _TagFilterModalState extends State<TagFilterModal> {
               return GestureDetector(
                 onTap: () => _toggle(t),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: on ? const Color(0xfffdeeee) : Colors.grey[200],
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: on ? Colors.red : Colors.grey.shade300),
+                    border: Border.all(color: on ? Colors.red : Colors.grey.shade300),
                   ),
                   child: Text(
                     '#$t',
                     style: TextStyle(
-                        color: on ? Colors.red : Colors.black87,
-                        fontWeight: FontWeight.w500),
+                      color: on ? Colors.red : Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               );
@@ -1050,8 +1027,7 @@ class CompareDockBar extends StatelessWidget {
             onPressed: onClear,
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFF6B7280),
-              padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               minimumSize: Size.zero,
             ),
@@ -1064,8 +1040,7 @@ class CompareDockBar extends StatelessWidget {
               elevation: 0,
               backgroundColor: const Color(0xFF111827),
               foregroundColor: Colors.white,
-              padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),

@@ -40,8 +40,7 @@ public class CardApplyRestController {
 
     @GetMapping("/card-terms")
     public List<PdfFilesDto> getCardTerms(@RequestParam("cardNo") long cardNo) {
-    	System.out.println(cardApplyDao.getTermsByCardNo(cardNo));
-        return cardApplyDao.getTermsByCardNo(cardNo);
+    	return cardApplyDao.getTermsByCardNo(cardNo);
     }
     
     /** 현재 인증된 사용자 조회 (JWT 기반) */

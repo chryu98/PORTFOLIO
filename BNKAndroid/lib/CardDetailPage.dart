@@ -13,6 +13,9 @@ import 'package:bnkandroid/user/model/CardModel.dart';
 import 'package:bnkandroid/user/service/CardService.dart';
 import 'ApplicationStep1Page.dart';
 
+import 'package:bnkandroid/navigation/guards.dart';
+import 'package:bnkandroid/app_shell.dart' show pushFullScreen; // root push helper
+
 // ApiException이 정의된 위치에 맞춰 import
 // 예시: import 'package:bnkandroid/constants/api_exception.dart';
 
@@ -424,64 +427,52 @@ class _CardDetailPageState extends State<CardDetailPage> {
       return;
     }
 
-    // 1) 로그인 여부 확인
-    final prefs = await SharedPreferences.getInstance();
-    final hasToken = (prefs.getString('jwt_token') ?? '').isNotEmpty;
+    // ✅ 1) 로그인 가드: 미로그인이면 LoginPage를 root로 띄우고, 성공 시 이후 로직 실행
+    await ensureLoggedInAndRun(context, () async {
+      try {
+        // ✅ 2) 서버에 발급 시작 요청
+        final start = await CardApplyService.start(cardNo: cardNo);
 
-    if (!hasToken) {
-      // 2) 미로그인 → 로그인 페이지로, 로그인 성공 시 발급 계속
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => LoginPage(
-            redirectBuilder: (_) => _ContinueApplicationPage(cardNo: cardNo),
-          ),
-        ),
-      );
-      return;
-    }
+        if (!mounted) return;
 
-    // 3) 로그인 상태면 바로 발급 시작
-    try {
-      final start = await CardApplyService.start(cardNo: cardNo);
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ApplicationStep1Page(
+        // ✅ 3) 발급 플로우는 반드시 "루트 네비게이터"로 푸시
+        await pushFullScreen(
+          context,
+          ApplicationStep1Page(
             cardNo: cardNo,
             applicationNo: start.applicationNo,
             isCreditCard: start.isCreditCard,
           ),
-        ),
-      );
-    } on ApiException catch (e) {
-      // 4) 401 등 인증 오류면 로그인으로 보내고, 로그인 후 이어서 진행
-      final status = _extractStatusCode(e); // ← 헬퍼 사용
-      if (status == 401) {
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => LoginPage(
-              redirectBuilder: (_) => _ContinueApplicationPage(cardNo: cardNo),
-            ),
-          ),
         );
-        return;
+      } on ApiException catch (e) {
+        // 🔁 4) 토큰 만료 등 인증 오류(401) → 재로그인 유도 후 1회 재시도
+        final status = _extractStatusCode(e); // 기존 헬퍼 그대로 사용
+        if (status == 401) {
+          if (!mounted) return;
+          final ok = await Navigator.of(context, rootNavigator: true).push<bool>(
+            MaterialPageRoute(builder: (_) => const LoginPage()),
+          );
+          if (ok == true) {
+            // 재로그인 성공 → 1회 재시도
+            await _startCardApplication(cardNo.toString());
+          }
+          return;
+        }
+
+        if (!mounted) return;
+        final msg = _extractErrorMessage(e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('발급 시작 실패: $msg')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('발급 시작 오류: $e')),
+        );
       }
-      if (!mounted) return;
-      final msg = _extractErrorMessage(e);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('발급 시작 실패: $msg')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('발급 시작 오류: $e')),
-      );
-    }
+    });
   }
+
 
   /// ---- 여기 아래 두 개 헬퍼를 같은 파일(같은 클래스 안 or 바깥) 에 추가하세요 ----
 
@@ -637,9 +628,9 @@ class _CardDetailPageState extends State<CardDetailPage> {
             foregroundColor: const Color(0xFF4E4E4E),
             bottom: hasCompare
                 ? PreferredSize(
-              preferredSize: const Size.fromHeight(56),
+              preferredSize: const Size.fromHeight(64), // 살짝 키움
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12), // ⬅ 위 10px 여백
                 child: _TopCompareBar(
                   count: ids.length,
                   onOpen: _showCompareModal,
@@ -816,11 +807,11 @@ class _CardDetailPageState extends State<CardDetailPage> {
                 color: Colors.white,
                 child: SizedBox(
                   width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton.icon(
+                  height: 50, // ✅ 숫자
+                  child: ElevatedButton.icon( // ✅ 버튼은 child에
                     onPressed: () => _startCardApplication(card.cardNo.toString()),
                     icon: const Icon(Icons.credit_card),
-                    label: const Text("카드 발급하기"),
+                    label: const Text('카드 발급하기'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xffB91111),
                       foregroundColor: Colors.white,

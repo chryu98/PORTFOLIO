@@ -1,5 +1,6 @@
 // lib/user/service/card_apply_service.dart
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../constants/api.dart';
@@ -21,9 +22,19 @@ class StartResponse {
   final bool isCreditCard;
   StartResponse({required this.applicationNo, required this.isCreditCard});
 
+  /// 서버가 bool, 'Y'/'N', 1/0 등으로 내려줘도 안전 파싱
+  static bool _parseBool(dynamic v) {
+    if (v is bool) return v;
+    final s = v?.toString().trim().toLowerCase();
+    if (s == null) return false;
+    if (s == 'y' || s == 'yes' || s == 'true' || s == '1') return true;
+    if (s == 'n' || s == 'no' || s == 'false' || s == '0') return false;
+    return false;
+  }
+
   factory StartResponse.fromJson(Map<String, dynamic> j) => StartResponse(
-    applicationNo: (j['applicationNo'] as num).toInt(), // ✅ num → int 변환
-    isCreditCard: (j['isCreditCard']?.toString() ?? 'N') == 'Y',
+    applicationNo: (j['applicationNo'] as num).toInt(),
+    isCreditCard: _parseBool(j['isCreditCard'] ?? j['credit']),
   );
 }
 
@@ -35,9 +46,8 @@ class ValidateResult {
 
   ValidateResult({required this.success, this.message, this.applicationNo});
 
-  // ✅ 안전 파서: num → int 변환 처리
   factory ValidateResult.fromJson(Map<String, dynamic> j) => ValidateResult(
-    success: j['success'] == true,
+    success: j['success'] == true || (j['success']?.toString().toLowerCase() == 'true'),
     message: j['message']?.toString(),
     applicationNo: (j['applicationNo'] is num) ? (j['applicationNo'] as num).toInt() : null,
   );
@@ -47,17 +57,23 @@ class CardApplyService {
   // ---- 내부 공통: 토큰 포함 헤더 ----
   static Future<Map<String, String>> _authHeaders({Map<String, String>? extra}) async {
     final p = await SharedPreferences.getInstance();
-    // 'jwt' 또는 'jwt_token' 키 중 있는 걸 사용
-    final token = p.getString('jwt') ?? p.getString('jwt_token');
-    final headers = <String, String>{
+    final token = p.getString('jwt_token') ?? p.getString('jwt');
+    if (token == null || token.isEmpty) {
+      if (kDebugMode) print('[HTTP] no jwt_token in storage');
+      throw ApiException(message: '인증 토큰이 없습니다. 다시 로그인 해주세요.', status: 401);
+    }
+    if (kDebugMode) {
+      final head = token.substring(0, token.length.clamp(0, 12));
+      print('[HTTP] attach Authorization: Bearer $head...');
+    }
+    return {
       'Content-Type': 'application/json',
-      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      'Authorization': 'Bearer $token',
+      if (extra != null) ...extra,
     };
-    if (extra != null) headers.addAll(extra);
-    return headers;
   }
 
-  // ---- 발급 시작: /card/apply/api/start (POST) ----
+  // ---- 발급 시작: POST /card/apply/api/start ----
   static Future<StartResponse> start({required int cardNo}) async {
     final res = await http.post(
       Uri.parse(API.applyStart),
@@ -68,9 +84,9 @@ class CardApplyService {
     _throwIfHttpError(res);
     final Map<String, dynamic> j = _decode(res);
 
-    if (j['success'] != true) {
+    if (j['success'] == false) {
       throw ApiException(
-        message: j['message']?.toString() ?? '시작 실패',
+        message: j['message']?.toString() ?? '발급 시작 실패',
         status: res.statusCode,
         body: j,
       );
@@ -86,7 +102,7 @@ class CardApplyService {
     return StartResponse.fromJson(j);
   }
 
-  // ---- 고객정보 검증/임시저장: /card/apply/api/validateInfo (POST) ----
+  // ---- 고객정보 검증/임시저장: POST /card/apply/api/validateInfo ----
   static Future<ValidateResult> validateInfo({
     required int cardNo,
     required String name,
@@ -117,14 +133,15 @@ class CardApplyService {
     return ValidateResult.fromJson(j);
   }
 
-  // ---- 프리필: 한글이름 + 주민번호 앞 6자리 (GET /card/apply/api/prefill) ----
+  // ---- 프리필: GET /card/apply/api/prefill ----
   static Future<Map<String, String>?> prefill() async {
-    final res = await http.get(Uri.parse(API.applyPrefill), headers: await _authHeaders());
+    final res = await http.get(
+      Uri.parse(API.applyPrefill),
+      headers: await _authHeaders(),
+    );
 
-    if (res.statusCode == 401) {
-      throw ApiException(message: '로그인이 필요합니다.', status: 401, body: _safeDecode(res));
-    }
-    if (res.statusCode != 200) return null;
+    if (res.statusCode == 204) return null;
+    _throwIfHttpError(res);
 
     final j = _decode(res);
     if (j['success'] != true) return null;
@@ -136,7 +153,7 @@ class CardApplyService {
     };
   }
 
-  // ---- 연락처 검증/저장: /card/apply/api/validateContact (POST) ----
+  // ---- 연락처 검증/저장: POST /card/apply/api/validateContact ----
   static Future<bool> validateContact({
     required int applicationNo,
     required String email,
@@ -159,7 +176,7 @@ class CardApplyService {
     return j['success'] == true;
   }
 
-  // ---- KYC/직업 등 저장: /card/apply/api/saveJobInfo (POST) ----
+  // ---- KYC/직업 등 저장: POST /card/apply/api/saveJobInfo ----
   static Future<bool> saveJobInfo({
     required int applicationNo,
     required String job,
@@ -167,7 +184,7 @@ class CardApplyService {
     required String fundSource,
   }) async {
     final res = await http.post(
-      Uri.parse(API.applySaveJobInfo), // ← 여기로 통일
+      Uri.parse(API.applySaveJobInfo),
       headers: await _authHeaders(),
       body: jsonEncode({
         'applicationNo': applicationNo,
@@ -211,7 +228,11 @@ class CardApplyService {
     if (res.statusCode >= 200 && res.statusCode < 300) return;
 
     if (res.statusCode == 401) {
-      throw ApiException(message: '로그인이 필요합니다.', status: 401, body: _safeDecode(res));
+      throw ApiException(
+        message: '로그인이 필요합니다.',
+        status: 401,
+        body: _safeDecode(res),
+      );
     }
     final body = _safeDecode(res);
     throw ApiException(

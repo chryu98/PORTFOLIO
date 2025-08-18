@@ -1,79 +1,29 @@
+// lib/user/LoginPage.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
-import 'CardListPage.dart';
-import 'package:bnkandroid/constants/api.dart';
+import '../auth_state.dart';
+import '../constants/api.dart';
+import '../app_shell.dart'; // redirect 기본값으로 사용
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await API.initBaseUrl(); // baseUrl 먼저 초기화
-  runApp(const MyApp());
-}
+const kPrimaryRed = Color(0xffB91111);
+const kFieldBg = Color(0xFFF4F6FA);
+const kFieldStroke = Color(0xFFE6E8EE);
+const kTitle = Color(0xFF111111);
+const kText = Color(0xFF23272F);
+const kHint = Color(0xFF9AA1A9);
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'JWT 로그인 예제',
-      home: const SplashPage(), // 시작 시 토큰 체크
-    );
-  }
-}
-
-/// 시작 페이지 - 토큰 체크
-class SplashPage extends StatefulWidget {
-  const SplashPage({super.key});
-  @override
-  _SplashPageState createState() => _SplashPageState();
-}
-
-class _SplashPageState extends State<SplashPage> {
-  @override
-  void initState() {
-    super.initState();
-    _checkToken();
-  }
-
-  Future<void> _checkToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwt_token');
-
-    if (!mounted) return;
-
-    if (token != null && token.isNotEmpty) {
-      // 🔹 저장된 토큰 있음 → 메인으로
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) =>  CardListPage()),
-      );
-    } else {
-      // 🔹 저장된 토큰 없음 → 로그인으로
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
-  }
-}
-
-/// 로그인 페이지
 class LoginPage extends StatefulWidget {
-  /// 로그인 성공 후 이동할 대상 (예: () => ApplicationStep1Page(...))
+  /// 로그인 성공 후 이동할 대상 화면. 지정 없으면:
+  /// - 가드에서 띄워진 경우: pop(true)
+  /// - 그 외: AppShell로 교체 이동
   final WidgetBuilder? redirectBuilder;
 
   const LoginPage({super.key, this.redirectBuilder});
 
   @override
-  _LoginPageState createState() => _LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 
   /// 어디서든 호출: 로그인 후 특정 화면으로 교체 이동
   static Future<void> goLoginThen(BuildContext context, WidgetBuilder builder) async {
@@ -85,40 +35,46 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _idCtl = TextEditingController();
+  final _pwCtl = TextEditingController();
 
-  String? _savedToken;
+  bool _remember = true; // 자동 로그인 기본 ON
   bool _loading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // ✅ 입력 변화 시 버튼 활성화 상태 갱신
-    _usernameController.addListener(_onFieldsChanged);
-    _passwordController.addListener(_onFieldsChanged);
-  }
+  bool _obscure = true;
 
   @override
   void dispose() {
-    _usernameController.removeListener(_onFieldsChanged);
-    _passwordController.removeListener(_onFieldsChanged);
-    _usernameController.dispose();
-    _passwordController.dispose();
+    _idCtl.dispose();
+    _pwCtl.dispose();
     super.dispose();
-  }
-
-  void _onFieldsChanged() {
-    if (mounted) setState(() {}); // build 재실행 → 버튼 활성/비활성 갱신
   }
 
   bool get _canSubmit =>
       !_loading &&
-          _usernameController.text.trim().isNotEmpty &&
-          _passwordController.text.trim().isNotEmpty;
+          _idCtl.text.trim().isNotEmpty &&
+          _pwCtl.text.trim().isNotEmpty;
+
+  InputDecoration _dec(String hint) => InputDecoration(
+    hintText: hint,
+    hintStyle: const TextStyle(color: kHint, fontSize: 16),
+    filled: true,
+    fillColor: kFieldBg,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: kFieldStroke),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: kPrimaryRed, width: 1.2),
+    ),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: kFieldStroke),
+    ),
+  );
 
   Future<void> _login() async {
-    // 간단 검증
     if (!_canSubmit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('아이디와 비밀번호를 입력해 주세요.')),
@@ -126,78 +82,90 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    final loginUrl = '${API.baseUrl}/jwt/api/login'; // 서버 엔드포인트 확인 필요
     setState(() => _loading = true);
-
     try {
-      final resp = await http.post(
-        Uri.parse(loginUrl),
+      final url = Uri.parse('${API.baseUrl}/jwt/api/login');
+
+      final res = await http.post(
+        url,
         headers: {'Content-Type': 'application/json'},
-        // 서버 DTO 필드명에 맞춰 수정 (username/password 또는 id/pw 등)
         body: jsonEncode({
-          'username': _usernameController.text.trim(),
-          'password': _passwordController.text.trim(),
+          'username': _idCtl.text.trim(),
+          'password': _pwCtl.text.trim(),
         }),
       );
 
-      final raw = utf8.decode(resp.bodyBytes);
-
-      if (resp.statusCode != 200) {
-        _showErrorDialog('서버 오류 (${resp.statusCode})');
+      final raw = utf8.decode(res.bodyBytes);
+      if (res.statusCode != 200) {
+        _showError('서버 오류 (${res.statusCode})');
         return;
       }
 
-      // JSON 토큰 파싱 → 실패 시 text/plain 토큰 시도
-      String? token;
+      // 응답 파싱
+      String? access;
+      String? refresh;
       try {
-        final parsed = jsonDecode(raw);
-        if (parsed is Map<String, dynamic>) {
-          token = (parsed['token'] ?? parsed['accessToken'])?.toString();
+        final data = jsonDecode(raw);
+        if (data is Map<String, dynamic>) {
+          access  = (data['accessToken'] ?? data['access'] ?? data['token'])?.toString();
+          refresh = (data['refreshToken'] ?? data['refresh'])?.toString();
         }
       } catch (_) {
         if (raw.isNotEmpty && !raw.trim().startsWith('<')) {
-          token = raw.trim();
+          access = raw.trim();
         }
       }
 
-      if (token == null || token.isEmpty) {
-        _showErrorDialog('서버에서 토큰을 받지 못했습니다.');
+      if (access == null || access.isEmpty) {
+        _showError('서버에서 액세스 토큰을 받지 못했습니다.');
         return;
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('jwt_token', token);
-      _savedToken = token;
+      // 상태 저장
+      await AuthState.markLoggedIn(
+        remember: _remember,
+        access: access,
+        refresh: refresh,
+      );
+      await AuthState.debugDump();
 
       if (!mounted) return;
+      final rootNav = Navigator.of(context, rootNavigator: true);
 
-      // ✅ 리다이렉트 대상이 있으면 그곳으로, 없으면 메인으로
       if (widget.redirectBuilder != null) {
-        Navigator.pushReplacement(
-          context,
+        rootNav.pushAndRemoveUntil(
           MaterialPageRoute(builder: widget.redirectBuilder!),
+              (route) => false,
         );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => CardListPage()),
+        return;
+      }
+
+      final popped = await rootNav.maybePop(true);
+      if (!popped) {
+        rootNav.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AppShell()),
+              (route) => false,
         );
       }
     } catch (e) {
-      _showErrorDialog('네트워크 오류: $e');
+      _showError('네트워크 오류: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _showErrorDialog(String message) {
+  void _showError(String msg) {
     showDialog(
       context: context,
+      useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         title: const Text('로그인 실패'),
-        content: Text(message),
+        content: Text(msg),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('확인')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(),
+            child: const Text('확인'),
+          ),
         ],
       ),
     );
@@ -205,78 +173,142 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final canSubmit = _canSubmit;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('로그인')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      backgroundColor: Colors.white,
+      // 상단 AppBar 대신 토스처럼 얇은 헤더 + 큰 타이틀
+      body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(labelText: '아이디'),
-              textInputAction: TextInputAction.next,
-              onSubmitted: (_) => FocusScope.of(context).nextFocus(),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: '비밀번호'),
-              obscureText: true,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) {
-                if (_canSubmit) _login(); // 엔터로 로그인
-              },
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: _canSubmit ? _login : null, // ✅ 활성/비활성 정상 동작
-                child: _loading
-                    ? const SizedBox(
-                    width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('로그인'),
+            // 헤더
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    splashRadius: 22,
+                    icon: const Icon(Icons.close, color: Colors.black87),
+                    onPressed: () => Navigator.of(context, rootNavigator: true).maybePop(),
+                  ),
+                ],
               ),
             ),
-            if (_savedToken != null) ...[
-              const SizedBox(height: 20),
-              const Text('저장된 토큰:', style: TextStyle(fontWeight: FontWeight.bold)),
-              SelectableText(_savedToken!),
-            ]
+
+            // 본문
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 큰 타이틀
+                    const Text(
+                      '로그인',
+                      style: TextStyle(
+                        color: kTitle,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'BNK 서비스를 안전하게 이용할 수 있도록 로그인해 주세요.',
+                      style: TextStyle(color: kText, fontSize: 14),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 아이디
+                    TextField(
+                      controller: _idCtl,
+                      decoration: _dec('아이디'),
+                      textInputAction: TextInputAction.next,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 비밀번호 + 보기 토글
+                    TextField(
+                      controller: _pwCtl,
+                      decoration: _dec('비밀번호').copyWith(
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                          icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                          color: kHint,
+                        ),
+                      ),
+                      obscureText: _obscure,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _canSubmit ? _login() : null,
+                      onChanged: (_) => setState(() {}),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // 자동 로그인 (스위치형, 토스 느낌)
+                    SwitchListTile.adaptive(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('자동 로그인', style: TextStyle(fontSize: 15)),
+                      value: _remember,
+                      activeColor: kPrimaryRed,
+                      onChanged: (v) => setState(() => _remember = v),
+                    ),
+
+                    // (선택) 비밀번호 찾기
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          // TODO: 라우팅 연결 시 여기에
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.black54,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text('비밀번호 찾기'),
+                      ),
+                    ),
+
+                    const SizedBox(height: 80), // 하단 버튼과 간격 확보
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
+
+      // 하단 고정 CTA 버튼 (토스 느낌)
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: SizedBox(
+            height: 52,
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: canSubmit ? kPrimaryRed : const Color(0x33B91111),
+                foregroundColor: Colors.white,
+                elevation: canSubmit ? 0 : 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              onPressed: canSubmit ? _login : null,
+              child: _loading
+                  ? const SizedBox(
+                width: 22, height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+                  : const Text('로그인'),
+            ),
+          ),
+        ),
+      ),
     );
-  }
-}
-
-/// 토큰 자동 추가 HTTP 클라이언트
-class AuthorizedClient {
-  static Future<Map<String, String>> _headers() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwt_token');
-    if (token == null || token.isEmpty) throw Exception('저장된 토큰이 없습니다.');
-    return {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    };
-  }
-
-  static Future<http.Response> get(String url) async {
-    return http.get(Uri.parse(url), headers: await _headers());
-  }
-
-  static Future<http.Response> post(String url, Map<String, dynamic> body) async {
-    return http.post(Uri.parse(url), headers: await _headers(), body: jsonEncode(body));
-  }
-
-  static Future<http.Response> put(String url, Map<String, dynamic> body) async {
-    return http.put(Uri.parse(url), headers: await _headers(), body: jsonEncode(body));
-  }
-
-  static Future<http.Response> delete(String url) async {
-    return http.delete(Uri.parse(url), headers: await _headers());
   }
 }

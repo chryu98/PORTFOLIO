@@ -6,35 +6,152 @@
   <title>추천 상품 관리</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; color:#222;}
-    h1 { margin-bottom: 16px; }
-    h2 { margin: 32px 0 12px; }
-    .box { border:1px solid #e5e7eb; border-radius:12px; padding:16px; margin-bottom:18px; }
-    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:end; }
-    label { font-size:12px; color:#666; display:block; margin-bottom:6px; }
-    input, select, button { padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; }
-    button { cursor:pointer; }
-    table { width:100%; border-collapse:collapse; margin-top:10px; font-size:14px; }
-    th, td { border-bottom:1px solid #eee; padding:8px 10px; text-align:left; vertical-align:top; }
-    th { background:#fafafa; }
-    .kpi { display:flex; gap:12px; flex-wrap:wrap; }
-    .kpi .k { flex:1 1 160px; border:1px solid #e5e7eb; border-radius:10px; padding:12px; }
-    .muted { color:#666; font-size:12px; }
-    .right { text-align:right; }
-    .controls { display:flex; gap:8px; align-items:center; }
+/* ===== 기본 · 레이아웃 ===== */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: #fff;                 /* 전체 화이트 */
+  color: #111827;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
 
-    /* 카드/회원 셀 UI */
-    .cardcell{display:flex;align-items:center;gap:10px;min-width:240px}
-    .thumb{width:48px;height:30px;border-radius:6px;object-fit:cover;background:#f2f2f2;border:1px solid #eee}
-    .cardname{font-weight:600}
-    .cardno{color:#666;font-size:12px}
-    .avatar{width:30px;height:30px;border-radius:50%;background:#f2f2f2;border:1px solid #eee;display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:#999}
-    .memberwrap{display:flex;align-items:center;gap:10px;min-width:200px}
-    .membername{font-weight:600}
-    .memberno{color:#666;font-size:12px}
+/* 페이지 폭(가운데 정렬) */
+body > .box {
+  width: min(1100px, 92vw);         /* 필요 시 1000px/90vw 등으로 조절 */
+  margin: 0 auto;
+}
+
+/* 제목 */
+h1 {
+  margin: 0px auto 16px;
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+}
+h2 { margin: 28px 0 12px; font-size: 16px; }
+
+/* ===== 카드/컨테이너 ===== */
+.box {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+  margin: 16px auto 18px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.05);
+}
+
+/* ===== 폼/컨트롤 ===== */
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+label { font-size: 12px; color: #6b7280; display: block; margin-bottom: 6px; }
+
+input, select, button {
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  color: #111827;
+  outline: none;
+  transition: border-color .18s, box-shadow .18s, filter .12s, transform .04s;
+}
+input:focus, select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+
+button { cursor: pointer; }
+button:hover { filter: brightness(0.98); }
+button:active { transform: translateY(1px); }
+button#btnLoadKpi,
+button#btnLoadPopular,
+button#btnLoadSimilar,
+button#btnLoadLogs {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+/* ===== KPI ===== */
+.kpi { display: flex; gap: 12px; flex-wrap: wrap; }
+.kpi .k {
+  flex: 1 1 180px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  box-shadow: 0 3px 8px rgba(0,0,0,.04);
+}
+.kpi .muted { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+
+/* ===== 테이블 ===== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+th, td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: left;
+  vertical-align: top;
+  font-size: 14px;
+}
+th {
+  background: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+}
+tbody tr:hover { background: #fafafa; }
+.right { text-align: right; }
+.muted { color: #6b7280; font-size: 12px; }
+
+/* ===== 카드/회원 셀 ===== */
+.cardcell { display: flex; align-items: center; gap: 10px; min-width: 240px; }
+.thumb {
+  width: 48px; height: 30px;
+  border-radius: 6px; object-fit: cover;
+  background: #f2f2f2; border: 1px solid #eee;
+}
+.cardname { font-weight: 600; }
+.cardno { color: #6b7280; font-size: 12px; }
+
+.memberwrap { display: flex; align-items: center; gap: 10px; min-width: 200px; }
+.membername { font-weight: 600; }
+.memberno { color: #6b7280; font-size: 12px; }
+.avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #f2f2f2; border: 1px solid #eee;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; color: #9ca3af;
+}
+
+/* ===== 하단 페이지 버튼 영역 정렬 ===== */
+.row[style*="justify-content:flex-end"] { gap: 8px; }
+
+/* ===== 반응형 ===== */
+@media (max-width: 720px) {
+  h1 { font-size: 20px; }
+  th, td { padding: 9px 10px; font-size: 13px; }
+  .cardcell { min-width: 200px; }
+  .memberwrap { min-width: 160px; }
+}
+
+/* ===== 프린트 ===== */
+@media print {
+  .box { box-shadow: none; border-color: #ddd; page-break-inside: avoid; }
+  button { display: none !important; }
+}
+
   </style>
+
+<link rel="stylesheet" href="/css/adminstyle.css">
 </head>
 <body>
+<jsp:include page="../fragments/header.jsp"></jsp:include>
   <h1>추천 상품 관리</h1>
 
   <!-- KPI -->
@@ -172,6 +289,7 @@
     </div>
   </div>
 
+<script src="/js/adminHeader.js"></script>
   <script>
     const ctx = '<%= request.getContextPath() %>';
     const API = ctx + '/admin/reco';

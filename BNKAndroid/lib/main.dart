@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:bnkandroid/constants/api.dart';
-import 'app_shell.dart'; // ✅ 푸터 포함 공용 쉘
+import 'app_shell.dart';
+import 'auth_state.dart'; // ✅ 푸터 포함 공용 쉘
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();   // 필수
   await API.initBaseUrl();                     // baseUrl 먼저 초기화
+  await AuthState.init();
+  await AuthState.debugDump(); //자동로그인 체킹
   runApp(const MyApp());
 }
 
