@@ -16,7 +16,7 @@ const kPrimaryRed = Color(0xffB91111);
 class _StepHeader2 extends StatelessWidget {
   final int current; // 1-based
   final int total;
-  const _StepHeader2({required this.current, this.total = 3});
+  const _StepHeader2({required this.current, this.total = 4});
 
   @override
   Widget build(BuildContext context) {

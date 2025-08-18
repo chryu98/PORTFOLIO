@@ -2,17 +2,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:bnkandroid/navigation/nav_utils.dart';                 // ✅ 안전 팝
-import 'package:bnkandroid/app_shell.dart' show pushFullScreen;        // ✅ root push helper
+import 'package:bnkandroid/app_shell.dart' show pushFullScreen; // 루트 푸시 helper
+import 'package:bnkandroid/security/secure_screen.dart';        // 화면 캡처/미러링 방지(가능한 플랫폼)
+import 'package:bnkandroid/security/screenshot_watcher.dart';   // 스크린샷/화면녹화 시도 알림
 
 import 'ApplicationStep2Page.dart';
 import 'user/service/card_apply_service.dart';
-import 'package:bnkandroid/security/secure_screen.dart';
-import 'package:bnkandroid/security/screenshot_watcher.dart';
 
 const kPrimaryRed = Color(0xffB91111);
 
-/// 두 단계에서 주고받을 임시 폼 데이터
+/* ───────────────────────── 폼 데이터 ───────────────────────── */
+
 class ApplicationFormData {
   int? applicationNo;
   int? cardNo;
@@ -21,8 +21,8 @@ class ApplicationFormData {
   String? name;
   String? engFirstName;
   String? engLastName;
-  String? rrnFront; // 6자리
-  String? rrnBack;  // 7자리
+  String? rrnFront; // 6
+  String? rrnBack;  // 7
 
   String? email;
   String? phone;
@@ -41,7 +41,8 @@ class ApplicationFormData {
   };
 }
 
-/// 상단 얇은 단계 표시 바
+/* ───────────────────────── UI 공통 ───────────────────────── */
+
 class _StepHeader extends StatelessWidget {
   final int current; // 1-based
   final int total;
@@ -79,9 +80,11 @@ InputDecoration _fieldDec(String hint) => InputDecoration(
   ),
 );
 
+/* ───────────────────────── 페이지 ───────────────────────── */
+
 class ApplicationStep1Page extends StatefulWidget {
   final int cardNo;
-  final int? applicationNo; // /start에서 받은 값(선택)
+  final int? applicationNo; // /start 응답(선택)
   final bool? isCreditCard;
 
   const ApplicationStep1Page({
@@ -123,13 +126,14 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
     _attachFieldListeners();
     _loadPrefill(); // 로그인 기반 프리필 시도
 
-    // ⬇️ 캡처 시도 알림 on (Android/iOS에서만 동작)
+    // ⬇️ (Android/iOS만) 스크린샷/녹화 시도시 토스트/다이얼로그 알림
     ScreenshotWatcher.instance.start(context);
   }
 
   @override
   void dispose() {
-    ScreenshotWatcher.instance.stop(); // 캡쳐방지 추가
+    ScreenshotWatcher.instance.stop();
+
     _name.dispose();
     _engFirst.dispose();
     _engLast.dispose();
@@ -171,7 +175,7 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
         engLastName: _engLast.text.trim(),
         rrnFront: _rrnFront.text.trim(),
         rrnBack: _rrnBack.text.trim(),
-        applicationNo: widget.applicationNo,
+        applicationNo: widget.applicationNo, // 있으면 중복 생성 방지
       );
 
       if (resp.success) {
@@ -187,11 +191,8 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
 
         if (!mounted) return;
 
-        // ✅ Step2는 반드시 "루트 네비게이터"로 푸시
-        await pushFullScreen(
-          context,
-          ApplicationStep2Page(data: data),
-        );
+        // ✅ 발급 플로우는 루트 네비로 푸시
+        await pushFullScreen(context, ApplicationStep2Page(data: data));
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -204,15 +205,16 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('로그인이 필요합니다. 다시 로그인 후 시도해주세요.')),
         );
-        // 필요 시 로그인 페이지로 이동하는 흐름을 붙일 수 있음
       } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('오류: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('오류: $e')),
+      );
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -222,16 +224,16 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
   Widget build(BuildContext context) {
     final isBusy = _submitting || _prefilling;
 
-    return SecureScreen( // ⬅️ 캡처 방지 래퍼
+    return SecureScreen( // ⬅️ 화면 캡처/미러링 차단(가능한 플랫폼)
       child: PopScope(
-        canPop: true, // 시스템 기본 뒤로가기 허용
+        canPop: true, // 시스템 뒤로가기 허용
         onPopInvoked: (didPop) {
-          if (didPop) return; // 이미 시스템이 pop 했다면 종료
-          // 우리가 닫을 때는 키보드부터 내리고 다음 프레임에 pop
+          if (didPop) return;
+          // 우리 쪽 종료: 키보드 내리고 다음 프레임에 안전 pop
           FocusManager.instance.primaryFocus?.unfocus();
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) {
-              Navigator.of(context, rootNavigator: true).maybePop(); // 한 단계만 닫기
+              Navigator.of(context, rootNavigator: true).maybePop();
             }
           });
         },
@@ -251,11 +253,14 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
             backgroundColor: Colors.white,
             elevation: 0.5,
           ),
-          body: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
+
+          // 🔥 웹/크롬에서 레이아웃 깨짐 방지를 위해 body를 ListView 하나로 단순화
+          body: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
-                const _StepHeader(current: 1, total: 3),
+                const _StepHeader(current: 2, total: 5),
                 const SizedBox(height: 12),
                 const Align(
                   alignment: Alignment.centerLeft,
@@ -265,19 +270,82 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Expanded(
-                  child: Form(
-                    key: _formKey,
-                    child: ListView(
-                      children: [
-                        // ... 기존 입력 필드들 그대로 ...
-                      ],
-                    ),
-                  ),
+
+                // 한글 이름
+                TextFormField(
+                  controller: _name,
+                  decoration: _fieldDec('이름'),
+                  style: TextStyle(color: _colorFor(_name)),
+                  textInputAction: TextInputAction.next,
+                  validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? '이름을 입력하세요' : null,
                 ),
+                const SizedBox(height: 6),
+                const Text(
+                  '여권 이름과 동일해야 합니다.\n* 여권 이름과 다르면 해외에서 카드를 사용할 수 없습니다.',
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+
+                // 영문 성 / 이름
+                TextFormField(
+                  controller: _engLast,
+                  decoration: _fieldDec('영문 성'),
+                  style: TextStyle(color: _colorFor(_engLast)),
+                  textCapitalization: TextCapitalization.characters,
+                  textInputAction: TextInputAction.next,
+                  validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? '영문 성을 입력하세요' : null,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _engFirst,
+                  decoration: _fieldDec('영문 이름'),
+                  style: TextStyle(color: _colorFor(_engFirst)),
+                  textCapitalization: TextCapitalization.characters,
+                  textInputAction: TextInputAction.next,
+                  validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? '영문 이름을 입력하세요' : null,
+                ),
+                const SizedBox(height: 10),
+
+                // 주민번호 앞 6자리
+                TextFormField(
+                  controller: _rrnFront,
+                  decoration: _fieldDec('주민등록번호 앞자리'),
+                  style: TextStyle(color: _colorFor(_rrnFront)),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(6),
+                  ],
+                  textInputAction: TextInputAction.next,
+                  validator: (v) =>
+                  (v == null || v.length != 6) ? '앞 6자리를 입력하세요' : null,
+                ),
+                const SizedBox(height: 10),
+
+                // 주민번호 뒤 7자리
+                TextFormField(
+                  controller: _rrnBack,
+                  decoration: _fieldDec('주민등록번호 뒷자리'),
+                  style: TextStyle(color: _colorFor(_rrnBack)),
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(7),
+                  ],
+                  validator: (v) =>
+                  (v == null || v.length != 7) ? '뒤 7자리를 입력하세요' : null,
+                ),
+
+                // bottomNavigationBar와 겹치지 않도록 여백
+                const SizedBox(height: 100),
               ],
             ),
           ),
+
           bottomNavigationBar: SafeArea(
             top: false,
             child: Padding(
@@ -286,7 +354,7 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
                 height: 48,
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: isBusy ? null : _submit,
+                  onPressed: (isBusy) ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryRed,
                     foregroundColor: Colors.white,

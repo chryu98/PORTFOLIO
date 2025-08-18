@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'ApplicationStep1Page.dart' show kPrimaryRed;
 import 'user/service/card_apply_service.dart' as apply;
+import 'ApplicationStep4OcrPage.dart';
 
 /// Step 3: 직업/거래목적/자금출처 (풀스크린 선택 UI, 흰 배경, 불투명)
 class ApplicationStep3JobPage extends StatefulWidget {
@@ -55,12 +56,24 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
         fundSource: _fundSource!,
       );
       if (!mounted) return;
-      if (ok) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('저장 완료')));
-        Navigator.pop(context, true);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('저장 실패')));
+
+      if (!ok) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('저장 실패')));
+        return;
       }
+
+      // 저장 성공 → Step4로 이동
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('저장 완료')));
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ApplicationStep4OcrPage(
+            applicationNo: widget.applicationNo,
+          ),
+        ),
+      );
     } on apply.ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -86,7 +99,7 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           children: [
-            const _StepHeader3(current: 3, total: 3),
+            const _StepHeader3(current: 4, total: 5), // ← 총 4단계로 변경
             const SizedBox(height: 12),
             const Align(
               alignment: Alignment.centerLeft,
@@ -162,7 +175,7 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
 class _StepHeader3 extends StatelessWidget {
   final int current;
   final int total;
-  const _StepHeader3({required this.current, this.total = 3});
+  const _StepHeader3({required this.current, this.total = 4}); // 기본값 4로
 
   @override
   Widget build(BuildContext context) {
@@ -216,11 +229,8 @@ class FullScreenSelectField extends FormField<String> {
         }
       }
 
-      // ✅ 핵심: 힌트는 InputDecorator가 그리고, 우리는 값 있을 때만 Text를 그림
       final showHint = (selected == null || selected.isEmpty);
-      final dec = showHint
-          ? decoration // hintText 그대로 유지
-          : decoration.copyWith(hintText: null); // 값 있을 땐 hint 안 그림
+      final dec = showHint ? decoration : decoration.copyWith(hintText: null);
 
       return InkWell(
         onTap: openPage,
@@ -231,9 +241,8 @@ class FullScreenSelectField extends FormField<String> {
             errorText: hasError ? state.errorText : null,
             suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.black54),
           ),
-          // 힌트는 InputDecorator가 그림 → 값 없을 땐 child 비워두기
           child: showHint
-              ? const SizedBox(height: 20) // 높이만 확보
+              ? const SizedBox(height: 20)
               : Text(
             selected!,
             style: TextStyle(
@@ -247,7 +256,6 @@ class FullScreenSelectField extends FormField<String> {
     },
   );
 }
-
 
 class _SelectFullScreenPage extends StatelessWidget {
   final String title;
@@ -266,18 +274,17 @@ class _SelectFullScreenPage extends StatelessWidget {
     final sel = initial;
 
     return Scaffold(
-      backgroundColor: Colors.white, // 완전 흰 배경
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.4,
         leading: const CloseButton(color: Colors.black87),
-        title: Text(title,
-            style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
+        title: Text(title, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
         centerTitle: false,
       ),
       body: SafeArea(
         child: ColoredBox(
-          color: Colors.white, // 리스트 빈 영역까지 흰색 채움
+          color: Colors.white,
           child: ListView.separated(
             itemCount: options.length,
             separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F3F5)),
