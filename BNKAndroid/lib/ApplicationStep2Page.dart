@@ -6,13 +6,17 @@ import 'ApplicationStep1Page.dart' show ApplicationFormData; // ← public 클�
 import 'ApplicationStep3JobPage.dart';
 import 'user/service/card_apply_service.dart';
 
+// ⬇️ 캡처 방지/감지
+import 'package:bnkandroid/security/secure_screen.dart';
+import 'package:bnkandroid/security/screenshot_watcher.dart';
+
 const kPrimaryRed = Color(0xffB91111);
 
 /// Step 진행바(파일 로컬 전용)
 class _StepHeader2 extends StatelessWidget {
   final int current; // 1-based
   final int total;
-  const _StepHeader2({required this.current, this.total = 2});
+  const _StepHeader2({required this.current, this.total = 3});
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +82,9 @@ class _ApplicationStep2PageState extends State<ApplicationStep2Page> {
     super.initState();
     _attachFieldListeners();
 
+    // ⬇️ 스크린샷 감지 시작 (알림/로그 처리)
+    ScreenshotWatcher.instance.start(context);
+
     // Step1에서 넘어온 값이 있으면 프리필
     if ((widget.data.email ?? '').isNotEmpty) _email.text = widget.data.email!;
     if ((widget.data.phone ?? '').isNotEmpty) _phone.text = _formatPhone(widget.data.phone!);
@@ -85,6 +92,9 @@ class _ApplicationStep2PageState extends State<ApplicationStep2Page> {
 
   @override
   void dispose() {
+    // ⬇️ 스크린샷 감지 정지
+    ScreenshotWatcher.instance.stop();
+
     _email.dispose();
     _phone.dispose();
     super.dispose();
@@ -136,7 +146,6 @@ class _ApplicationStep2PageState extends State<ApplicationStep2Page> {
           ..email = email
           ..phone = phone;
 
-
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -145,7 +154,6 @@ class _ApplicationStep2PageState extends State<ApplicationStep2Page> {
             ),
           ),
         );
-
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('연락처 저장 실패')),
@@ -188,98 +196,122 @@ class _ApplicationStep2PageState extends State<ApplicationStep2Page> {
   Widget build(BuildContext context) {
     final isBusy = _loading;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: const BackButton(color: Colors.black87),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          children: [
-            const _StepHeader2(current: 2, total: 3),
-            const SizedBox(height: 12),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('정보를 입력해주세요',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+    return SecureScreen(
+      child: PopScope(
+        canPop: true, // 시스템 뒤로가기도 허용하되, 우리가 정리 동작 추가
+        onPopInvoked: (didPop) {
+          if (didPop) return;
+          FocusManager.instance.primaryFocus?.unfocus();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) {
+              Navigator.of(context, rootNavigator: true).maybePop(); // 한 단계만 닫기
+            }
+          });
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black87),
+              onPressed: () {
+                FocusManager.instance.primaryFocus?.unfocus();
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (context.mounted) {
+                    Navigator.of(context, rootNavigator: true).maybePop();
+                  }
+                });
+              },
             ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  children: [
-                    TextFormField(
-                      controller: _email,
-                      decoration: _fieldDec2('example@google.com'),
-                      style: TextStyle(color: _colorFor(_email)),
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      validator: _emailValidator,
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      '이메일로 계약서(신청서) 및 약관, 금융거래정보제공내역이\n'
-                          '교부되어 전자적 교부로 보존됩니다. 홈페이지/모바일앱>문서함에서도\n'
-                          '계약서를 확인할 수 있어요.',
-                      style: TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _phone,
-                      decoration: _fieldDec2('휴대전화 (예: 010-1234-5678)'),
-                      style: TextStyle(color: _colorFor(_phone)),
-                      keyboardType: TextInputType.phone,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9-]'))
+            backgroundColor: Colors.white,
+            elevation: 0.5,
+          ),
+          body: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              children: [
+                const _StepHeader2(current: 2, total: 3),
+                const SizedBox(height: 12),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('정보를 입력해주세요',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Form(
+                    key: _formKey,
+                    child: ListView(
+                      children: [
+                        TextFormField(
+                          controller: _email,
+                          decoration: _fieldDec2('example@google.com'),
+                          style: TextStyle(color: _colorFor(_email)),
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          validator: _emailValidator,
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          '이메일로 계약서(신청서) 및 약관, 금융거래정보제공내역이\n'
+                              '교부되어 전자적 교부로 보존됩니다. 홈페이지/모바일앱>문서함에서도\n'
+                              '계약서를 확인할 수 있어요.',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _phone,
+                          decoration: _fieldDec2('휴대전화 (예: 010-1234-5678)'),
+                          style: TextStyle(color: _colorFor(_phone)),
+                          keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'[0-9-]'))
+                          ],
+                          validator: _phoneValidator,
+                          onChanged: (v) {
+                            final f = _formatPhone(v);
+                            if (f != v) {
+                              final pos = f.length;
+                              _phone.value = TextEditingValue(
+                                text: f,
+                                selection: TextSelection.collapsed(offset: pos),
+                              );
+                            }
+                          },
+                        ),
                       ],
-                      validator: _phoneValidator,
-                      onChanged: (v) {
-                        final f = _formatPhone(v);
-                        if (f != v) {
-                          final pos = f.length;
-                          _phone.value = TextEditingValue(
-                            text: f,
-                            selection: TextSelection.collapsed(offset: pos),
-                          );
-                        }
-                      },
                     ),
-                  ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          bottomNavigationBar: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: SizedBox(
+                height: 48,
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimaryRed,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: isBusy ? null : _finish,
+                  child: isBusy
+                      ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                      : const Text('다음'),
                 ),
               ),
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: SizedBox(
-            height: 48,
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimaryRed,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: isBusy ? null : _finish,
-              child: isBusy
-                  ? const SizedBox(
-                height: 22,
-                width: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-                  : const Text('다음'),
-            ),
           ),
+          backgroundColor: Colors.white,
         ),
       ),
-      backgroundColor: Colors.white,
     );
   }
 }
