@@ -1,3 +1,4 @@
+import 'package:bnkandroid/user/CardEditorPage.dart';
 import 'package:bnkandroid/user/LoginPage.dart';
 import 'package:flutter/material.dart';
 import 'user/CardListPage.dart';
@@ -23,7 +24,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
 
-      home: NaverMapPage(),
+      home: CardEditorPage(),
 
 
 
