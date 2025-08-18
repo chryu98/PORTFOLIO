@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.busanbank.card.admin.dao.IAdminVerifyLogDao">
+
+  <!-- 전체 로그 조회 -->
+  <select id="findAll" resultType="com.busanbank.card.admin.dto.VerifyLogDto">
+    SELECT log_no AS logNo,
+           user_no AS userNo,
+           status,
+           reason,
+           created_at AS createdAt
+    FROM VERIFY_LOG
+    ORDER BY created_at DESC
+  </select>
+
+  <!-- 특정 사용자 로그 조회 -->
+  <select id="findByUserNo" parameterType="string" resultType="com.busanbank.card.admin.dto.VerifyLogDto">
+    SELECT log_no AS logNo,
+           user_no AS userNo,
+           status,
+           reason,
+           created_at AS createdAt
+    FROM VERIFY_LOG
+    WHERE user_no = #{userNo}
+    ORDER BY created_at DESC
+  </select>
+
+  <!-- 로그 저장 -->
+  <insert id="insertLog" parameterType="com.busanbank.card.admin.dto.VerifyLogDto">
+    INSERT INTO VERIFY_LOG (log_no, user_no, status, reason, created_at)
+    VALUES (VERIFY_LOG_SEQ.NEXTVAL, #{userNo}, #{status}, #{reason}, SYSDATE)
+  </insert>
+
+</mapper>

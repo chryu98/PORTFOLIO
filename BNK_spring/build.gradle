@@ -41,7 +41,7 @@ dependencies {
 	implementation 'org.seleniumhq.selenium:selenium-java:4.34.0'
 	implementation 'org.seleniumhq.selenium:selenium-chrome-driver:4.34.0'
 	 
-	
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
