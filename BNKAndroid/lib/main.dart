@@ -7,6 +7,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();   // 필수
   await API.initBaseUrl();                     // baseUrl 먼저 초기화
   await AuthState.init();
+  await AuthState.debugDump(); //자동로그인 체킹
   runApp(const MyApp());
 }
 

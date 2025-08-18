@@ -127,6 +127,7 @@ class _LoginPageState extends State<LoginPage> {
         access: access,
         refresh: refresh,
       );
+      await AuthState.debugDump();
 
       if (!mounted) return;
       final rootNav = Navigator.of(context, rootNavigator: true);
