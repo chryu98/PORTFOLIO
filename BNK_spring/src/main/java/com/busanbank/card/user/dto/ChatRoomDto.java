@@ -11,4 +11,5 @@ public class ChatRoomDto {
     private Integer unreadCount;
     private Date createdAt;
     private Date closedAt;
+    private Date lastMessageAt; // ★ 추가
 }

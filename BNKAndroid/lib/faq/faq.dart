@@ -37,18 +37,37 @@ class _FaqPageState extends State<FaqPage> {
 
   Timer? _debounce;
 
+  // ── Tip Bubble(“궁금한 점…”)
+  Timer? _tipTicker;
+  bool _showTip = false;
+  static const _tipInterval = Duration(seconds: 5);
+  static const _tipVisibleFor = Duration(milliseconds: 2500);
+
   @override
   void initState() {
     super.initState();
     _goTo(0);
+    _startTipTicker();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _tipTicker?.cancel();
     _scroll.dispose();
     _queryCtrl.dispose();
     super.dispose();
+  }
+
+  void _startTipTicker() {
+    _tipTicker?.cancel();
+    _tipTicker = Timer.periodic(_tipInterval, (_) {
+      if (!mounted) return;
+      setState(() => _showTip = true);
+      Future.delayed(_tipVisibleFor, () {
+        if (mounted) setState(() => _showTip = false);
+      });
+    });
   }
 
   String _effectiveQuery() {
@@ -82,7 +101,7 @@ class _FaqPageState extends State<FaqPage> {
   Widget build(BuildContext context) {
     // 상단 AppBar를 피해서 챗봇 버튼을 띄우기 위한 안전 오프셋
     final safeTop = MediaQuery.of(context).padding.top;
-    final chatTopOffset = safeTop + kToolbarHeight + 8; // AppBar 바로 아래 살짝 띄움
+    final chatTopOffset = safeTop + kToolbarHeight + 8; // AppBar 아래 살짝 띄움
 
     return WillPopScope(
       onWillPop: () async {
@@ -112,12 +131,13 @@ class _FaqPageState extends State<FaqPage> {
           ),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(1),
-            child: Container(height: 1, color: Colors.black.withValues(alpha: 0.06)),
+            child: Container(height: 1, color: Colors.black.withOpacity(0.06)),
           ),
         ),
 
         // FAB를 상단-우측에 "화면 위로" 띄우기 위해 Stack 오버레이 사용
         body: Stack(
+          clipBehavior: Clip.none,
           children: [
             RefreshIndicator(
               onRefresh: _onRefresh,
@@ -140,19 +160,41 @@ class _FaqPageState extends State<FaqPage> {
               ),
             ),
 
-            // 오른쪽 위로 띄운 챗봇 FAB (고정 위치)
+            // 오른쪽 위로 띄운 챗봇 FAB + Tip 말풍선
             Positioned(
-              top: chatTopOffset,   // ← 필요하면 이 값만 조정하면 됨
+              top: chatTopOffset,
               right: 12,
-              child: _ChatFab(
-                compact: true, // 아이콘 원형 캡슐 (상단에 잘 어울림)
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    barrierDismissible: true,
-                    builder: (_) => const ChatbotModal(),
-                  );
-                },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Tip 말풍선 (5초마다 2.5초 표시)
+                  AnimatedSlide(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOut,
+                    offset: _showTip ? Offset.zero : const Offset(0.05, 0),
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 220),
+                      opacity: _showTip ? 1 : 0,
+                      child: _TipBubble(
+                        text: '궁금한 점이 있으시면 눌러주세요',
+                        bg: Colors.white,
+                        fg: _ink,
+                        border: Colors.black.withOpacity(0.12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _ChatFab(
+                    compact: true,
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: true,
+                        builder: (_) => const ChatbotModal(),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ],
@@ -186,7 +228,7 @@ class _FaqPageState extends State<FaqPage> {
             contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.06)),
+              borderSide: BorderSide(color: Colors.black.withOpacity(0.06)),
             ),
             focusedBorder: const OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(14)),
@@ -212,7 +254,7 @@ class _FaqPageState extends State<FaqPage> {
               selectedColor: _bnkRed,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: selected ? _bnkRed : Colors.black.withValues(alpha: 0.12)),
+                side: BorderSide(color: selected ? _bnkRed : Colors.black.withOpacity(0.12)),
               ),
               onSelected: (v) {
                 if (!v) return;
@@ -262,7 +304,7 @@ class _FaqPageState extends State<FaqPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 14, offset: const Offset(0, 6))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 6))],
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -296,7 +338,7 @@ class _FaqPageState extends State<FaqPage> {
     decoration: BoxDecoration(
       color: const Color(0xFFFFEEF0),
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: _bnkRed.withValues(alpha: 0.2)),
+      border: Border.all(color: _bnkRed.withOpacity(0.2)),
     ),
     child: Text(cat, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _ink)),
   );
@@ -310,7 +352,7 @@ class _FaqPageState extends State<FaqPage> {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white, borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 6))],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 6))],
         ),
         child: Row(
           children: [
@@ -335,7 +377,7 @@ class _FaqPageState extends State<FaqPage> {
   }) {
     final bg = primary ? _bnkRed : Colors.white;
     final fg = primary ? Colors.white : _ink;
-    final side = primary ? BorderSide.none : BorderSide(color: Colors.black.withValues(alpha: 0.15));
+    final side = primary ? BorderSide.none : BorderSide(color: Colors.black.withOpacity(0.15));
     return SizedBox(
       height: 44,
       child: OutlinedButton.icon(
@@ -359,7 +401,7 @@ class _FaqPageState extends State<FaqPage> {
 }
 
 /// ─────────────────────────────────────────────────────────────────
-/// 말랑한 BNK 톤 챗봇 FAB (오른쪽 위 고정, compact=true면 원형)
+/// 아주 깔끔한 BNK 톤 챗봇 FAB (상단 고정용 원형)
 class _ChatFab extends StatelessWidget {
   final VoidCallback onTap;
   final bool compact; // true: 원형(상단용), false: 라벨 포함 캡슐
@@ -368,7 +410,7 @@ class _ChatFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (compact) {
-      // 상단 고정에 어울리는 원형 스타일
+      // 상단 고정에 어울리는 “미니멀 원형” : 그림자 최소화, 경계만 살짝
       return Semantics(
         button: true,
         label: '챗봇 열기',
@@ -384,27 +426,24 @@ class _ChatFab extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: [_FaqPageState._bnkRed, _FaqPageState._bnkRedDark],
               ),
-              boxShadow: [
+              boxShadow: const [
+                // 과한 그림자 제거하고, 미세한 깊이감만
                 BoxShadow(
-                  color: _FaqPageState._bnkRed.withValues(alpha: 0.28),
-                  blurRadius: 16,
-                  offset: const Offset(0, 10),
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
+                  color: Color(0x22000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
                 ),
               ],
-              border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1),
+              border: Border.all(color: Colors.white.withOpacity(0.22), width: 1),
             ),
             child: InkWell(
               onTap: onTap,
               customBorder: const CircleBorder(),
-              splashColor: Colors.white.withValues(alpha: 0.14),
-              highlightColor: Colors.white.withValues(alpha: 0.08),
+              splashColor: Colors.white.withOpacity(0.14),
+              highlightColor: Colors.white.withOpacity(0.08),
               child: const Center(
-                child: Icon(Icons.smart_toy_rounded, color: Colors.white, size: 26),
+                // 미니멀 로봇 아이콘 (알록달록/그림자 X)
+                child: Icon(Icons.smart_toy_outlined, color: Colors.white, size: 26),
               ),
             ),
           ),
@@ -412,7 +451,7 @@ class _ChatFab extends StatelessWidget {
       );
     }
 
-    // 하단 배치 시 쓰기 좋은 라벨 포함 캡슐형 (필요하면 compact=false로 사용)
+    // 필요 시 하단 배치: 라벨 포함 캡슐형
     return Semantics(
       button: true,
       label: '챗봇 열기',
@@ -426,34 +465,21 @@ class _ChatFab extends StatelessWidget {
               colors: [_FaqPageState._bnkRed, _FaqPageState._bnkRedDark],
             ),
             borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: _FaqPageState._bnkRed.withValues(alpha: 0.30),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 6,
-                offset: const Offset(0, 3),
-              ),
+            boxShadow: const [
+              BoxShadow(color: Color(0x22000000), blurRadius: 10, offset: Offset(0, 4)),
             ],
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08),
-              width: 1,
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.10), width: 1),
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(28),
             onTap: onTap,
-            splashColor: Colors.white.withValues(alpha: 0.12),
-            highlightColor: Colors.white.withValues(alpha: 0.06),
-            child: Padding(
-              padding: const EdgeInsets.only(left: 8, right: 14, top: 6, bottom: 6),
+            splashColor: Colors.white.withOpacity(0.12),
+            highlightColor: Colors.white.withOpacity(0.06),
+            child: const Padding(
+              padding: EdgeInsets.only(left: 8, right: 14, top: 6, bottom: 6),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
-                  // 아이콘 캡
+                children: [
                   _IconCap(),
                   SizedBox(width: 10),
                   Text(
@@ -486,19 +512,68 @@ class _IconCap extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
+        boxShadow: const [
+          BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 3)),
         ],
       ),
-      child: const Icon(
-        Icons.smart_toy_rounded,
-        color: _FaqPageState._bnkRed,
-        size: 24,
-      ),
+      child: const Icon(Icons.smart_toy_outlined, color: _FaqPageState._bnkRed, size: 24),
+    );
+  }
+}
+
+/// 말풍선 UI (오른쪽 아래 꼬리)
+class _TipBubble extends StatelessWidget {
+  final String text;
+  final Color bg;
+  final Color fg;
+  final Color border;
+  const _TipBubble({
+    required this.text,
+    required this.bg,
+    required this.fg,
+    required this.border,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: border),
+            boxShadow: const [
+              BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Text(
+            text,
+            style: TextStyle(color: fg, fontWeight: FontWeight.w600),
+          ),
+        ),
+        // 꼬리(오른쪽 아래)
+        Positioned(
+          right: 10,
+          bottom: -6,
+          child: Transform.rotate(
+            angle: 0.785398, // 45도
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: bg,
+                border: Border(
+                  right: BorderSide(color: border),
+                  bottom: BorderSide(color: border),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -509,11 +584,11 @@ void main() async {
 
   await API.initBaseUrl();
   // 스프링 FAQ 서버(필수)
-  FAQApi.useLan(ip: '192.168.35.123', port: 8090); // 본인 IP
+  FAQApi.useLan(ip: '192.168.0.5', port: 8090); // 본인 IP
   FAQApi.setPathPrefix('/api');                 // 백엔드가 /api/faq 라우트일 때
 
   // 챗봇 서버 선택(둘 중 하나)
-  ChatAPI.useFastAPI(ip: '192.168.35.123', port: 8000);      // FastAPI 직접
+  ChatAPI.useFastAPI(ip: '192.168.0.5', port: 8000);      // FastAPI 직접
   // ChatAPI.useSpringProxy(ip: '192.168.0.5', port: 8090); // 스프링 프록시
 
   runApp(const MaterialApp(debugShowCheckedModeBanner: false, home: FaqPage()));
