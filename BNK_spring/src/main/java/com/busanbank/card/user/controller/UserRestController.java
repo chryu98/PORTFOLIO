@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.busanbank.card.cardapply.config.JwtTokenProvider;
+import com.busanbank.card.user.dao.IUserDao;
+import com.busanbank.card.user.dto.UserDto;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -39,7 +41,9 @@ public class UserRestController {
 	private SessionRegistry sessionRegistry;
 	@Autowired
 	private JwtTokenProvider jwtTokenProvider;
-
+	@Autowired
+	private IUserDao userDao;
+	
 	@PostMapping(value = "/login", produces = "application/json; charset=UTF-8")
 	public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest, HttpServletRequest request) {
 		
@@ -48,6 +52,8 @@ public class UserRestController {
 		String username = loginRequest.get("username");
 		String password = loginRequest.get("password");
 
+		System.out.println("username: " + username);
+		
 		try {
 			Authentication authentication = authenticationManager
 					.authenticate(new UsernamePasswordAuthenticationToken(username, password));
@@ -60,9 +66,13 @@ public class UserRestController {
 
 	        String token = jwtTokenProvider.createToken(username, roles);
 			
+	        UserDto user = userDao.findByUsername(username); // userDao에서 사용자 정보 가져오기
+	        int memberNo = user.getMemberNo();
+	        
 			response.put("success", true);
 			response.put("message", "로그인 성공");
 			response.put("token", token);
+			response.put("memberNo", memberNo);
 			
 			return ResponseEntity.ok(response);
 
@@ -111,6 +121,20 @@ public class UserRestController {
 	    response.put("status", "active");
 	    return ResponseEntity.ok(response);
 	}
+	
+	@PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletRequest request) {
+        // 서버 세션 제거
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+
+        // JWT는 클라이언트가 관리하므로 localStorage에서 제거
+        Map<String, String> res = new HashMap<>();
+        res.put("message", "로그아웃 되었습니다.");
+        return ResponseEntity.ok(res);
+    }
 	
 //	@GetMapping("/session-expired")
 //	public ResponseEntity<?> sessionExpired() {

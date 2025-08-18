@@ -40,9 +40,14 @@
     };
 
     try {
+    	const jwtToken = localStorage.getItem("jwtToken"); // 로그인 시 저장한 토큰
+    	
       const response = await fetch('/card/apply/api/validateInfo', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + jwtToken  // JWT 헤더 추가
+        },
         body: JSON.stringify(data),
       });
 

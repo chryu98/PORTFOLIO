@@ -1,5 +1,6 @@
 package com.busanbank.card.cardapply.controller;
 
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,11 +38,6 @@ public class CardApplyRestController {
     @Autowired private IUserDao userDao;
     @Autowired private CardDao cardDao;
     @Autowired private ICardApplyDao cardApplyDao;
-
-    @GetMapping("/card-terms")
-    public List<PdfFilesDto> getCardTerms(@RequestParam("cardNo") long cardNo) {
-    	return cardApplyDao.getTermsByCardNo(cardNo);
-    }
     
     /** 현재 인증된 사용자 조회 (JWT 기반) */
     private UserDto currentUser() {

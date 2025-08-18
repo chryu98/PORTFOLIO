@@ -48,6 +48,10 @@ document.addEventListener("DOMContentLoaded", () => {
 				const result = await response.json();
 
 				if (response.ok) {
+					// 서버 세션 로그아웃 후 JWT 제거
+					localStorage.removeItem("jwtToken");
+					localStorage.removeItem("memberNo"); // 필요 시 제거
+									
 					alert(result.message);
 					location.href = "/";
 				} else {

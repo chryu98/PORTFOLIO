@@ -57,4 +57,6 @@ public interface IUserDao {
     
     @Select("SELECT card_url, card_name FROM card WHERE card_no IN (1, 2, 3)")
     List<CardDto> findMyCard();
+    
+    
 }

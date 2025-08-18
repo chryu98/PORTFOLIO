@@ -61,9 +61,14 @@ document.getElementById('jobForm').addEventListener('submit', async function(e) 
     };
 
     try {
+    	const jwtToken = localStorage.getItem("jwtToken");
+    	
         const response = await fetch('/card/apply/api/saveJobInfo', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + jwtToken  // JWT 헤더 추가
+            },
             body: JSON.stringify(data)
         });
 

@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.SelectKey;
 import org.apache.ibatis.annotations.Update;
@@ -63,5 +64,12 @@ public interface ICardApplyDao {
 		    ORDER BY ct.display_order
 		""")
 	List<PdfFilesDto> getTermsByCardNo(long cardNo);
+	
+	@Insert("INSERT INTO card_terms_agreement (agreement_no, member_no, card_no, pdf_no, agreed_at, created_at, updated_at) " +
+	        "VALUES (CARD_AGREEMENT_SEQ.NEXTVAL, #{memberNo}, #{cardNo}, #{pdfNo}, SYSDATE, SYSDATE, NULL)")
+	void insertAgreement(@Param("memberNo") int memberNo,
+	                     @Param("cardNo") Long cardNo,
+	                     @Param("pdfNo") Long pdfNo);
+
 	
 }

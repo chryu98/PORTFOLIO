@@ -1,5 +1,7 @@
 package com.busanbank.card.cardapply.controller;
 
+import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,12 +9,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.busanbank.card.card.dao.CardDao;
 import com.busanbank.card.cardapply.dao.ICardApplyDao;
+import com.busanbank.card.cardapply.dto.PdfFilesDto;
+import com.busanbank.card.cardapply.dto.TermsAgreementRequest;
 import com.busanbank.card.user.dao.IUserDao;
 import com.busanbank.card.user.dto.UserDto;
 import com.busanbank.card.user.util.AESUtil;
@@ -26,8 +32,35 @@ public class CardApplyApiController {
     @Autowired
     private CardDao cardDao;
     @Autowired
-    private ICardApplyDao applyDao;
+    private ICardApplyDao cardApplyDao;
 
+    @GetMapping("/card-terms")
+    public List<PdfFilesDto> getCardTerms(@RequestParam("cardNo") long cardNo) {
+    	List<PdfFilesDto> terms = cardApplyDao.getTermsByCardNo(cardNo);
+
+        for (PdfFilesDto term : terms) {
+            if (term.getPdfData() != null) {
+                // byte[] → Base64 문자열
+                term.setPdfDataBase64(Base64.getEncoder().encodeToString(term.getPdfData()));
+                term.setPdfData(null); // JSON 전송 시 byte[] 제거
+            }
+        }
+        return terms;
+    }
+    
+    @PostMapping("/terms-agree")
+    public ResponseEntity<String> agreeTerms(@RequestBody TermsAgreementRequest request) {
+        if (request.getPdfNos() == null || request.getPdfNos().isEmpty()) {
+            return ResponseEntity.badRequest().body("동의한 약관이 없습니다.");
+        }
+
+        for (Long pdfNo : request.getPdfNos()) {
+            cardApplyDao.insertAgreement(request.getMemberNo(), request.getCardNo(), pdfNo);
+        }
+
+        return ResponseEntity.ok("약관 동의 저장 완료");
+    }
+    
     @GetMapping("/customer-info")
     public ResponseEntity<?> getCustomerInfo(
             @RequestParam("cardNo") int cardNo,
@@ -57,4 +90,6 @@ public class CardApplyApiController {
             "cardNo", cardNo
         ));
     }
+    
+    
 }

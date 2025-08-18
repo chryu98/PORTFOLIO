@@ -98,8 +98,9 @@ public class UserSecurityConfig {
         http
         .securityMatcher("/regist/**", "/user/chat/**", "/user/**", "/user/api/**", "/card/apply/**", "/card/apply/api/**", "/loginProc", "/logout")
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/user/api/**").permitAll()
-            .anyRequest().permitAll()
+        		.requestMatchers("/user/api/login").permitAll() // 로그인 API는 JWT 없어도 허용
+        	    .requestMatchers("/user/api/**").authenticated()
+                .anyRequest().permitAll()
         )
         .addFilterBefore(new JwtTokenFilter(jwtTokenProvider, userDetailsService),
                 UsernamePasswordAuthenticationFilter.class)
@@ -107,7 +108,6 @@ public class UserSecurityConfig {
         .csrf(csrf -> csrf.disable())
         .formLogin(auth -> auth
             .loginPage("/user/login")
-            .loginProcessingUrl("/loginProc")
             .successHandler(customLoginSuccessHandler)
             .failureUrl("/user/login?error=true")
             .permitAll()

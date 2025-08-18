@@ -49,7 +49,8 @@ public class RestLoginSuccessHandler implements AuthenticationSuccessHandler {
         response.setContentType("application/json; charset=UTF-8");
         response.setCharacterEncoding("UTF-8");
         
-        String json = String.format("{\"message\":\"로그인 성공\", \"token\":\"%s\"}", token);
+        String json = String.format("{\"message\":\"로그인 성공\", \"token\":\"%s\", \"memberNo\":%d}",
+                token, userDetails.getMemberNo());
         response.getWriter().write(json);
     }
 }

@@ -134,11 +134,13 @@
 			});
 	
 			const result = await response.json();
-
+			
 			if (response.ok) {
 				// 핵심: 로그인 성공 시 토큰을 localStorage에 저장
 	            if (result.token) {
+	            	
 	                localStorage.setItem('jwtToken', result.token);
+	                localStorage.setItem('memberNo', result.memberNo);
 	                // 토큰 저장 후 원하는 페이지로 이동
 	                location.href = "/"; 
 	            } else {

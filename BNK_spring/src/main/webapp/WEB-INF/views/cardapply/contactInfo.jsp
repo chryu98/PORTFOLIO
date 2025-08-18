@@ -38,9 +38,14 @@
 	    };
 
 	    try {
+	    	const jwtToken = localStorage.getItem("jwtToken");
+	    	
 	        const response = await fetch("/card/apply/api/validateContact", {
 	            method: "POST",
-	            headers: { "Content-Type": "application/json" },
+	            headers: {
+	                "Content-Type": "application/json",
+	                "Authorization": "Bearer " + jwtToken  // JWT 헤더 추가
+	            },
 	            body: JSON.stringify(formData)
 	        });
 	        const data = await response.json();

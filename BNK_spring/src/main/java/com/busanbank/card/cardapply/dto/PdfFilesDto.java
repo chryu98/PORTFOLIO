@@ -5,8 +5,9 @@ import lombok.Data;
 @Data
 public class PdfFilesDto {
 
-	private Integer pdfNo;
+	private Long pdfNo;
 	private String pdfName;
 	private byte[] pdfData;
+	private String pdfDataBase64;
 	private char isRequired;
 }
