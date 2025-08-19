@@ -116,11 +116,27 @@ public class CardApplyApiController {
     }
     
     @GetMapping("/address-home")
-    public ResponseEntity<?> getAddress(@RequestParam("memberNo")int memberNo) {
-    	AddressDto address = cardApplyDao.findAddressByMemberNo(memberNo);
-    	
-    	if (address == null) {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<?> getAddress(
+            @RequestParam(value = "memberNo", required = false) Integer memberNo,
+            Authentication authentication) {
+
+        if (memberNo == null) {
+            if (authentication == null || authentication.getName() == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                     .body(Map.of("error", "로그인이 필요합니다."));
+            }
+            String username = authentication.getName();
+            UserDto loginUser = userDao.findByUsername(username);
+            if (loginUser == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                     .body(Map.of("error", "사용자 정보 없음"));
+            }
+            memberNo = loginUser.getMemberNo();
+        }
+
+        AddressDto address = cardApplyDao.findAddressByMemberNo(memberNo);
+        if (address == null) {
+            return ResponseEntity.notFound().build(); // 404 → 프리필 없음
         }
         return ResponseEntity.ok(address);
     }
