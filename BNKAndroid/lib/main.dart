@@ -1,9 +1,10 @@
-import 'package:bnkandroid/user/CardEditorPage.dart';
+
 import 'package:bnkandroid/user/LoginPage.dart';
 import 'package:flutter/material.dart';
 import 'user/CardListPage.dart';
 import 'package:bnkandroid/constants/api.dart';
 import 'user/NaverMapPage.dart';
+import 'webview/SpringCardEditorPage.dart';
 
 // await NaverMapSdk.instance.initialize(clientId: "your client id");
 // await NaverMapSdk.instance.initialize();
@@ -18,13 +19,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    //웹뷰용 url
+    const springUrl = 'http://192.168.0.224:8090/editor/card';
+
     return MaterialApp(
       title: 'Card App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
 
-      home: CardEditorPage(),
+      home: const SpringCardEditorPage(url: springUrl),
 
 
 
