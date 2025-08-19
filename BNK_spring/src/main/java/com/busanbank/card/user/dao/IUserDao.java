@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import com.busanbank.card.card.dto.CardDto;
+import com.busanbank.card.cardapply.dto.AddressDto;
 import com.busanbank.card.user.dto.TermDto;
 import com.busanbank.card.user.dto.TermsAgreementDto;
 import com.busanbank.card.user.dto.UserDto;

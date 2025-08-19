@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.busanbank.card.card.dao.CardDao;
 import com.busanbank.card.cardapply.dao.ICardApplyDao;
+import com.busanbank.card.cardapply.dto.AddressDto;
 import com.busanbank.card.cardapply.dto.PdfFilesDto;
 import com.busanbank.card.cardapply.dto.TermsAgreementRequest;
 import com.busanbank.card.user.dao.IUserDao;
@@ -91,5 +92,32 @@ public class CardApplyApiController {
         ));
     }
     
+    @GetMapping("/address-home")
+    public ResponseEntity<?> getAddress(@RequestParam("memberNo")int memberNo) {
+    	AddressDto address = cardApplyDao.findAddressByMemberNo(memberNo);
+    	
+    	if (address == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(address);
+    }
     
+    @PostMapping("/address-save")
+    public ResponseEntity<?> saveAddress(@RequestBody AddressDto address) {
+        
+    	String address1 = address.getAddress1() + " " + address.getExtraAddress();
+    	address.setAddress1(address1);
+    	
+    	if (address.getAddressType().equals("H")) {
+        	address.setAddressType("H");
+        } else {
+        	address.setAddressType("W");
+        }
+    	
+    	System.out.println(address);
+    	
+        cardApplyDao.updateApplicationAddressTemp(address);
+        
+        return ResponseEntity.ok("주소 저장 완료");
+    }
 }

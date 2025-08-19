@@ -78,6 +78,12 @@ public class CardApplyController {
 		model.addAttribute("applicationNo", applicationNo);
 		return "cardapply/addressInfo";
 	}
+	
+	@GetMapping("/cardOption")
+	public String cardOption(@RequestParam("applicationNo") Integer applicationNo, Model model) {
+		model.addAttribute("applicationNo", applicationNo);
+		return "cardapply/cardOption";
+	}
 
 	
 	// 계좌관리

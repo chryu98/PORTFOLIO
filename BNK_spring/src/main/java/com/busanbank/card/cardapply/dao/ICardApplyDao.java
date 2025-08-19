@@ -9,6 +9,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.SelectKey;
 import org.apache.ibatis.annotations.Update;
 
+import com.busanbank.card.cardapply.dto.AddressDto;
 import com.busanbank.card.cardapply.dto.ApplicationPersonTempDto;
 import com.busanbank.card.cardapply.dto.CardApplicationTempDto;
 import com.busanbank.card.cardapply.dto.ContactInfoDto;
@@ -71,5 +72,11 @@ public interface ICardApplyDao {
 	                     @Param("cardNo") Long cardNo,
 	                     @Param("pdfNo") Long pdfNo);
 
+	@Select("SELECT zip_code, address1, address2 FROM member WHERE member_no = #{memberNo}")
+    AddressDto findAddressByMemberNo(int memberNo);
 	
+	@Update("UPDATE APPLICATION_PERSON_TEMP "
+			+ "SET zip_code = #{zipCode}, address1 = #{address1}, address2 = #{address2}, address_type = #{addressType} "
+			+ "WHERE APPLICATION_NO = #{applicationNo}")
+	int updateApplicationAddressTemp(AddressDto address);
 }
