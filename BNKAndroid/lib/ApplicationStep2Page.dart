@@ -151,6 +151,7 @@ class _ApplicationStep2PageState extends State<ApplicationStep2Page> {
           MaterialPageRoute(
             builder: (_) => ApplicationStep3JobPage(
               applicationNo: widget.data.applicationNo!, // Step1에서 받은 신청번호 그대로 전달
+              cardNo: widget.data.cardNo!,
             ),
           ),
         );
