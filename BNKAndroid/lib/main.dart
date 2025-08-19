@@ -1,4 +1,5 @@
 
+import 'package:bnkandroid/user/CustomCardEditorPage.dart';
 import 'package:bnkandroid/user/LoginPage.dart';
 import 'package:flutter/material.dart';
 import 'package:bnkandroid/constants/api.dart';
@@ -74,7 +75,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const AppShell(), // ✅ 하단 푸터 고정되는 앱 쉘
+      home: const CustomCardEditorPage(), // ✅ 하단 푸터 고정되는 앱 쉘
     );
   }
 }
