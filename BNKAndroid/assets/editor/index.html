@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>커스텀 카드 에디터</title>
+    <style>
+        *{
+            margin:0;
+            padding:0;
+        }
+      body {
+        font-family: sans-serif;
+      }
+
+      .card {
+        width: 250px;
+        aspect-ratio: 3 / 5;
+        background-size: 100%;
+        background-repeat: no-repeat;
+        background-position: 50% 50%;
+
+        border: 1px solid #ccc;
+        border-radius: 20px;
+        overflow: hidden;
+        position: relative;
+        touch-action: none; /* 모바일 터치 방지 */
+        user-select: none;
+        cursor: grab;
+      }
+
+
+      .text-box {
+          touch-action: none;
+        position: absolute;
+        font-size: 20px;
+        color: black;
+        font-weight: bold;
+        cursor: move;
+        user-select: none;
+        transform: translate(0px, 0px);
+      }
+
+      .close-btn {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        background: red;
+        color: white;
+        border-radius: 50%;
+        padding: 2px 5px;
+        cursor: pointer;
+        font-size: 14px;
+        z-index: 10;
+      }
+      .rotate-btn {
+          position: absolute;
+          top: -10px;
+          left: -10px;
+          background: #555;
+          color: white;
+          border-radius: 50%;
+          padding: 2px 5px;
+          cursor: grab;
+          font-size: 12px;
+          z-index: 10;
+          user-select: none;
+        }
+    #bgImg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform-origin: center center;
+        object-fit: cover;
+        pointer-events: none; /* 드래그 이벤트가 텍스트 등에만 전달되도록 */
+        height: 100%;
+      }
+
+      #emojiListContainer {
+        position: fixed;
+        bottom: 0px;
+        left: 0;
+        right: 0;
+        background: #f0f0f0;
+        padding: 10px 0;
+        overflow-x: auto;
+        white-space: nowrap;
+        display: none;
+        border-top: 1px solid #ccc;
+        z-index: 20;
+      }
+
+      #emojiList {
+        display: inline-block;
+        padding: 0 20px;
+      }
+
+      .emoji {
+        display: inline-block;
+        font-size: 24px;
+        margin: 0 10px;
+        cursor: pointer;
+        user-select: none;
+      }
+
+    #fontListContainer {
+      position: fixed;
+      bottom: 0px;
+      left: 0;
+      right: 0;
+      background: #f8f8f8;
+      padding: 8px 0;
+      overflow-x: auto;
+      white-space: nowrap;
+      display: none;
+      border-top: 1px solid #ccc;
+      z-index: 20;
+    }
+    #fontList {
+      display: inline-block;
+      padding: 0 20px;
+    }
+    .font-option {
+      display: inline-block;
+      font-size: 16px;
+      margin: 0 10px;
+      padding: 4px 8px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+</head>
+<body>
+<button id="addTextBtn">텍스트 추가</button>
+<button id="increaseFont">A+</button>
+<button id="decreaseFont">A-</button>
+<button id="toggleFontList">🔤 폰트</button>
+<label>T<input type="color" id="fontColorPicker" value="#000000"></label>
+<input type="file" id="cardBgInput" accept="image/*" />
+<label>배경<input type="color" id="cardBgColorPicker" value="#ffffff" /></label>
+<button id="zoomIn">확대</button>
+<button id="zoomOut">축소</button>
+<button id="reset">초기화</button>
+<label>회전: <input type="range" id="rotateRange" min="-180" max="180" value="0" /></label>
+<button id="toggleEmojiList">😊 이모티콘</button>
+<button id="saveBtn">카드 저장</button>
+
+
+<div id="emojiListContainer">
+    <div id="emojiList">
+        <span class="emoji">😀</span>
+        <span class="emoji">😂</span>
+        <span class="emoji">😍</span>
+        <span class="emoji">👍</span>
+        <span class="emoji">🔥</span>
+        <span class="emoji">🎉</span>
+        <span class="emoji">💖</span>
+        <span class="emoji">🐱</span>
+        <span class="emoji">🌈</span>
+        <!-- 필요 시 더 추가 -->
+    </div>
+</div>
+
+<div id="fontListContainer">
+    <div id="fontList">
+        <span class="font-option" data-font="sans-serif" style="font-family: sans-serif">기본</span>
+        <span class="font-option" data-font="serif" style="font-family: serif">Serif</span>
+        <span class="font-option" data-font="monospace" style="font-family: monospace">Mono</span>
+        <span class="font-option" data-font="'Courier New'" style="font-family: 'Courier New'">Courier</span>
+        <span class="font-option" data-font="'Comic Sans MS'" style="font-family: 'Comic Sans MS'">Comic</span>
+        <span class="font-option" data-font="'Times New Roman'" style="font-family: 'Times New Roman'">Times</span>
+        <!-- 필요시 더 추가 -->
+    </div>
+</div>
+
+<div class="card" id="card">
+    <img id="bgImg" />
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+<script>
+    let count = 0;
+    let selectedTextBox = null;
+    let bgRotate = 0; // 배경 회전각
+    let bgScale = 1;
+
+    document.getElementById('addTextBtn').addEventListener('click', () => {
+      const card = document.getElementById('card');
+      const newText = document.createElement('div');
+
+      newText.className = 'text-box';
+      newText.innerText = '새 텍스트 ' + (++count);
+      newText.setAttribute('data-x', 0);
+      newText.setAttribute('data-y', 0);
+      newText.setAttribute('data-rotate', 0);
+      newText.style.transform = 'translate(0px, 0px) rotate(0deg)';
+      card.appendChild(newText);
+
+      makeDraggable(newText);
+      enableEditing(newText);
+      enableTextBoxInteraction(newText);
+    });
+
+    function makeDraggable(target) {
+        touchAction: 'none',
+      interact(target).draggable({
+        listeners: {
+          move(event) {
+            const target = event.target;
+            const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+            const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+            const angle = parseFloat(target.getAttribute('data-rotate')) || 0;
+
+            target.style.transform = `translate(${x}px, ${y}px) rotate(${angle}deg)`;
+            target.setAttribute('data-x', x);
+            target.setAttribute('data-y', y);
+          }
+        }
+      });
+    }
+
+    function enableEditing(textBox) {
+        let touchTimer = null;
+
+        // 모바일: 길게 누르면 수정모드
+        textBox.addEventListener('touchstart', () => {
+          touchTimer = setTimeout(() => {
+            textBox.setAttribute('contenteditable', 'true');
+            textBox.focus();
+          }, 500); // 500ms 이상 누르면 수정 모드
+        });
+
+        textBox.addEventListener('touchend', () => {
+          clearTimeout(touchTimer);
+        });
+
+        // 데스크탑: 더블클릭
+        textBox.addEventListener('dblclick', () => {
+          textBox.setAttribute('contenteditable', 'true');
+          textBox.focus();
+        });
+
+        // 포커스 잃었을 때 저장
+        textBox.addEventListener('blur', () => {
+          textBox.removeAttribute('contenteditable');
+        });
+      }
+
+    function enableTextBoxInteraction(textBox) {
+      textBox.addEventListener('click', (e) => {
+
+        e.stopPropagation();
+        selectedTextBox = textBox;
+
+        // 기존 버튼 제거
+        document.querySelectorAll('.text-box .close-btn').forEach(btn => btn.remove());
+        document.querySelectorAll('.text-box .rotate-btn').forEach(btn => btn.remove());
+
+        // X 버튼 생성
+        const closeBtn = document.createElement('span');
+        closeBtn.innerText = '×';
+        closeBtn.className = 'close-btn';
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          textBox.remove();
+          selectedTextBox = null;
+        });
+        textBox.appendChild(closeBtn);
+
+        // 회전 버튼 생성
+        const rotateBtn = document.createElement('span');
+        rotateBtn.innerText = '⟳';
+        rotateBtn.className = 'rotate-btn';
+        textBox.appendChild(rotateBtn);
+
+
+        let isRotating = false;
+        let startAngle = 0;
+        let baseRotate = 0;
+
+        rotateBtn.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          isRotating = true;
+
+          const rect = textBox.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+
+          const x = parseFloat(textBox.getAttribute('data-x')) || 0;
+          const y = parseFloat(textBox.getAttribute('data-y')) || 0;
+          baseRotate = parseFloat(textBox.getAttribute('data-rotate')) || 0;
+
+          const dx = e.clientX - centerX;
+          const dy = e.clientY - centerY;
+          startAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+          function onPointerMove(eMove) {
+            if (!isRotating) return;
+            const dx2 = eMove.clientX - centerX;
+            const dy2 = eMove.clientY - centerY;
+            const currentAngle = Math.atan2(dy2, dx2) * (180 / Math.PI);
+            const angleDiff = currentAngle - startAngle;
+            const newAngle = baseRotate + angleDiff;
+
+            textBox.style.transform = `translate(${x}px, ${y}px) rotate(${newAngle}deg)`;
+            textBox.setAttribute('data-rotate', newAngle);
+          }
+
+          function onPointerUp() {
+            isRotating = false;
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+          }
+
+          window.addEventListener('pointermove', onPointerMove);
+          window.addEventListener('pointerup', onPointerUp);
+        });
+      });
+    }
+
+    // 카드 영역 클릭 시 모든 버튼 제거
+    document.getElementById('card').addEventListener('click', () => {
+      document.querySelectorAll('.text-box .close-btn').forEach(btn => btn.remove());
+      document.querySelectorAll('.text-box .rotate-btn').forEach(btn => btn.remove());
+      selectedTextBox = null;
+    });
+
+    // 폰트 크기 증가
+    document.getElementById('increaseFont').addEventListener('click', () => {
+      if (selectedTextBox) {
+        const currentSize = parseInt(window.getComputedStyle(selectedTextBox).fontSize);
+        selectedTextBox.style.fontSize = (currentSize + 2) + 'px';
+      }
+    });
+
+    // 폰트 크기 감소
+    document.getElementById('decreaseFont').addEventListener('click', () => {
+      if (selectedTextBox) {
+        const currentSize = parseInt(window.getComputedStyle(selectedTextBox).fontSize);
+        selectedTextBox.style.fontSize = Math.max(10, currentSize - 2) + 'px';
+      }
+    });
+    //글자 색상 변경
+    document.getElementById('fontColorPicker').addEventListener('input', (e) => {
+      if (selectedTextBox) {
+            selectedTextBox.style.color = e.target.value;
+      }
+    });
+
+    //배경이미지 삽입
+    document.getElementById('cardBgInput').addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          const bgUrl = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+    //배경 이미지 위치조정
+    const card = document.getElementById('card');
+  const fileInput = document.getElementById('cardBgInput');
+  const zoomInBtn = document.getElementById('zoomIn');
+  const zoomOutBtn = document.getElementById('zoomOut');
+  const resetBtn = document.getElementById('reset');
+
+  let bgPos = { x: 0, y: 0 }; // 초기 background-position
+  let bgSize = 100; // 초기 background-size (%)
+  let isDragging = false;
+  let start = { x: 0, y: 0 };
+
+  // 이미지 업로드
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        document.getElementById('bgImg').src = event.target.result;
+          // 추가: 이미지 업로드 시 초기화
+          bgPos = { x: 0, y: 0 };
+          bgScale = 1;
+          bgRotate = 0;
+          rotateRange.value = 0;
+          updateBgTransform();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // 드래그 시작
+  card.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.text-box')) return;
+    isDragging = true;
+    start.x = e.clientX;
+    start.y = e.clientY;
+    card.style.cursor = 'grabbing';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+
+    bgPos.x += dx / card.offsetWidth * 100;
+    bgPos.y += dy / card.offsetHeight * 100;
+
+
+    updateBgTransform();
+
+    start.x = e.clientX;
+    start.y = e.clientY;
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+    card.style.cursor = 'grab';
+  });
+
+  // 확대/축소
+  zoomInBtn.addEventListener('pointerup', () => {
+    bgScale = Math.min(3, bgScale + 0.1);
+    updateBgTransform();
+  });
+
+  zoomOutBtn.addEventListener('pointerup', () => {
+    bgScale = Math.max(0.3, bgScale - 0.1);
+    updateBgTransform();
+  });
+
+  // 초기화
+  resetBtn.addEventListener('click', () => {
+    bgPos = { x: 0, y: 0 };
+    bgSize = 100;
+    updateBgTransform();
+    document.getElementById('card').style.backgroundColor = '#ffffff'; // 배경색초기값
+    document.getElementById('cardBgColorPicker').value = '#ffffff'; // 컬러피커도 초기화
+  });
+
+  // 적용 함수
+  function updateBgTransform() {
+    bgImg.style.transform = `
+      translate(${bgPos.x}px, ${bgPos.y}px)
+      scale(${bgScale})
+      rotate(${bgRotate}deg)
+    `;
+  }
+
+  //모바일 터치 시작
+  card.addEventListener('touchstart', (e) => {
+      if (e.target.closest('.text-box')) return; // 텍스트박스 터치면 배경 드래그 무시
+    if (e.touches.length !== 1) return; // 멀티터치 방지
+    isDragging = true;
+    start.x = e.touches[0].clientX;
+    start.y = e.touches[0].clientY;
+    card.style.cursor = 'grabbing';
+  }, { passive: false });
+
+  // 모바일 터치 이동
+  document.addEventListener('touchmove', (e) => {
+    if (!isDragging || e.touches.length !== 1) return;
+
+    const dx = e.touches[0].clientX - start.x;
+    const dy = e.touches[0].clientY - start.y;
+
+    bgPos.x += dx / card.offsetWidth * 100;
+    bgPos.y += dy / card.offsetHeight * 100;
+
+
+    updateBgTransform();
+
+    start.x = e.touches[0].clientX;
+    start.y = e.touches[0].clientY;
+  }, { passive: false });
+
+  // 모바일 터치 끝
+  document.addEventListener('touchend', () => {
+    isDragging = false;
+    card.style.cursor = 'grab';
+  });
+  //이미지회전
+  const rotateRange = document.getElementById('rotateRange');
+
+  rotateRange.addEventListener('input', (e) => {
+    bgRotate = parseInt(e.target.value, 10);
+    updateBgTransform();
+  });
+
+  resetBtn.addEventListener('click', () => {
+        bgPos = { x: 0, y: 0 };
+        bgSize = 100;
+        bgRotate = 0;
+        rotateRange.value = 0; // 슬라이더도 초기화
+        updateBgTransform();
+      });
+
+  //배경색 변경
+  document.getElementById('cardBgColorPicker').addEventListener('input', (e) => {
+    document.getElementById('card').style.backgroundColor = e.target.value;
+  });
+
+
+  //이모티콘 목록 토글
+  document.getElementById('toggleEmojiList').addEventListener('click', () => {
+    const list = document.getElementById('emojiListContainer');
+    const fontlist = document.getElementById('fontListContainer');
+    list.style.display = list.style.display === 'block' ? 'none' : 'block';
+    fontlist.style.display = 'none';
+  });
+
+  // 이모티콘 클릭 시 카드에 추가
+  document.querySelectorAll('#emojiList .emoji').forEach(emojiEl => {
+    emojiEl.addEventListener('click', () => {
+      const card = document.getElementById('card');
+      const newEmoji = document.createElement('div');
+
+      newEmoji.className = 'text-box';
+      newEmoji.innerText = emojiEl.innerText;
+      newEmoji.setAttribute('data-x', 0);
+      newEmoji.setAttribute('data-y', 0);
+      newEmoji.setAttribute('data-rotate', 0);
+      newEmoji.style.transform = 'translate(0px, 0px) rotate(0deg)';
+      card.appendChild(newEmoji);
+
+      makeDraggable(newEmoji);
+      enableTextBoxInteraction(newEmoji);
+    });
+  });
+
+  //폰트 목록 토글
+  document.getElementById('toggleFontList').addEventListener('click', () => {
+    const list = document.getElementById('fontListContainer');
+    const emojilist = document.getElementById('emojiListContainer');
+    list.style.display = list.style.display === 'block' ? 'none' : 'block';
+    emojilist.style.display = 'none';
+  });
+
+  // 폰트 클릭 시 텍스트 박스에 적용
+  document.querySelectorAll('.font-option').forEach(fontEl => {
+    fontEl.addEventListener('click', () => {
+      if (selectedTextBox) {
+        selectedTextBox.style.fontFamily = fontEl.getAttribute('data-font');
+      }
+    });
+  });
+
+  //카드 이미지로 저장
+  document.getElementById('saveBtn').addEventListener('click', () => {
+      const card = document.getElementById('card'); // 카드 전체를 감싸는 요소 ID
+
+      html2canvas(card).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'custom_card.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    });
+</script>
+
+
+</body>
+</html>

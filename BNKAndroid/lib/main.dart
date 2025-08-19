@@ -1,10 +1,17 @@
+
+import 'package:bnkandroid/user/LoginPage.dart';
 import 'package:flutter/material.dart';
 import 'package:bnkandroid/constants/api.dart';
+
 import 'app_shell.dart';
 import 'auth_state.dart'; // ✅ 푸터 포함 공용 쉘
+import 'user/NaverMapPage.dart';
+import 'webview/SpringCardEditorPage.dart';
+// await NaverMapSdk.instance.initialize(clientId: "your client id");
+// await NaverMapSdk.instance.initialize();
+
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();   // 필수
   await API.initBaseUrl();                     // baseUrl 먼저 초기화
   await AuthState.init();
   await AuthState.debugDump(); //자동로그인 체킹
@@ -16,6 +23,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    //웹뷰용 url
+    const springUrl = 'http://192.168.0.224:8090/editor/card';
+
     return MaterialApp(
       title: 'BNK Card',
       debugShowCheckedModeBanner: false,

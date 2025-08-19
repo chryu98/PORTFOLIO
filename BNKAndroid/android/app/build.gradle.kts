@@ -1,20 +1,12 @@
 plugins {
     id("com.android.application")
-    // Kotlin 안 쓸 거면 아래 줄 제거 유지
-    // id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.example.bnkandroid"
-    compileSdk = 36
-    ndkVersion = "27.0.12077973"
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-    // ❌ kotlinOptions 블록 없음 (지워야 함)
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.bnkandroid"
@@ -24,11 +16,41 @@ android {
         versionName = flutter.versionName
     }
 
+    // Java 17 권장 (AGP 8.x 조합에서 필요)
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    // 디버그/릴리스 설정 (Kotlin DSL 문법!)
     buildTypes {
-        release {
-            signingConfig = signingConfigs.getByName("debug")
+        getByName("debug") {
+            isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+        getByName("release") {
+            isDebuggable = false   // ✅ Groovy의 'debuggable false' 아님
+            isMinifyEnabled = false
+            isShrinkResources = false
+            // 서명/프로가드 필요 시 나중에 추가
+            // proguardFiles(
+            //     getDefaultProguardFile("proguard-android-optimize.txt"),
+            //     "proguard-rules.pro"
+            // )
         }
     }
+
+    // 에뮬레이터 설치/탐지 이슈 줄이려면 디버그에서 ABI 스플릿 끄기
+    splits {
+        abi {
+            isEnable = false
+            // 또는 isUniversalApk = true
+        }
+    }
+
+    // ndkVersion은 꼭 필요할 때만 지정 (없어도 보통 무관)
+    // ndkVersion = "27.0.12077973"
 }
 
 dependencies {
@@ -38,5 +60,3 @@ dependencies {
 flutter {
     source = "../.."
 }
-
-

@@ -7,7 +7,8 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
-        android:label="bnkandroid">
+        android:label="bnkandroid"
+        android:usesCleartextTraffic="true">
 
         <!-- Flutter 메인 액티비티 -->
         <activity
