@@ -7,7 +7,6 @@
 <title>카드 발급 - 카드 옵션 선택</title>
 </head>
 <body>
-<input type="hidden" id="applicationNo" value="${applicationNo}">
 
 <div class="option-block">
     <label><input type="radio" name="cardBrand" value="VISA" checked> 비자(VISA)</label><br>
@@ -26,12 +25,16 @@
 <button id="nextBtn">다음</button>
 
 <script>
+//URL에서 applicationNo 가져오기
+const params = new URLSearchParams(window.location.search);
+const applicationNo = params.get('applicationNo');
+
 document.getElementById('postpaidCard').addEventListener('change', function() {
     document.getElementById('postpaidLabel').textContent = this.checked ? 'ON' : 'OFF';
 });
 
 document.getElementById('nextBtn').addEventListener('click', () => {
-    const applicationNo = document.getElementById('applicationNo').value;
+    //const applicationNo = document.getElementById('applicationNo').value;
     const cardBrand = document.querySelector('input[name="cardBrand"]:checked').value;
     const postpaid = document.getElementById('postpaidCard').checked ? 'Y' : 'N';
     const jwtToken = localStorage.getItem("jwtToken");

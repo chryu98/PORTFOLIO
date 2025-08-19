@@ -50,11 +50,15 @@
     </form>
 
 <script>
+//URL에서 applicationNo 가져오기
+const params = new URLSearchParams(window.location.search);
+const applicationNo = params.get('applicationNo');
+
 document.getElementById('jobForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
     const data = {
-        applicationNo: document.querySelector('[name="applicationNo"]').value,
+        applicationNo: applicationNo,
         job: document.querySelector('[name="job"]').value,
         purpose: document.querySelector('[name="purpose"]').value,
         fundSource: document.querySelector('[name="fundSource"]').value

@@ -8,5 +8,10 @@
 </head>
 <body>
 
+<script>
+//URL에서 applicationNo 가져오기
+const params = new URLSearchParams(window.location.search);
+const applicationNo = params.get('applicationNo');
+</script>
 </body>
 </html>

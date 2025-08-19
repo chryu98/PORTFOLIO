@@ -1,6 +1,7 @@
 package com.busanbank.card.cardapply.controller;
 
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,6 +25,8 @@ import com.busanbank.card.cardapply.dto.TermsAgreementRequest;
 import com.busanbank.card.user.dao.IUserDao;
 import com.busanbank.card.user.dto.UserDto;
 import com.busanbank.card.user.util.AESUtil;
+
+import jakarta.servlet.http.HttpSession;
 
 @RestController
 @RequestMapping("/api/card/apply")
@@ -61,6 +64,25 @@ public class CardApplyApiController {
         }
 
         return ResponseEntity.ok("약관 동의 저장 완료");
+    }
+    
+    @GetMapping("/get-customer-info")
+    public Map<String, Object> getCustomerInfo(@RequestParam("cardNo") int cardNo, HttpSession session) throws Exception {
+        Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
+        
+        if (memberNo == null) {
+            throw new RuntimeException("로그인이 필요한 서비스입니다.");
+        }
+
+        UserDto loginUser = userDao.findByMemberNo(memberNo);
+        String rrnTailEnc = AESUtil.decrypt(loginUser.getRrnTailEnc());
+        String rrnBack = loginUser.getRrnGender() + rrnTailEnc;
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("loginUser", loginUser);
+        result.put("rrnBack", rrnBack);
+
+        return result; // JSON 반환
     }
     
     @GetMapping("/customer-info")

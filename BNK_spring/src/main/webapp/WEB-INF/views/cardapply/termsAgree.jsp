@@ -106,11 +106,16 @@ h1 {
 const modal = document.getElementById('pdfModal');
 const backdrop = document.getElementById('modalBackdrop');
 
+// URLSearchParams로 cardNo 가져오기
+const params = new URLSearchParams(window.location.search);
+const cardNo = params.get('cardNo');
+console.log('cardNo: ' + cardNo);
+
 document.addEventListener('DOMContentLoaded', () => {
 	window.termsData = [];
 	
     const jwtToken = localStorage.getItem('jwtToken');
-    const cardNo = '${cardNo}';
+    //const cardNo = '${cardNo}';
     const container = document.getElementById('termsContainer');
 
     if (!jwtToken) {
@@ -258,11 +263,11 @@ document.getElementById('nextBtn').addEventListener('click', () => {
 
     const jwtToken = localStorage.getItem('jwtToken');
     const memberNo = localStorage.getItem('memberNo');
-    const cardNo = '${cardNo}';
+    //const cardNo = '${cardNo}';
 
-    console.log('memberNo:', memberNo);
-    console.log('cardNo:', cardNo);
-    console.log('pdfNos:', agreedPdfNos);
+    //console.log('memberNo:', memberNo);
+    //console.log('cardNo:', cardNo);
+    //console.log('pdfNos:', agreedPdfNos);
     
     fetch('/api/card/apply/terms-agree', {
         method: 'POST',
