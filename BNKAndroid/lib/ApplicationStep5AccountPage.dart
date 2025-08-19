@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:bnkandroid/user/service/account_service.dart';
 import 'ApplicationStep1Page.dart' show kPrimaryRed; // 상단/버튼 컬러 재사용
+import 'ApplicationStep6CardOptionPage.dart';
 
 enum _PadStyle { card, flat }
 
@@ -146,7 +147,7 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
         minLen: 4,
         maxLen: 6,
         accent: Color(0xFFB91111),   // ✅ BNK 레드
-        padColor: Color(0xFF9AA4AE), // ✅ 더 짙은 회색 패널 
+        padColor: Color(0xFF9AA4AE), // ✅ 더 짙은 회색 패널
         requireConfirm: true,
         autoSubmitOnMaxLen: true,
         autoDelay: Duration(milliseconds: 120),
@@ -199,7 +200,8 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
 
     if (res['ok'] == true) {
       _snack('계좌가 선택되었습니다.');
-      // TODO: 다음 단계 이동
+      _goStep6();                // ← 다음 단계 이동
+      return;
     } else {
       _snack(res['message'] ?? '인증 실패');
     }
@@ -207,6 +209,17 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
 
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _goStep6() {
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ApplicationStep6CardOptionPage(
+          applicationNo: widget.applicationNo,
+        ),
+      ),
+    );
   }
 
   @override
@@ -260,11 +273,15 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
 
   Future<void> _onPrimaryPressed() async {
     if (_accounts.isEmpty) {
-      // 자동 생성 케이스
-      // await AccountService.selectAccount(acNo: _createdAccount!['acNo'] as int);
-      // TODO: 다음 단계로 이동
+      if (_createdAccount != null && _pwdReady) {
+        _goStep6(); // ← 여기서 이동
+      } else {
+        _snack('비밀번호 설정을 먼저 완료해주세요.');
+      }
       return;
     }
+
+    // 기존 계좌는 키패드 인증으로 분기
     final acNo = _selectedAccount!['acNo'] as int;
     final number = _selectedAccount!['accountNumber'] as String;
     await _verifyExistingWithKeypad(acNo: acNo, accountNumber: number);
