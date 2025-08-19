@@ -1,5 +1,7 @@
 // lib/ApplicationStep7AddressPage.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart'; // ✅ WebView
 import 'ApplicationStep1Page.dart' show kPrimaryRed;
 import 'package:bnkandroid/user/service/card_apply_service.dart' as apply;
 
@@ -67,7 +69,6 @@ class _ApplicationStep7AddressPageState extends State<ApplicationStep7AddressPag
         _addrType   = 'H';        // 기본 탭 집
       }
     } catch (e) {
-      // 401/403: 토큰 문제, 404: 주소 미등록 → 빈칸 유지
       debugPrint('prefill error: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -155,14 +156,21 @@ class _ApplicationStep7AddressPageState extends State<ApplicationStep7AddressPag
     }
   }
 
-  // (데모) 우편번호 찾기
-  Future<void> _searchZipDemo() async {
-    setState(() {
-      _zip.text   = '47257';
-      _addr1.text = '부산광역시 부산진구 중앙대로 1000';
-      _extra.text = '부산은행 본점';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('데모용 주소가 입력되었습니다.')));
+  // ✅ 카카오 우편번호 WebView 열기
+  Future<void> _openPostcode() async {
+    final result = await Navigator.push<Map<String, dynamic>?>(
+      context,
+      MaterialPageRoute(builder: (_) => const PostcodeSearchPage()),
+    );
+    if (result != null) {
+      setState(() {
+        _zip.text   = (result['zonecode'] ?? '').toString();
+        final road  = (result['roadAddress'] ?? '').toString();
+        final jibun = (result['jibunAddress'] ?? '').toString();
+        _addr1.text = road.isNotEmpty ? road : jibun;
+        _extra.text = (result['extraAddress'] ?? '').toString();
+      });
+    }
   }
 
   // ───────────────── UI ─────────────────
@@ -248,7 +256,7 @@ class _ApplicationStep7AddressPageState extends State<ApplicationStep7AddressPag
                   SizedBox(
                     height: 48,
                     child: OutlinedButton(
-                      onPressed: _searchZipDemo,
+                      onPressed: _openPostcode, // ✅ WebView 열기
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Color(0xFFCED4DA)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -263,6 +271,7 @@ class _ApplicationStep7AddressPageState extends State<ApplicationStep7AddressPag
               // 기본주소
               TextFormField(
                 controller: _addr1,
+                readOnly: false,
                 decoration: _dec('기본주소 (도로명/지번)'),
                 validator: (v) => _req(v, '기본주소'),
               ),
@@ -391,6 +400,59 @@ class _StepHeader7 extends StatelessWidget {
           ),
         );
       }),
+    );
+  }
+}
+
+/// ─────────────────────────────────────────────────────────────
+/// 우편번호 WebView 페이지
+/// ─────────────────────────────────────────────────────────────
+/// 준비:
+/// 1) pubspec.yaml
+///   dependencies:
+///     webview_flutter: ^4.8.0
+///   flutter:
+///     assets:
+///       - assets/postcode.html
+///
+/// 2) assets/postcode.html 내용(요지)
+///   - daum postcode v2 스크립트 로드
+///   - embed 모드로 띄우고 oncomplete에서
+///     window.App.postMessage(JSON.stringify({...})) 호출
+///
+class PostcodeSearchPage extends StatefulWidget {
+  const PostcodeSearchPage({super.key});
+  @override
+  State<PostcodeSearchPage> createState() => _PostcodeSearchPageState();
+}
+
+class _PostcodeSearchPageState extends State<PostcodeSearchPage> {
+  late final WebViewController _ctl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctl = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel(
+        'App', // assets/postcode.html에서 window.App.postMessage(...) 와 동일해야 함
+        onMessageReceived: (msg) {
+          try {
+            final data = jsonDecode(msg.message) as Map<String, dynamic>;
+            Navigator.pop(context, data); // 선택 값 반환
+          } catch (e) {
+            Navigator.pop(context);
+          }
+        },
+      )
+      ..loadFlutterAsset('assets/postcode.html');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('우편번호 찾기')),
+      body: WebViewWidget(controller: _ctl),
     );
   }
 }

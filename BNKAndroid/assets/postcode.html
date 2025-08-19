@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<body style="margin:0">
+<div id="wrap" style="width:100vw;height:100vh"></div>
+<script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+<script>
+    function sendToFlutter(payload){
+      if (window.App && window.App.postMessage) {
+        window.App.postMessage(JSON.stringify(payload));   // webview_flutter 채널
+      } else if (window.flutter_inappwebview) {
+        window.flutter_inappwebview.callHandler('onSelected', payload);
+      }
+    }
+
+    new daum.Postcode({
+      oncomplete: function (data) {
+        const extra = [data.bname, data.buildingName].filter(Boolean).join(' ');
+        sendToFlutter({
+          zonecode: data.zonecode,
+          roadAddress: data.roadAddress,
+          jibunAddress: data.jibunAddress,
+          extraAddress: extra
+        });
+      },
+      width: '100%',
+      height: '100%'
+    }).embed(document.getElementById('wrap'));
+</script>
+</body>
+</html>

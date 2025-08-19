@@ -75,7 +75,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const CustomCardEditorPage(), // ✅ 하단 푸터 고정되는 앱 쉘
+      home: const AppShell(), // ✅ 하단 푸터 고정되는 앱 쉘
     );
   }
 }
