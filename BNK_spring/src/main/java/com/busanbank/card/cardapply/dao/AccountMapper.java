@@ -109,4 +109,14 @@ public interface AccountMapper {
        AND STATUS = 'ACTIVE'
   """)
   int close(Long acNo);
+  
+  @Select("""
+		  SELECT COUNT(*)
+		  FROM ACCOUNTS
+		  WHERE MEMBER_NO = #{memberNo}
+		    AND CREATED_AT >= SYSDATE - #{days}
+		""")
+		int countCreatedWithinDays(@Param("memberNo") Long memberNo,
+		                           @Param("days") int days);
+
 }

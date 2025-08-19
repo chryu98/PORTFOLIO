@@ -132,9 +132,10 @@ public class AccountRestController {
         Long memberNo = Long.valueOf(user.getMemberNo());
         Map<String,Object> res = new HashMap<>();
 
-        if (accountMapper.countActiveByMemberNo(memberNo) > 0) {
+     // ✅ 20일 내 생성 이력 차단
+        if (accountMapper.countCreatedWithinDays(memberNo, 20) > 0) {
             res.put("created", false);
-            res.put("message", "이미 활성 계좌가 존재합니다.");
+            res.put("message", "최근 20일 이내 계좌를 발급받으셨습니다. 이후에 다시 시도해주세요.");
             return ResponseEntity.ok(res);
         }
 
@@ -166,6 +167,15 @@ public class AccountRestController {
         if (user == null) return unauthorized();
 
         Long memberNo = Long.valueOf(user.getMemberNo());
+        
+     // ✅ 20일 내 생성 이력 차단
+        if (accountMapper.countCreatedWithinDays(memberNo, 20) > 0) {
+            return ResponseEntity.ok(Map.of(
+                "created", false,
+                "message", "최근 20일 내에 계좌가 발급되어 새로운 계좌를 생성할 수 없습니다."
+            ));
+        }
+        
         Long cardNo = null;
         if (body != null && body.get("cardNo") != null) {
             try { cardNo = Long.valueOf(String.valueOf(body.get("cardNo"))); } catch (Exception ignore) {}
