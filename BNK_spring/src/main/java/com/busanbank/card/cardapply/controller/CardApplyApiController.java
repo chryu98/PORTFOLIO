@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.busanbank.card.card.dao.CardDao;
 import com.busanbank.card.cardapply.dao.ICardApplyDao;
 import com.busanbank.card.cardapply.dto.AddressDto;
+import com.busanbank.card.cardapply.dto.CardOptionDto;
 import com.busanbank.card.cardapply.dto.PdfFilesDto;
 import com.busanbank.card.cardapply.dto.TermsAgreementRequest;
 import com.busanbank.card.user.dao.IUserDao;
@@ -119,5 +120,18 @@ public class CardApplyApiController {
         cardApplyDao.updateApplicationAddressTemp(address);
         
         return ResponseEntity.ok("주소 저장 완료");
+    }
+    
+    @PostMapping("/card-options")
+    public ResponseEntity<?> saveCardOptions(@RequestBody CardOptionDto cardOption) {
+    	
+    	int updated = cardApplyDao.updateApplicationCardOptionTemp(cardOption);
+    	
+        if (updated > 0) {
+            return ResponseEntity.ok("카드 옵션이 저장되었습니다.");
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                 .body("저장 실패");
+        }
     }
 }

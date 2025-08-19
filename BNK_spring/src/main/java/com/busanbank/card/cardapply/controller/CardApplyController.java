@@ -85,6 +85,12 @@ public class CardApplyController {
 		return "cardapply/cardOption";
 	}
 
+	@GetMapping("/nextPage")
+	public String nextPage(@RequestParam("applicationNo") Integer applicationNo, Model model) {
+		model.addAttribute("applicationNo", applicationNo);
+		return "cardapply/nextPage";
+	}
+
 	
 	// 계좌관리
 	@GetMapping("/accounts")

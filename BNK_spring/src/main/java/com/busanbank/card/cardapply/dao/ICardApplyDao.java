@@ -12,6 +12,7 @@ import org.apache.ibatis.annotations.Update;
 import com.busanbank.card.cardapply.dto.AddressDto;
 import com.busanbank.card.cardapply.dto.ApplicationPersonTempDto;
 import com.busanbank.card.cardapply.dto.CardApplicationTempDto;
+import com.busanbank.card.cardapply.dto.CardOptionDto;
 import com.busanbank.card.cardapply.dto.ContactInfoDto;
 import com.busanbank.card.cardapply.dto.JobInfoDto;
 import com.busanbank.card.cardapply.dto.PdfFilesDto;
@@ -79,4 +80,9 @@ public interface ICardApplyDao {
 			+ "SET zip_code = #{zipCode}, address1 = #{address1}, address2 = #{address2}, address_type = #{addressType} "
 			+ "WHERE APPLICATION_NO = #{applicationNo}")
 	int updateApplicationAddressTemp(AddressDto address);
+
+	@Update("UPDATE APPLICATION_PERSON_TEMP "
+			+ "SET card_brand = #{cardBrand}, postpaid_card = #{postpaid} "
+			+ "WHERE APPLICATION_NO = #{applicationNo}")
+	int updateApplicationCardOptionTemp(CardOptionDto cardOption);
 }

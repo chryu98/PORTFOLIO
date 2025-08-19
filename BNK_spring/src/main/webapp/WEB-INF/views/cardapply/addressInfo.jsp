@@ -131,7 +131,7 @@ document.getElementById('nextBtn').addEventListener('click', () => {
     const type = document.getElementById('addressType').value;
     saveAddress(type)
         .then(() => {
-            window.location.href = '/card/apply/cardOption?applicationNo=' + applicationNo;
+            window.location.href = '/card/apply/nextPage?applicationNo=' + applicationNo;
         })
         .catch(err => console.error(err));
 });

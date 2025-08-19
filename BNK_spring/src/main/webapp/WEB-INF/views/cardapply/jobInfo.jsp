@@ -75,7 +75,7 @@ document.getElementById('jobForm').addEventListener('submit', async function(e) 
         const result = await response.json();
 
         if (result.success) {
-            location.href = '/card/apply/addressInfo?applicationNo=' + encodeURIComponent(data.applicationNo);
+            location.href = '/card/apply/cardOption?applicationNo=' + encodeURIComponent(data.applicationNo);
         } else {
             alert(result.message);
         }
