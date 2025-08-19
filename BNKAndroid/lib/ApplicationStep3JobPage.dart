@@ -4,10 +4,16 @@ import 'ApplicationStep1Page.dart' show kPrimaryRed;
 import 'user/service/card_apply_service.dart' as apply;
 import 'ApplicationStep4OcrPage.dart';
 
-/// Step 3: 직업/거래목적/자금출처 (풀스크린 선택 UI, 흰 배경, 불투명)
+/// Step 3: 직업/거래목적/자금출처
 class ApplicationStep3JobPage extends StatefulWidget {
   final int applicationNo;
-  const ApplicationStep3JobPage({super.key, required this.applicationNo});
+  final int cardNo; // ✅ 추가: Step4/5로 넘길 카드번호
+
+  const ApplicationStep3JobPage({
+    super.key,
+    required this.applicationNo,
+    required this.cardNo, // ✅ 필수로 받기
+  });
 
   @override
   State<ApplicationStep3JobPage> createState() => _ApplicationStep3JobPageState();
@@ -58,19 +64,17 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
       if (!mounted) return;
 
       if (!ok) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('저장 실패')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('저장 실패')));
         return;
       }
 
-      // 저장 성공 → Step4로 이동
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('저장 완료')));
-
+      // 저장 성공 → Step4로 이동 (✅ cardNo 함께 전달)
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('저장 완료')));
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => ApplicationStep4OcrPage(
             applicationNo: widget.applicationNo,
+            cardNo: widget.cardNo, // ✅ 여기 추가!
           ),
         ),
       );
@@ -99,7 +103,7 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           children: [
-            const _StepHeader3(current: 4, total: 5), // ← 총 4단계로 변경
+            const _StepHeader3(current: 4, total: 5),
             const SizedBox(height: 12),
             const Align(
               alignment: Alignment.centerLeft,
@@ -175,7 +179,7 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
 class _StepHeader3 extends StatelessWidget {
   final int current;
   final int total;
-  const _StepHeader3({required this.current, this.total = 4}); // 기본값 4로
+  const _StepHeader3({required this.current, this.total = 4});
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +198,7 @@ class _StepHeader3 extends StatelessWidget {
   }
 }
 
-/// 풀스크린 선택 위젯 (불투명 MaterialPageRoute 사용)
+/// 풀스크린 선택 위젯
 class FullScreenSelectField extends FormField<String> {
   FullScreenSelectField({
     Key? key,
