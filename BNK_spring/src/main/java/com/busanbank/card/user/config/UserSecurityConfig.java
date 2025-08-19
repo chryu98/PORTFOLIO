@@ -104,15 +104,15 @@ public class UserSecurityConfig {
         restLoginFilter.setAuthenticationFailureHandler(restLoginFailureHandler);
 
         http
-          .authorizeHttpRequests(auth -> auth
-              // ✅ 로그인 API 허용
-              .requestMatchers("/user/api/login").permitAll()
-              // ✅ 정적 리소스/공개 페이지는 이 체인 밖이지만 혹시 들어와도 허용
-              .requestMatchers("/","/user/login","/signup","/regist/**","/auth/**",
-                               "/css/**","/js/**","/images/**").permitAll()
-              // ✅ 나머지 API는 인증
-              .anyRequest().authenticated()
-          )
+        .authorizeHttpRequests(auth -> auth
+        	    .requestMatchers(
+        	        "/user/api/login",
+        	        "/user/api/regist/**"   // ✅ 회원가입 API 전 구간 허용
+        	    ).permitAll()
+        	    .requestMatchers("/", "/user/login", "/regist/**", "/user/regist/**",
+        	                     "/auth/**", "/css/**", "/js/**", "/images/**").permitAll()
+        	    .anyRequest().authenticated()
+        	)
           // ✅ JWT 필터는 이 체인에서만
           .addFilterBefore(new JwtTokenFilter(jwtTokenProvider, userDetailsService),
                   UsernamePasswordAuthenticationFilter.class)

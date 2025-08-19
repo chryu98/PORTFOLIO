@@ -24,10 +24,11 @@ public class JwtTokenFilter extends OncePerRequestFilter {
     // ✅ 화이트리스트(토큰 검사 스킵)
     private static final AntPathMatcher matcher = new AntPathMatcher();
     private static final String[] WHITELIST = {
-        "/", "/user/login", "/signup", "/regist/**", "/auth/**",
-        "/css/**", "/js/**", "/images/**",
-        "/user/api/login"            // 로그인 API
-    };
+    	    "/", "/user/login", "/signup", "/regist/**", "/user/regist/**", "/auth/**",
+    	    "/css/**", "/js/**", "/images/**",
+    	    "/user/api/login",
+    	    "/user/api/regist/**"   // ✅ 추가
+    	};
 
     public JwtTokenFilter(JwtTokenProvider jwtTokenProvider, CustomUserDetailsService userDetailsService) {
         this.jwtTokenProvider = jwtTokenProvider;
