@@ -1,5 +1,8 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")   // ✅ 추가
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -21,6 +24,8 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+
 
     // 디버그/릴리스 설정 (Kotlin DSL 문법!)
     buildTypes {
@@ -59,4 +64,11 @@ dependencies {
 
 flutter {
     source = "../.."
+}
+
+
+tasks.withType<KotlinCompile>().configureEach {
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 }
