@@ -604,10 +604,10 @@ packages:
     dependency: transitive
     description:
       name: path_provider_foundation
-      sha256: "4843174df4d288f5e29185bd6e72a6fbdf5a4a4602717eed565497429f179942"
+      sha256: "16eef174aacb07e09c351502740fa6254c165757638eba1e9116b0a781201bbd"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.1"
+    version: "2.4.2"
   path_provider_linux:
     dependency: transitive
     description:
@@ -712,6 +712,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.9.1"
+  screen_capture_event:
+    dependency: "direct main"
+    description:
+      name: screen_capture_event
+      sha256: adfe2f17273d562f5b3dcc04f8731dff2bd7e9b7230c7a7372be1e10aecd1004
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.0"
   screen_protector:
     dependency: "direct main"
     description:
@@ -720,14 +728,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.2+1"
-  screenshot_callback:
-    dependency: "direct main"
-    description:
-      name: screenshot_callback
-      sha256: "80ec324d67f1fb45794045b698cdc7711632b64b2e6a21924286faaade1e0be7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.1"
   share_plus:
     dependency: "direct main"
     description:

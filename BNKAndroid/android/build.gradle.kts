@@ -1,13 +1,6 @@
-// android/build.gradle.kts  (루트)
+// android/build.gradle.kts
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url = uri("https://naver.jfrog.io/artifactory/maven/") } // 필요한 경우만 유지
-    }
-}
-
-tasks.register<Delete>("clean") {
-    delete(rootProject.buildDir)
+plugins {
+    id("com.android.application") apply false
+    id("org.jetbrains.kotlin.android") apply false
 }

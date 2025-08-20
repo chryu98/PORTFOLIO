@@ -1,18 +1,12 @@
-// lib/webview/spring_card_editor_page.dart
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-
-// 웹(Chrome) 구현체 & 플랫폼 인터페이스
-import 'package:webview_flutter_web/webview_flutter_web.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
-// (모바일 전용) 안드로이드 옵션 필요 시
-import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'register.dart'; // ← 조건부 등록
 
 class SpringCardEditorPage extends StatefulWidget {
-  /// 예: http://10.0.2.2:8090/editor/card
-  final String url;
+  final String url; // 예: http://10.0.2.2:8090/editor/card
   const SpringCardEditorPage({super.key, required this.url});
 
   @override
@@ -27,54 +21,34 @@ class _SpringCardEditorPageState extends State<SpringCardEditorPage> {
   void initState() {
     super.initState();
 
-    if (kIsWeb) {
-      // ✅ 웹(Chrome) 경로: 구현 등록 + 웹 전용 생성자 사용 (setJavaScriptMode 호출 금지)
-      WebViewPlatform.instance = WebWebViewPlatform();
-      final params = PlatformWebViewControllerCreationParams();
+    // Web일 때만 실제 웹 구현체를 등록 (모바일/데스크톱은 no-op)
+    registerWebViewImplementations();
 
-      _ctrl = WebViewController.fromPlatformCreationParams(params)
-        ..setBackgroundColor(const Color(0x00000000))
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onProgress: (p) => setState(() => _progress = p / 100.0),
-            onWebResourceError: (err) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('로딩 실패: ${err.errorCode} ${err.description}')),
-              );
-            },
-          ),
-        )
-        ..loadRequest(Uri.parse(widget.url));
-    } else {
-      // ✅ 모바일(iOS/Android) 경로
-      final params = const PlatformWebViewControllerCreationParams();
+    final params = PlatformWebViewControllerCreationParams();
 
-      final controller = WebViewController.fromPlatformCreationParams(params)
-        ..setJavaScriptMode(JavaScriptMode.unrestricted) // 모바일에서만 사용
-        ..setBackgroundColor(const Color(0x00000000))
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onProgress: (p) => setState(() => _progress = p / 100.0),
-            onWebResourceError: (err) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('로딩 실패: ${err.errorCode} ${err.description}')),
-              );
-            },
-          ),
-        )
-        ..loadRequest(Uri.parse(widget.url));
+    _ctrl = WebViewController.fromPlatformCreationParams(params)
+    // JS는 모바일에서만 설정 (웹은 설정 메서드가 의미 없음)
+      ..setBackgroundColor(const Color(0x00000000))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (p) => setState(() => _progress = p / 100.0),
+          onWebResourceError: (err) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('로딩 실패: ${err.errorCode} ${err.description}')),
+            );
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(widget.url));
 
-      // (선택) 안드로이드 전용 추가 설정
-      if (controller.platform is AndroidWebViewController) {
-        AndroidWebViewController.enableDebugging(true);
-        (controller.platform as AndroidWebViewController)
-            .setMediaPlaybackRequiresUserGesture(false);
-      }
-
-      _ctrl = controller;
+    // 모바일에서만 JS 모드 설정
+    if (!kIsWeb) {
+      _ctrl.setJavaScriptMode(JavaScriptMode.unrestricted);
     }
+
+    // (선택) 안드로이드 전용 설정이 필요하면 별도 helper로 조건부 처리하세요.
+    // → webview_flutter_android 를 직접 import 하지 않는 편이 안전합니다.
   }
 
   Future<bool> _onWillPop() async {
