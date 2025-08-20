@@ -8,6 +8,11 @@ import '../auth_state.dart';
 import '../constants/api.dart';
 import '../app_shell.dart'; // redirect 기본값으로 사용
 
+import 'package:flutter/gestures.dart';
+import 'SelectMemberTypePage.dart';
+import 'package:flutter_html/flutter_html.dart';
+
+
 const kPrimaryRed = Color(0xffB91111);
 const kFieldBg = Color(0xFFF4F6FA);
 const kFieldStroke = Color(0xFFE6E8EE);
@@ -278,7 +283,35 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 80),
+                    //const SizedBox(height: 80),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Center(
+                        child: RichText(
+                          text: TextSpan(
+                            text: '아직 회원이 아니신가요? ',
+                            style: const TextStyle(color: Colors.black87, fontSize: 14),
+                            children: [
+                              TextSpan(
+                                text: '회원가입',
+                                style: const TextStyle(
+                                  color: kPrimaryRed,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const SelectMemberTypePage()),
+                                    );
+                                  },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

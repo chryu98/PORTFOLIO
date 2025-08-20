@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,6 +29,7 @@ import com.busanbank.card.user.util.AESUtil;
 
 import jakarta.servlet.http.HttpSession;
 
+@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/user/api/regist")
 public class RegistRestController {
@@ -185,6 +187,12 @@ public class RegistRestController {
 		}
 		
 		//주민등록번호
+		if(joinUser.getRrnBack() == null || joinUser.getRrnBack().length() != 7) {
+		    response.put("success", false);
+		    response.put("msg", "주민등록번호 뒷자리를 올바르게 입력해주세요.");
+		    return ResponseEntity.badRequest().body(response);
+		}
+		
 		user.setRrnFront(joinUser.getRrnFront());
 		user.setRrnGender(rrn_gender);
 		user.setRrnTailEnc(encryptedRrnTail);
@@ -195,8 +203,8 @@ public class RegistRestController {
 		user.setAddress1(address1);
 		user.setAddress2(joinUser.getAddress2());
 		
-		String role = (String) session.getAttribute("role");
-		user.setRole(role);
+		//String role = (String) session.getAttribute("role");
+		user.setRole(joinUser.getRole());
 		
 		userDao.insertMember(user);
 		
@@ -220,4 +228,12 @@ public class RegistRestController {
         response.put("msg", "회원가입이 완료되었습니다.");
         return ResponseEntity.ok(response);
 	}
+	
+	//플러터 약관
+	@GetMapping("/getTerms")
+	public ResponseEntity<?> getTerms() {
+        List<TermDto> terms = userDao.findAllTerms();
+
+        return ResponseEntity.ok(terms);
+    } 
 }
