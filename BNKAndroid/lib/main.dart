@@ -1,4 +1,3 @@
-
 import 'package:bnkandroid/user/CustomCardEditorPage.dart';
 import 'package:bnkandroid/user/LoginPage.dart';
 import 'package:flutter/material.dart';
@@ -11,11 +10,15 @@ import 'webview/SpringCardEditorPage.dart';
 // await NaverMapSdk.instance.initialize(clientId: "your client id");
 // await NaverMapSdk.instance.initialize();
 
+Future<void> main() async {
+  // 🔹 플러터 바인딩을 최우선으로 초기화
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() async {
-  await API.initBaseUrl();                     // baseUrl 먼저 초기화
-  await AuthState.init();
-  await AuthState.debugDump(); //자동로그인 체킹
+  // 🔹 네이티브 채널 사용 전 초기화 순서 보장
+  await API.initBaseUrl();      // baseUrl 먼저 초기화
+  await AuthState.init();       // SharedPreferences 사용
+  await AuthState.debugDump();  // 자동로그인 체킹
+
   runApp(const MyApp());
 }
 
@@ -24,7 +27,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    //웹뷰용 url
+    // 웹뷰용 url
     const springUrl = 'http://192.168.0.224:8090/editor/card';
 
     return MaterialApp(
@@ -70,8 +73,8 @@ class MyApp extends StatelessWidget {
           surfaceTintColor: Colors.transparent,
           elevation: 8,
           indicatorColor: const Color(0xffB91111).withOpacity(0.08),
-          labelTextStyle: MaterialStatePropertyAll(
-            TextStyle(fontSize: 12, color: const Color(0xFF444444)),
+          labelTextStyle: const MaterialStatePropertyAll(
+            TextStyle(fontSize: 12, color: Color(0xFF444444)),
           ),
         ),
       ),
