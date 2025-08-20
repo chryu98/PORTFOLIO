@@ -22,6 +22,7 @@ import com.busanbank.card.admin.session.AdminSession;
 
 @RestController
 @RequestMapping("/admin")
+
 public class PdfFileController {
 
     private static final Set<String> ALLOWED_SCOPES = Set.of("common","specific","select");

@@ -1,20 +1,23 @@
 // lib/application_step0_terms_page.dart
-import 'dart:typed_data';
 import 'dart:io' show Platform, File;
-import 'package:bnkandroid/user/LoginPage.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:open_filex/open_filex.dart';
 
-// ▶ 분리한 모델/서비스 사용
+import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+
+import 'package:bnkandroid/constants/api.dart' as api; // ApiException, authHeader
+import 'package:bnkandroid/user/LoginPage.dart';
+
+// 모델/서비스
 import 'package:bnkandroid/user/model/TermItem.dart';
 import 'package:bnkandroid/user/service/ApplyTermsService.dart';
 import 'package:bnkandroid/user/service/card_apply_service.dart' as apply;
-// Step1 실제 경로/이름에 맞게 수정
+
+// Step1 실제 경로 맞추세요
 import 'ApplicationStep1Page.dart';
-import 'package:bnkandroid/constants/api.dart' as api; // ← 추가
 
 const kPrimaryRed = Color(0xffB91111);
 
@@ -27,10 +30,8 @@ class ApplicationStep0TermsPage extends StatefulWidget {
 }
 
 class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
-
   bool _loading = true;
   bool _posting = false;
-  bool _agreeAllTapped = false;
   bool _openingLogin = false;
 
   int? _memberNo;
@@ -46,20 +47,22 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
     try {
       setState(() => _loading = true);
 
-      // (디버그) 현재 헤더 확인
+      // 디버그: 현재 토큰 헤더 출력
       final h = await api.API.authHeader();
       // ignore: avoid_print
       print('[Step0] calling customer-info headers=$h');
 
       final memberNo = await ApplyTermsService.fetchMemberNo(cardNo: widget.cardNo);
-      final items    = await ApplyTermsService.fetchTerms(cardNo: widget.cardNo);
+      final items = await ApplyTermsService.fetchTerms(cardNo: widget.cardNo);
 
       if (!mounted) return;
-      setState(() { _memberNo = memberNo; _terms = items; });
-
+      setState(() {
+        _memberNo = memberNo;
+        _terms = items;
+      });
     } on api.ApiException catch (e) {
       if (e.statusCode == 401) {
-        if (_openingLogin) return;     // ✅ 이미 열려있으면 무시
+        if (_openingLogin) return;
         _openingLogin = true;
 
         if (!mounted) return;
@@ -69,9 +72,8 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
         _openingLogin = false;
 
         if (ok == true) {
-          // 로그인 직후 디스크 I/O 타이밍으로 값이 늦게 보이는 경우가 있어 아주 살짝 기다렸다 재시도
-          await Future.delayed(const Duration(milliseconds: 100));
-          await _load();               // ✅ 재시도
+          await Future.delayed(const Duration(milliseconds: 120));
+          await _load();
           return;
         }
 
@@ -83,31 +85,32 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
         return;
       }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('약관 불러오기 실패: ApiException(${e.statusCode})')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('약관 불러오기 실패: ApiException(${e.statusCode})')),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('약관 불러오기 실패: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('약관 불러오기 실패: $e')),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  // 필수 항목이 모두 "동의됨"
   bool get _allRequiredAgreed => _terms.where((t) => t.isRequired).every((t) => t.agreed);
 
+  // 모두 동의(시각적 체크) → 미동의 필수부터 순차 동의 받기
   Future<void> _startSequentialAgreement() async {
     setState(() {
-      for (final t in _terms) t.checked = true;
-      _agreeAllTapped = true;
+      for (final t in _terms) t.checked = true; // 얇은 체크
     });
-    final idx = _terms.indexWhere((t) => t.isRequired && !t.agreed);
-    if (idx != -1) await _openPdfTabs(initialIndex: idx, autoFlow: true);
+    final firstIdx = _terms.indexWhere((t) => t.isRequired && !t.agreed);
+    if (firstIdx != -1) {
+      await _openPdfTabs(initialIndex: firstIdx, autoFlow: true);
+    }
   }
 
   Future<void> _openPdfTabs({required int initialIndex, bool autoFlow = false}) async {
@@ -117,22 +120,24 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
         builder: (_) => TermsPdfTabs(
           terms: _terms,
           initialIndex: initialIndex,
+          autoFlow: autoFlow,
+          primaryColor: kPrimaryRed,
           onAgree: (pdfNo) {
             final t = _terms.firstWhere((e) => e.pdfNo == pdfNo);
             setState(() {
-              t.agreed = true;
-              t.checked = true;
+              t.agreed = true;  // 실제 동의 완료
+              t.checked = true; // 시각적 체크 보장
             });
           },
-          autoFlow: autoFlow,
-          primaryColor: kPrimaryRed,
         ),
       ),
     );
 
     if (res == true && autoFlow) {
       final next = _terms.indexWhere((t) => t.isRequired && !t.agreed);
-      if (next != -1) await _openPdfTabs(initialIndex: next, autoFlow: true);
+      if (next != -1) {
+        await _openPdfTabs(initialIndex: next, autoFlow: true);
+      }
     }
   }
 
@@ -153,7 +158,7 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
     try {
       setState(() => _posting = true);
 
-      // 1) 약관 동의 저장
+      // 1) 동의 저장
       final agreedPdfNos = _terms.where((t) => t.agreed).map((e) => e.pdfNo).toList();
       await ApplyTermsService.saveAgreements(
         memberNo: _memberNo!,
@@ -161,7 +166,7 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
         pdfNos: agreedPdfNos,
       );
 
-      // 2) 발급 시작 → applicationNo 받아서 Step1로
+      // 2) 발급 시작 → Step1
       final start = await apply.CardApplyService.start(cardNo: widget.cardNo);
 
       if (!mounted) return;
@@ -175,11 +180,10 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
         ),
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('진행 실패: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('진행 실패: $e')),
+      );
     } finally {
       if (mounted) setState(() => _posting = false);
     }
@@ -228,7 +232,8 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
                       ),
                       const SizedBox(width: 10),
                       const Expanded(
-                        child: Text('모두 동의', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        child: Text('모두 동의',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                       const Icon(Icons.chevron_right),
                     ],
@@ -237,6 +242,8 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
               ),
 
               const SizedBox(height: 16),
+
+              // 리스트
               Expanded(
                 child: ListView.separated(
                   itemCount: _terms.length,
@@ -246,7 +253,6 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
                     return _TermRow(
                       term: t,
                       onView: () => _openPdfTabs(initialIndex: i),
-                      onToggle: () => setState(() => t.checked = !t.checked),
                     );
                   },
                 ),
@@ -265,7 +271,8 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
                   ),
                   child: _posting
                       ? const SizedBox(
-                    height: 24, width: 24,
+                    height: 24,
+                    width: 24,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
                       : const Text('다음', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
@@ -279,12 +286,20 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
   }
 }
 
+/* ───────────────────────────── Item Row (3상태 아이콘) ───────────────────────────── */
+
 class _TermRow extends StatelessWidget {
   final TermItem term;
-  final VoidCallback onView;
-  final VoidCallback onToggle;
+  final Future<void> Function() onView; // 아이콘/보기 클릭 시 PDF 열기
 
-  const _TermRow({required this.term, required this.onView, required this.onToggle});
+  const _TermRow({required this.term, required this.onView});
+
+  // ○(회색) / ◯✓(빨강 아웃라인) / ●✓(빨강)
+  Icon _statusIcon(TermItem t) {
+    if (t.agreed) return const Icon(Icons.check_circle, color: kPrimaryRed);
+    if (t.checked) return const Icon(Icons.check_circle_outline, color: kPrimaryRed);
+    return const Icon(Icons.radio_button_unchecked, color: Colors.black38);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -296,13 +311,8 @@ class _TermRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          InkWell(
-            onTap: onToggle,
-            child: Icon(
-              term.checked ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: term.checked ? kPrimaryRed : Colors.black38,
-            ),
-          ),
+          // 아이콘 눌러도 항상 PDF 열기(직접 토글 금지)
+          InkWell(onTap: onView, child: _statusIcon(term)),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -316,41 +326,39 @@ class _TermRow extends StatelessWidget {
                         color: term.isRequired ? Colors.grey.shade200 : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text(term.isRequired ? '(필수)' : '(선택)',
-                          style: TextStyle(fontSize: 11, fontWeight: term.isRequired ? FontWeight.w600 : FontWeight.w400)),
+                      child: Text(
+                        term.isRequired ? '(필수)' : '(선택)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: term.isRequired ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text(
-                        term.pdfName,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                        overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              term.pdfName,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (term.agreed) const Icon(Icons.check, size: 16, color: Colors.green),
+                        ],
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Row(
-                  children: [
-                    InkWell(
-                      onTap: onView,
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 4.0, vertical: 2),
-                        child: Text('보기', style: TextStyle(decoration: TextDecoration.underline)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    if (term.agreed)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
-                          color: Colors.green.shade50,
-                        ),
-                        child: const Text('동의됨', style: TextStyle(fontSize: 11, color: Colors.green)),
-                      ),
-                  ],
-                )
+                InkWell(
+                  onTap: onView,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4.0, vertical: 2),
+                    child: Text('보기', style: TextStyle(decoration: TextDecoration.underline)),
+                  ),
+                ),
               ],
             ),
           ),
@@ -361,9 +369,8 @@ class _TermRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PDF 탭 뷰어
-// ─────────────────────────────────────────────────────────────────────────────
+/* ───────────────────────────── PDF Tabs (네트워크 스트리밍) ───────────────────────────── */
+
 class TermsPdfTabs extends StatefulWidget {
   final List<TermItem> terms;
   final int initialIndex;
@@ -386,17 +393,55 @@ class TermsPdfTabs extends StatefulWidget {
 
 class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderStateMixin {
   late final TabController _tab;
+  final Map<int, Uint8List> _cache = {};        // pdfNo -> bytes 캐시
+  final Map<int, String> _err = {};             // pdfNo -> 에러 메시지
+  bool _downloading = false;                    // 하단 [다운로드] 버튼 로딩
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: widget.terms.length, vsync: this, initialIndex: widget.initialIndex);
+    // 최초 탭 것부터 미리 로드 (선택)
+    _ensureLoaded(widget.terms[_tab.index].pdfNo);
+    _tab.addListener(() {
+      if (_tab.indexIsChanging) return;
+      _ensureLoaded(widget.terms[_tab.index].pdfNo);
+    });
   }
 
   @override
   void dispose() {
     _tab.dispose();
     super.dispose();
+  }
+
+  Future<void> _ensureLoaded(int pdfNo) async {
+    if (_cache.containsKey(pdfNo) || _err.containsKey(pdfNo)) return;
+    try {
+      final headers = await api.API.authHeader();
+      final url = '${api.API.baseUrl}/api/card/apply/pdf/$pdfNo';
+      final res = await http.get(Uri.parse(url), headers: headers);
+      if (res.statusCode != 200) {
+        throw Exception('HTTP ${res.statusCode}');
+      }
+      // 간단한 시그니처 체크(%PDF)
+      final b = res.bodyBytes;
+      if (b.length < 4 || !(b[0] == 0x25 && b[1] == 0x50 && b[2] == 0x44 && b[3] == 0x46)) {
+        throw Exception('PDF 시그니처 아님');
+      }
+      setState(() {
+        _cache[pdfNo] = Uint8List.fromList(b);
+      });
+    } catch (e) {
+      setState(() {
+        _err[pdfNo] = e.toString();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF 로드 실패: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _agreeCurrent() async {
@@ -414,22 +459,73 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
   }
 
   Future<void> _downloadCurrent() async {
-    final t = widget.terms[_tab.index];
-    if (t.data == null) return;
-
     if (kIsWeb) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('웹에서는 파일 저장을 지원하지 않습니다.')),
+        const SnackBar(content: Text('앱에서는 파일 저장을 지원하지 않습니다.')),
       );
       return;
     }
+    setState(() => _downloading = true);
+    final t = widget.terms[_tab.index];
+    try {
+      // 캐시에 없으면 먼저 받아오기
+      if (!_cache.containsKey(t.pdfNo)) {
+        await _ensureLoaded(t.pdfNo);
+      }
+      final data = _cache[t.pdfNo];
+      if (data == null) throw Exception('PDF 데이터 없음');
 
-    final dir = Platform.isAndroid ? await getExternalStorageDirectory()
-        : await getApplicationDocumentsDirectory();
-    final file = File('${dir!.path}/term_${t.pdfNo}.pdf');
-    await file.writeAsBytes(t.data!, flush: true);
-    await OpenFilex.open(file.path);
+      final dir = Platform.isAndroid
+          ? await getExternalStorageDirectory()
+          : await getApplicationDocumentsDirectory();
+      final file = File('${dir!.path}/term_${t.pdfNo}.pdf');
+      await file.writeAsBytes(data, flush: true);
+      await OpenFilex.open(file.path);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('다운로드 실패: $e')));
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  Widget _paneFor(TermItem t) {
+    final data = _cache[t.pdfNo];
+    final err = _err[t.pdfNo];
+
+    if (data != null) {
+      return SfPdfViewer.memory(
+        data,
+        key: ValueKey('pdf_${t.pdfNo}'),
+        pageSpacing: 8,
+        onDocumentLoaded: (_) => print('[PDF] loaded pdfNo=${t.pdfNo}, bytes=${data.length}'),
+        onDocumentLoadFailed: (d) {
+          print('[PDF] FAILED (viewer) pdfNo=${t.pdfNo} code=${d.error} desc=${d.description}');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('PDF 렌더 실패: ${d.description}')),
+          );
+        },
+      );
+    }
+
+    if (err != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('불러오기 실패\n$err', textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => _ensureLoaded(t.pdfNo),
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 아직 로딩 전이면 트리거
+    _ensureLoaded(t.pdfNo);
+    return const Center(child: CircularProgressIndicator());
   }
 
   @override
@@ -455,12 +551,7 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
       body: TabBarView(
         controller: _tab,
         physics: const BouncingScrollPhysics(),
-        children: [
-          for (final t in widget.terms)
-            t.data == null
-                ? const Center(child: Text('PDF 데이터가 없습니다.'))
-                : SfPdfViewer.memory(t.data!, pageSpacing: 8),
-        ],
+        children: [for (final t in widget.terms) _paneFor(t)],
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
@@ -469,9 +560,14 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _downloadCurrent,
+                  onPressed: _downloading ? null : _downloadCurrent,
                   style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                  child: const Text('다운로드'),
+                  child: _downloading
+                      ? const SizedBox(
+                    width: 18, height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                      : const Text('다운로드'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -493,3 +589,4 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
     );
   }
 }
+
