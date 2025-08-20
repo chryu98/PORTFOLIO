@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 
 class CustomCardEditorPage extends StatefulWidget {
@@ -254,11 +254,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
       final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
 
-      final result = await ImageGallerySaver.saveImage(
-        Uint8List.fromList(pngBytes),
-        quality: 100,
-        name: 'custom_card_${DateTime.now().millisecondsSinceEpoch}',
-      );
+      final result = await ImageGallerySaverPlus.saveImage(pngBytes);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
