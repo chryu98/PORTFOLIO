@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")   // ✅ 추가
+    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -19,15 +19,12 @@ android {
         versionName = flutter.versionName
     }
 
-    // Java 17 권장 (AGP 8.x 조합에서 필요)
+    // ✅ Java 17로 고정
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-
-
-    // 디버그/릴리스 설정 (Kotlin DSL 문법!)
     buildTypes {
         getByName("debug") {
             isDebuggable = true
@@ -35,10 +32,9 @@ android {
             isShrinkResources = false
         }
         getByName("release") {
-            isDebuggable = false   // ✅ Groovy의 'debuggable false' 아님
+            isDebuggable = false
             isMinifyEnabled = false
             isShrinkResources = false
-            // 서명/프로가드 필요 시 나중에 추가
             // proguardFiles(
             //     getDefaultProguardFile("proguard-android-optimize.txt"),
             //     "proguard-rules.pro"
@@ -46,16 +42,14 @@ android {
         }
     }
 
-    // 에뮬레이터 설치/탐지 이슈 줄이려면 디버그에서 ABI 스플릿 끄기
     splits {
         abi {
             isEnable = false
-            // 또는 isUniversalApk = true
+            // isUniversalApk = true
         }
     }
 
-    // ndkVersion은 꼭 필요할 때만 지정 (없어도 보통 무관)
-    // ndkVersion = "27.0.12077973"
+    // ndkVersion = "27.0.12077973" // 필요 시만 지정
 }
 
 dependencies {
@@ -66,9 +60,14 @@ flutter {
     source = "../.."
 }
 
-
+// ✅ Kotlin도 17로 고정
 tasks.withType<KotlinCompile>().configureEach {
     kotlinOptions {
         jvmTarget = "17"
     }
+}
+
+// ✅ Toolchain (모듈 단위에서도 적용)
+kotlin {
+    jvmToolchain(17)
 }
