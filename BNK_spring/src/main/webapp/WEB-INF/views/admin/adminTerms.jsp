@@ -300,6 +300,11 @@ td button {
 			<option value="20">20개씩</option>
 			<option value="50">50개씩</option>
 		</select>
+		
+		<a href="/admin/cardTerms"
+     style="margin-left:auto; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; text-decoration:none; color:#111827; background:#fff;">
+     카드별 상품 약관 한눈에 보기
+  </a>
 	</div>
 
 	<!-- 업로드 폼 -->

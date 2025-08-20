@@ -38,7 +38,6 @@ public class SecurityConfig {
                     "/admin/logout",
                     "/admin/pdf/**"
                 ).permitAll()
-                .requestMatchers(HttpMethod.DELETE, "/admin/**").authenticated()
                 .anyRequest().access((authContext, context) -> {
                     boolean loggedIn = adminSession.isLoggedIn();
                     return new org.springframework.security.authorization.AuthorizationDecision(loggedIn);

@@ -117,6 +117,17 @@ public class AdminMainController {
 		return "admin/adminTerms";
 	}
 	
+	// 상품약관의 카드별 약관 페이지
+	@GetMapping("/cardTerms")
+	public String cardTerms() {
+		AdminDto admin = adminSession.getLoginUser();
+		if (admin == null) {
+			// 로그인 안한 경우
+			return "redirect:/admin/adminLoginForm";
+		}
+		return "admin/adminCardTerms";
+	}
+	
 	
 	// 고객 정보 관리
 	@GetMapping("/userinfomanagement")
