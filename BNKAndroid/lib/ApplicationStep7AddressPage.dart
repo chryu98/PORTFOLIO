@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart'; // ✅ WebView
 import 'ApplicationStep1Page.dart' show kPrimaryRed;
 import 'package:bnkandroid/user/service/card_apply_service.dart' as apply;
+import 'package:bnkandroid/postcode_search_page.dart';
 
 class ApplicationStep7AddressPage extends StatefulWidget {
   final int applicationNo;
@@ -420,39 +421,4 @@ class _StepHeader7 extends StatelessWidget {
 ///   - embed 모드로 띄우고 oncomplete에서
 ///     window.App.postMessage(JSON.stringify({...})) 호출
 ///
-class PostcodeSearchPage extends StatefulWidget {
-  const PostcodeSearchPage({super.key});
-  @override
-  State<PostcodeSearchPage> createState() => _PostcodeSearchPageState();
-}
 
-class _PostcodeSearchPageState extends State<PostcodeSearchPage> {
-  late final WebViewController _ctl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctl = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..addJavaScriptChannel(
-        'App', // assets/postcode.html에서 window.App.postMessage(...) 와 동일해야 함
-        onMessageReceived: (msg) {
-          try {
-            final data = jsonDecode(msg.message) as Map<String, dynamic>;
-            Navigator.pop(context, data); // 선택 값 반환
-          } catch (e) {
-            Navigator.pop(context);
-          }
-        },
-      )
-      ..loadFlutterAsset('assets/postcode.html');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('우편번호 찾기')),
-      body: WebViewWidget(controller: _ctl),
-    );
-  }
-}

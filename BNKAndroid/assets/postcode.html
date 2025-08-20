@@ -1,16 +1,27 @@
 <!doctype html>
 <html lang="ko">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<body style="margin:0">
-<div id="wrap" style="width:100vw;height:100vh"></div>
-<script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>우편번호 찾기</title>
+    <style>
+        html, body, #wrap { height: 100%; margin: 0; }
+        body { overscroll-behavior: contain; }
+    </style>
+    <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+</head>
+<body>
+<div id="wrap"></div>
 <script>
     function sendToFlutter(payload){
+      // 1) 모바일(WebView) 경로: webview_flutter JS 채널
       if (window.App && window.App.postMessage) {
-        window.App.postMessage(JSON.stringify(payload));   // webview_flutter 채널
-      } else if (window.flutter_inappwebview) {
-        window.flutter_inappwebview.callHandler('onSelected', payload);
+        window.App.postMessage(JSON.stringify(payload));
+        return;
+      }
+      // 2) 웹(Chrome) 경로: 부모(Flutter Web) 창으로 전달
+      if (window.parent) {
+        window.parent.postMessage({ type: 'postcode', payload }, '*');
       }
     }
 
@@ -24,8 +35,7 @@
           extraAddress: extra
         });
       },
-      width: '100%',
-      height: '100%'
+      width:'100%', height:'100%'
     }).embed(document.getElementById('wrap'));
 </script>
 </body>
