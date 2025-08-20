@@ -1,56 +1,66 @@
-// lib/security/screenshot_watcher.dart
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:screenshot_callback/screenshot_callback.dart';
 
-/// 스크린샷 감지 전용 싱글톤 (screenshot_callback ^3.0.1 대응)
+import 'screen_capture_event_stub.dart'
+if (dart.library.io) 'package:screen_capture_event/screen_capture_event.dart';
+
+/// 스크린샷 감지 전용 싱글톤 (Web/데스크톱은 noop, Android/iOS만 동작)
 class ScreenshotWatcher {
   ScreenshotWatcher._();
   static final ScreenshotWatcher instance = ScreenshotWatcher._();
 
-  ScreenshotCallback? _cb;
-  bool _running = false;
+  final _event = ScreenCaptureEvent();
+  bool _started = false;
 
-  /// 스크린샷 감지를 시작한다.
-  /// - 웹/데스크톱: noop
-  /// - Android/iOS에서만 동작
-  void start(BuildContext context) {
-    if (_running) return;
-    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
+  bool get _isMobile =>
+      !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS);
+
+  Future<void> start(BuildContext context) async {
+    if (_started || !_isMobile) return;
+    _started = true;
 
     try {
-      final cb = ScreenshotCallback();
-      // v3.0.1은 addListener만 제공 (onScreenshot Stream 없음)
-      cb.addListener(() => _onShot(context));
-      _cb = cb;
-      _running = true;
-    } catch (_) {
-      _running = false;
+      // ✅ 반환형이 void 이므로 await 금지
+      _event.addScreenShotListener((_) => _onShot(context));
+      _event.addScreenRecordListener((_) => _onRecord(context));
+    } catch (e) {
+      debugPrint('[ScreenshotWatcher] start failed: $e');
+      _started = false;
     }
   }
 
   void _onShot(BuildContext ctx) {
     HapticFeedback.mediumImpact();
     if (!ctx.mounted) return;
-
     final m = ScaffoldMessenger.maybeOf(ctx);
-    m?.hideCurrentSnackBar();
-    m?.showSnackBar(
-      const SnackBar(
+    m?..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
         content: Text('보안: 화면 캡처가 감지되었습니다. 민감 정보 노출에 주의하세요.'),
         duration: Duration(seconds: 2),
-      ),
-    );
+      ));
   }
 
-  /// 감지를 중단한다. (해당 화면 dispose에서 호출)
+  void _onRecord(BuildContext ctx) {
+    if (!ctx.mounted) return;
+    final m = ScaffoldMessenger.maybeOf(ctx);
+    m?..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+        content: Text('보안: 화면 녹화가 감지되었습니다. 민감 정보 노출에 주의하세요.'),
+        duration: Duration(seconds: 2),
+      ));
+  }
+
   Future<void> stop() async {
+    if (!_started) return;
     try {
-      await _cb?.dispose();
-    } catch (_) {}
-    _cb = null;
-    _running = false;
+      // ✅ 반환형이 void 이므로 await 금지
+      _event.dispose();
+    } catch (e) {
+      debugPrint('[ScreenshotWatcher] stop failed: $e');
+    }
+    _started = false;
   }
 }
