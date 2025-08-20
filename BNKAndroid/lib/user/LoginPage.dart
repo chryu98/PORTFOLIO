@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../auth_state.dart';
 import '../constants/api.dart';
@@ -15,9 +16,8 @@ const kText = Color(0xFF23272F);
 const kHint = Color(0xFF9AA1A9);
 
 class LoginPage extends StatefulWidget {
-  /// 로그인 성공 후 이동할 대상 화면. 지정 없으면:
-  /// - 가드에서 띄워진 경우: pop(true)
-  /// - 그 외: AppShell로 교체 이동
+  /// 로그인 성공 후 이동할 대상 화면.
+  /// 지정 없으면: pop(true) 시도 → 실패 시 AppShell로 교체 이동
   final WidgetBuilder? redirectBuilder;
 
   const LoginPage({super.key, this.redirectBuilder});
@@ -50,9 +50,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   bool get _canSubmit =>
-      !_loading &&
-          _idCtl.text.trim().isNotEmpty &&
-          _pwCtl.text.trim().isNotEmpty;
+      !_loading && _idCtl.text.trim().isNotEmpty && _pwCtl.text.trim().isNotEmpty;
 
   InputDecoration _dec(String hint) => InputDecoration(
     hintText: hint,
@@ -84,7 +82,8 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _loading = true);
     try {
-      final url = Uri.parse('${API.baseUrl}/jwt/api/login');
+      // ✅ API 경로 상수 사용 (baseUrl 문제 방지)
+      final url = Uri.parse(API.jwtLogin);
 
       final res = await http.post(
         url,
@@ -92,6 +91,7 @@ class _LoginPageState extends State<LoginPage> {
         body: jsonEncode({
           'username': _idCtl.text.trim(),
           'password': _pwCtl.text.trim(),
+          'remember': _remember,
         }),
       );
 
@@ -101,13 +101,13 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // 응답 파싱
+      // 응답 파싱 (서버 포맷에 맞게 키 후보 체크)
       String? access;
       String? refresh;
       try {
         final data = jsonDecode(raw);
         if (data is Map<String, dynamic>) {
-          access  = (data['accessToken'] ?? data['access'] ?? data['token'])?.toString();
+          access = (data['accessToken'] ?? data['access'] ?? data['token'])?.toString();
           refresh = (data['refreshToken'] ?? data['refresh'])?.toString();
         }
       } catch (_) {
@@ -121,17 +121,32 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // 상태 저장
-      await AuthState.markLoggedIn(
-        remember: _remember,
-        access: access,
-        refresh: refresh,
-      );
+      // ✅ 토큰 저장 (두 키 모두) + Double Bearer 제거
+      final prefs = await SharedPreferences.getInstance();
+      var token = access;
+      if (token.startsWith('Bearer ')) token = token.substring(7);
+
+      await prefs.setString('jwt_token', token);   // 구키 유지
+      await prefs.setString('accessToken', token); // 새키 추가
+      if (refresh != null && refresh.isNotEmpty) {
+        await prefs.setString('refreshToken', refresh);
+      }
+      await prefs.setBool('remember', _remember);
+
+      // (선택) 기존 상태관리도 유지
+      await AuthState.markLoggedIn(remember: _remember, access: token, refresh: refresh);
       await AuthState.debugDump();
 
       if (!mounted) return;
       final rootNav = Navigator.of(context, rootNavigator: true);
 
+      // ✅ 1순위: Step0 같은 상위 화면으로 성공 신호 보내기 (무한 로그인 방지 핵심)
+      if (rootNav.canPop()) {
+        rootNav.pop(true);
+        return;
+      }
+
+      // ✅ 2순위: 호출자가 명시한 목적지로 이동
       if (widget.redirectBuilder != null) {
         rootNav.pushAndRemoveUntil(
           MaterialPageRoute(builder: widget.redirectBuilder!),
@@ -140,13 +155,11 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      final popped = await rootNav.maybePop(true);
-      if (!popped) {
-        rootNav.pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const AppShell()),
-              (route) => false,
-        );
-      }
+      // ✅ 3순위: 기본 앱 셸로 진입
+      rootNav.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AppShell()),
+            (route) => false,
+      );
     } catch (e) {
       _showError('네트워크 오류: $e');
     } finally {
@@ -177,7 +190,6 @@ class _LoginPageState extends State<LoginPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      // 상단 AppBar 대신 토스처럼 얇은 헤더 + 큰 타이틀
       body: SafeArea(
         child: Column(
           children: [
@@ -202,7 +214,6 @@ class _LoginPageState extends State<LoginPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 큰 타이틀
                     const Text(
                       '로그인',
                       style: TextStyle(
@@ -219,7 +230,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 24),
 
-                    // 아이디
                     TextField(
                       controller: _idCtl,
                       decoration: _dec('아이디'),
@@ -228,7 +238,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 비밀번호 + 보기 토글
                     TextField(
                       controller: _pwCtl,
                       decoration: _dec('비밀번호').copyWith(
@@ -246,7 +255,6 @@ class _LoginPageState extends State<LoginPage> {
 
                     const SizedBox(height: 10),
 
-                    // 자동 로그인 (스위치형, 토스 느낌)
                     SwitchListTile.adaptive(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
@@ -256,13 +264,10 @@ class _LoginPageState extends State<LoginPage> {
                       onChanged: (v) => setState(() => _remember = v),
                     ),
 
-                    // (선택) 비밀번호 찾기
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {
-                          // TODO: 라우팅 연결 시 여기에
-                        },
+                        onPressed: () {},
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.black54,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -273,7 +278,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 80), // 하단 버튼과 간격 확보
+                    const SizedBox(height: 80),
                   ],
                 ),
               ),
@@ -282,7 +287,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
 
-      // 하단 고정 CTA 버튼 (토스 느낌)
+      // 하단 고정 CTA
       bottomNavigationBar: SafeArea(
         top: false,
         child: Padding(
@@ -301,7 +306,8 @@ class _LoginPageState extends State<LoginPage> {
               onPressed: canSubmit ? _login : null,
               child: _loading
                   ? const SizedBox(
-                width: 22, height: 22,
+                width: 22,
+                height: 22,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
               )
                   : const Text('로그인'),

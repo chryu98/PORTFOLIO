@@ -11,7 +11,8 @@ import 'package:bnkandroid/user/service/card_apply_service.dart';
 import 'package:bnkandroid/constants/api.dart';
 import 'package:bnkandroid/user/model/CardModel.dart';
 import 'package:bnkandroid/user/service/CardService.dart';
-import 'ApplicationStep1Page.dart';
+
+import 'ApplicationStep0TermsPage.dart';
 
 import 'package:bnkandroid/navigation/guards.dart';
 import 'package:bnkandroid/app_shell.dart' show pushFullScreen; // root push helper
@@ -427,51 +428,15 @@ class _CardDetailPageState extends State<CardDetailPage> {
       return;
     }
 
-    // ✅ 1) 로그인 가드: 미로그인이면 LoginPage를 root로 띄우고, 성공 시 이후 로직 실행
+    // ✅ 로그인 가드만 유지하고, Step0로 진입
     await ensureLoggedInAndRun(context, () async {
-      try {
-        // ✅ 2) 서버에 발급 시작 요청
-        final start = await CardApplyService.start(cardNo: cardNo);
-
-        if (!mounted) return;
-
-        // ✅ 3) 발급 플로우는 반드시 "루트 네비게이터"로 푸시
-        await pushFullScreen(
-          context,
-          ApplicationStep1Page(
-            cardNo: cardNo,
-            applicationNo: start.applicationNo,
-            isCreditCard: start.isCreditCard,
-          ),
-        );
-      } on ApiException catch (e) {
-        // 🔁 4) 토큰 만료 등 인증 오류(401) → 재로그인 유도 후 1회 재시도
-        final status = _extractStatusCode(e); // 기존 헬퍼 그대로 사용
-        if (status == 401) {
-          if (!mounted) return;
-          final ok = await Navigator.of(context, rootNavigator: true).push<bool>(
-            MaterialPageRoute(builder: (_) => const LoginPage()),
-          );
-          if (ok == true) {
-            // 재로그인 성공 → 1회 재시도
-            await _startCardApplication(cardNo.toString());
-          }
-          return;
-        }
-
-        if (!mounted) return;
-        final msg = _extractErrorMessage(e);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('발급 시작 실패: $msg')),
-        );
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('발급 시작 오류: $e')),
-        );
-      }
+      await pushFullScreen(
+        context,
+        ApplicationStep0TermsPage(cardNo: cardNo),
+      );
     });
   }
+
 
 
   /// ---- 여기 아래 두 개 헬퍼를 같은 파일(같은 클래스 안 or 바깥) 에 추가하세요 ----
@@ -1017,86 +982,6 @@ class _SectionTileState extends State<SectionTile> {
   }
 }
 
-/// 로그인 후 자동으로 발급 시작 API를 호출해 Step1로 넘겨주는 중간 페이지
-class _ContinueApplicationPage extends StatefulWidget {
-  final int cardNo;
-  const _ContinueApplicationPage({required this.cardNo});
-
-  @override
-  State<_ContinueApplicationPage> createState() => _ContinueApplicationPageState();
-}
-
-class _ContinueApplicationPageState extends State<_ContinueApplicationPage> {
-  @override
-  void initState() {
-    super.initState();
-    _go();
-  }
-
-  Future<void> _go() async {
-    try {
-      final start = await CardApplyService.start(cardNo: widget.cardNo);
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ApplicationStep1Page(
-            cardNo: widget.cardNo,
-            applicationNo: start.applicationNo,
-            isCreditCard: start.isCreditCard,
-          ),
-        ),
-      );
-    } on ApiException catch (e) {
-      final status = _extractStatusCode(e); // ← 헬퍼 사용
-      if (status == 401) {
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => LoginPage(
-              redirectBuilder: (_) => _ContinueApplicationPage(cardNo: widget.cardNo),
-            ),
-          ),
-        );
-        return;
-      }
-      if (!mounted) return;
-      final msg = _extractErrorMessage(e); // ← 헬퍼 사용
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('발급 시작 실패: $msg')),
-      );
-      Navigator.pop(context);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('발급 시작 오류: $e')),
-      );
-      Navigator.pop(context);
-    }
-  }
-  int _extractStatusCode(dynamic e) {
-    // 1) e.statusCode
-    try {
-      final sc = (e as dynamic).statusCode;
-      if (sc is int) return sc;
-    } catch (_) {}
-
-    // 2) e.code
-    try {
-      final c = (e as dynamic).code;
-      if (c is int) return c;
-    } catch (_) {}
-
-    // 3) e.response?.statusCode (Dio 스타일)
-    try {
-      final resp = (e as dynamic).response;
-      final sc = (resp as dynamic)?.statusCode;
-      if (sc is int) return sc;
-    } catch (_) {}
-
-    return 0;
-  }
 
   String _extractErrorMessage(dynamic e) {
     // body.message → message → toString()
@@ -1120,4 +1005,4 @@ class _ContinueApplicationPageState extends State<_ContinueApplicationPage> {
   Widget build(BuildContext context) {
     return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
-}
+
