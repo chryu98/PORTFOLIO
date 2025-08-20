@@ -19,7 +19,7 @@ public interface IUserDao {
     @Select("SELECT * FROM member WHERE username = #{username}")
     UserDto findByUsername(String username);
 
-    // ✅ Integer로 통일 (컨트롤러와 맞춤)
+    //Integer로 통일 (컨트롤러와 맞춤)
     @Select("SELECT * FROM member WHERE member_no = #{memberNo}")
     UserDto findByMemberNo(Integer memberNo);
 
