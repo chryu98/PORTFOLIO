@@ -147,6 +147,16 @@ public class CardApplyController {
 	    if (memberNo == null) { model.addAttribute("msg", "로그인이 필요한 서비스입니다."); return "user/userLogin"; }
 	    return "cardapply/accounts";
 	}
+	
+	// 카드비밀번호
+	@GetMapping("/cardPassword")
+	public String cardPassword(@RequestParam(value="cardNo", required=false) Integer cardNo,
+            HttpSession session, Model model, RedirectAttributes rttr) {
+		 model.addAttribute("cardNo", cardNo == null ? "" : cardNo); // ✅ 추가
+Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
+if (memberNo == null) { model.addAttribute("msg", "로그인이 필요한 서비스입니다."); return "user/userLogin"; }
+		return "cardapply/cardPassword";
+	}
 
 
 }
