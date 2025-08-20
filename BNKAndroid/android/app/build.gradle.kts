@@ -46,14 +46,6 @@ android {
         }
     }
 
-    // 에뮬레이터 설치/탐지 이슈 줄이려면 디버그에서 ABI 스플릿 끄기
-    splits {
-        abi {
-            isEnable = false
-            // 또는 isUniversalApk = true
-        }
-    }
-
     // ndkVersion은 꼭 필요할 때만 지정 (없어도 보통 무관)
     // ndkVersion = "27.0.12077973"
 }

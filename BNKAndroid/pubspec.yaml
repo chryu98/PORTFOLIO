@@ -16,6 +16,8 @@ dependencies:
   visibility_detector: ^0.4.0
   screen_protector: ^1.4.0
   screenshot_callback: ^3.0.1
+  dio: ^5.7.0             # HTTP 멀티파트 업로드
+  encrypt: ^5.0.3         # AES 암호화 (ECB/PKCS7)
 
 
 

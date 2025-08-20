@@ -6,7 +6,7 @@ class API {
 
   /// 앱 시작 시 1회 호출해서 baseUrl 자동 세팅
   static Future<void> initBaseUrl() async {
-    const fallbackIp = '192.168.100.106'; // 각자 로컬/사내망 IP면 여기만 개인별로 바꿔도 동작
+    const fallbackIp = '192.168.0.5'; // 각자 로컬/사내망 IP면 여기만 개인별로 바꿔도 동작
     try {
       final r = await http.get(
         Uri.parse('http://$fallbackIp:8090/api/config/base-url'),
