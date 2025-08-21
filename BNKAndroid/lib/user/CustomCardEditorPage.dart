@@ -1,13 +1,14 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
+import 'package:http_parser/http_parser.dart';
 
 class CustomCardEditorPage extends StatefulWidget {
   const CustomCardEditorPage({super.key});
@@ -22,6 +23,12 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
 
   String _activeBottom = '배경'; // 기본은 배경 선택 상태
 
+  Future<Uint8List> _captureCardPngBytes() async {
+    final boundary = _repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+    final ui.Image img = await boundary.toImage(pixelRatio: 3.0);
+    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
 
   // ===== 카드/배경 상태 =====
   final GlobalKey _cardKey = GlobalKey();            // 카드 전체의 위치/크기 계산용
@@ -670,12 +677,45 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
     );
   }
 
-  void _finishDesign() {
-    // TODO: 서버 저장 or 다음 단계 이동 로직 연결
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('디자인이 결정되었습니다.')),
-    );
+  Future<void> _finishDesign() async {
+    try {
+      // 1) 카드 PNG 바이트 생성
+      final pngBytes = await _captureCardPngBytes();
+
+      // 2) 업로드 파라미터 (필요에 맞게 세팅)
+      final memberNo = 1001;              // 로그인 사용자 ID (앱에서 주입)
+      final customService = '우대금리 + 영화예매 1천원 할인'; // 혜택 설명(선택)
+      final uri = Uri.parse('http://192.168.0.224:8090/api/custom-cards');
+
+      // 3) 멀티파트 업로드 (image/png + 폼필드)
+      final req = http.MultipartRequest('POST', uri)
+        ..fields['memberNo'] = memberNo.toString()
+        ..fields['customService'] = customService
+        ..files.add(
+          http.MultipartFile.fromBytes(
+            'image', pngBytes,
+            filename: 'card.png',
+            contentType: MediaType('image', 'png'),
+          ),
+        );
+
+      final streamed = await req.send();
+      final res = await http.Response.fromStream(streamed);
+
+      if (res.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('디자인이 저장되었습니다. 심사 대기(PENDING)')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 실패: ${res.statusCode} ${res.body}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('업로드 오류: $e')),
+      );
+    }
   }
 
   Widget _chipBtn(String label, {required VoidCallback onTap}) {

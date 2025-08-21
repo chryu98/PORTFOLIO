@@ -1,4 +1,5 @@
 // lib/app_shell.dart
+import 'package:bnkandroid/user/CustomCardEditorPage.dart';
 import 'package:flutter/material.dart';
 
 import 'package:bnkandroid/user/CardListPage.dart';
@@ -101,7 +102,8 @@ class _AppShellState extends State<AppShell> {
       case AppTab.cards:
         return const _KeepAlive(child: CardListPage());
       case AppTab.benefits:
-        return const _KeepAlive(child: _Stub(title: '혜택/이벤트'));
+        return const _KeepAlive(child: CustomCardEditorPage());
+
       case AppTab.support:
       // ✅ 여기!
         return const _KeepAlive(child: FaqPage());
