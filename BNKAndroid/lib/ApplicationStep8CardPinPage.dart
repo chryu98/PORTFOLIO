@@ -1,6 +1,7 @@
+// lib/ApplicationStep8CardPinPage.dart
 import 'package:flutter/material.dart';
 import 'ApplicationStep1Page.dart' show kPrimaryRed;
-// 프로젝트에 맞는 서비스 경로로 맞춰주세요.
+import 'package:bnkandroid/constants/api.dart' as API;                // ✅ ApiException 캐치용
 import 'package:bnkandroid/user/service/card_password_service.dart' as cps;
 
 enum _PadStyle { card, flat }
@@ -21,7 +22,9 @@ class _ApplicationStep8CardPinPageState extends State<ApplicationStep8CardPinPag
   bool _saving = false;
 
   Future<void> _openPadAndSave() async {
-    // 페이지5와 동일한 시큐어 패드 호출
+    if (_saving) return; // 중복 클릭 방지
+
+    // 1) 보안 키패드 열기
     final pin = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -31,46 +34,58 @@ class _ApplicationStep8CardPinPageState extends State<ApplicationStep8CardPinPag
         title2: '한 번 더 입력해주세요',
         minLen: 4,
         maxLen: 6,
-        accent: kPrimaryRed,           // 점/아이콘 색
-        padColor: Color(0xFF9AA4AE),   // 패드 배경
+        accent: kPrimaryRed,
+        padColor: Color(0xFF9AA4AE),
         requireConfirm: true,          // 두 번 확인
         autoSubmitOnMaxLen: true,
         autoDelay: Duration(milliseconds: 120),
         padStyle: _PadStyle.flat,
-        enableShuffle: true,
+        enableShuffle: true,           // 키패드 재배열
       ),
     );
 
+    // 시트 닫힘
     if (pin == null) return;
+    if (!mounted) return;
+
+    // 2) 기본 검증 (서버도 재검증함)
+    if (!RegExp(r'^\d{4,6}$').hasMatch(pin)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('숫자 4~6자리로 입력해주세요.')),
+      );
+      return;
+    }
 
     setState(() => _saving = true);
     try {
-      // ⚠️ 너희 서비스 시그니처에 맞춰 한 줄만 조정하세요.
-      // 아래는 bool을 리턴한다고 가정한 예시입니다.
-      final ok = await cps.CardPasswordService.savePin(
+      // 3) 저장 요청
+      final result = await cps.CardPasswordService.savePin(
         cardNo: widget.cardNo,
         pin1: pin,
         pin2: pin,
       );
-
       if (!mounted) return;
 
-      if (ok == true) {
+      // 4) 결과 처리
+      if (result.ok == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('카드 비밀번호가 저장되었습니다.')),
+          SnackBar(content: Text(result.message ?? '카드 비밀번호가 저장되었습니다.')),
         );
-        // TODO: 다음 단계로 이동 (예: 완료 화면)
-        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DonePage()));
+        Navigator.of(context).pop(true); // 현재 화면 종료(필요 시 다음 단계로 교체)
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저장에 실패했습니다. 다시 시도해주세요.')),
+          SnackBar(content: Text(result.message ?? '저장에 실패했습니다. 다시 시도해주세요.')),
         );
       }
-    } on cps.ApiException catch (e) {
+    } on API.ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? '오류가 발생했습니다.')),
-      );
+      var msg = e.message ?? '요청 처리 중 오류가 발생했습니다.';
+      if (e.statusCode == 401) {
+        msg = '로그인이 필요합니다. 다시 로그인해 주세요.';
+      } else if (e.statusCode == 400) {
+        msg = '형식 오류: 숫자 4~6자리로 입력했는지 확인해주세요.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -80,6 +95,7 @@ class _ApplicationStep8CardPinPageState extends State<ApplicationStep8CardPinPag
       if (mounted) setState(() => _saving = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +171,7 @@ class _StepHeader8 extends StatelessWidget {
 }
 
 /// ========================
-///  보안 숫자 키패드 시트 (페이지5와 동일 로직)
+///  보안 숫자 키패드 시트
 /// ========================
 class _SecurePinSheet extends StatefulWidget {
   final String title1;
@@ -163,14 +179,13 @@ class _SecurePinSheet extends StatefulWidget {
   final int minLen;
   final int maxLen;
 
-  // ✨ BNK 팔레트
   final Color accent;   // 점/아이콘
   final Color padColor; // 키패드 배경
 
   final bool requireConfirm;        // 신규: true, 기존: false
   final bool autoSubmitOnMaxLen;    // maxLen 채우면 자동 진행
   final Duration autoDelay;         // 점(●) 채움 연출
-  final _PadStyle padStyle;         // flat(추천) / card
+  final _PadStyle padStyle;         // flat / card
   final bool enableShuffle;         // '재배열' 사용
 
   const _SecurePinSheet({
@@ -198,7 +213,7 @@ class _SecurePinSheetState extends State<_SecurePinSheet> {
   String? _first;
   String? _error;
 
-  // 플랫 패드 배치 (초기값은 토스 느낌)
+  // 최초 배열(임의 시작)
   List<int> _grid = const [3, 1, 4, 8, 6, 9, 2, 5, 7];
   void _shuffle() {
     final list = List<int>.generate(9, (i) => i + 1)..shuffle();
@@ -223,6 +238,8 @@ class _SecurePinSheetState extends State<_SecurePinSheet> {
     if (!mounted) return;
 
     final cur = _digits.join();
+    if (!RegExp(r'^\d+$').hasMatch(cur)) return; // 숫자만 허용
+
     if (_step == 1) {
       if (widget.requireConfirm) {
         setState(() { _first = cur; _step = 2; _digits.clear(); _error = null; });
@@ -293,8 +310,6 @@ class _SecurePinSheetState extends State<_SecurePinSheet> {
               Text(_step == 1 ? widget.title1 : widget.title2,
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
-
-              // ● 인디케이터
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(widget.maxLen, (i) {
@@ -313,8 +328,6 @@ class _SecurePinSheetState extends State<_SecurePinSheet> {
                 Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
               ],
               const SizedBox(height: 8),
-
-              // === 키패드 ===
               Expanded(
                 child: widget.padStyle == _PadStyle.flat
                     ? _buildFlatPad()
@@ -327,7 +340,6 @@ class _SecurePinSheetState extends State<_SecurePinSheet> {
     );
   }
 
-  // --------- 플랫 ----------
   Widget _buildFlatPad() {
     return Container(
       decoration: BoxDecoration(
@@ -436,7 +448,6 @@ class _SecurePinSheetState extends State<_SecurePinSheet> {
     ),
   );
 
-  // ---------- 카드형(참고) ----------
   Widget _buildCardPad() {
     return LayoutBuilder(
       builder: (context, c) {

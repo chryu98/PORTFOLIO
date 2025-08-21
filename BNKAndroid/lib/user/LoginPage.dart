@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/gestures.dart';
 
 import '../auth_state.dart';
-import '../constants/api.dart';
+import '../constants/api.dart' as API_FILE;
 import '../app_shell.dart';
 import 'SelectMemberTypePage.dart';
 
@@ -25,9 +25,9 @@ class LoginPage extends StatefulWidget {
   @override
   State<LoginPage> createState() => _LoginPageState();
 
+  // ✅ 수정: pushReplacement → push (안전)
   static Future<void> goLoginThen(BuildContext context, WidgetBuilder builder) async {
-    await Navigator.pushReplacement(
-      context,
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => LoginPage(redirectBuilder: builder)),
     );
   }
@@ -52,7 +52,7 @@ class _LoginPageState extends State<LoginPage> {
   bool get _canSubmit =>
       !_loading && _idCtl.text.trim().isNotEmpty && _pwCtl.text.trim().isNotEmpty;
 
-  // ▶ 두 번째 스샷 느낌의 둥근 입력필드 데코레이터
+  // 둥근 입력필드 데코레이터
   InputDecoration _pillDec(String hint) => InputDecoration(
     hintText: hint,
     hintStyle: const TextStyle(color: kHint, fontSize: 15),
@@ -83,7 +83,7 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _loading = true);
     try {
-      final url = Uri.parse(API.jwtLogin);
+      final url = Uri.parse(API_FILE.API.jwtLogin);
       final res = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -137,6 +137,8 @@ class _LoginPageState extends State<LoginPage> {
       await AuthState.markLoggedIn(remember: _remember, access: access, refresh: refresh);
 
       if (!mounted) return;
+
+      // ✅ 로그인 성공: 루트 네비게이터에서 스택 제거 후 목적지로
       final rootNav = Navigator.of(context, rootNavigator: true);
       rootNav.pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => widget.redirectBuilder?.call(context) ?? const AppShell()),
@@ -170,7 +172,8 @@ class _LoginPageState extends State<LoginPage> {
         content: Text(msg),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(),
+            // ✅ pop → maybePop (안전)
+            onPressed: () => Navigator.of(ctx, rootNavigator: true).maybePop(),
             child: const Text('확인'),
           ),
         ],
@@ -187,13 +190,11 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            // ⬆️ 바깥 패딩 살짝 넉넉하게
-            padding: const EdgeInsets.fromLTRB(24, 32, 24, 32), // ★ 20,24,20,24 → 24,32,24,32
+            padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 12), // ★ 8 → 12
-
+                const SizedBox(height: 12),
                 const Center(
                   child: Text(
                     '로그인',
@@ -204,15 +205,13 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 12), // ★ 8 → 12
+                const SizedBox(height: 12),
                 Container(
                   height: 2,
                   color: kPrimaryRed,
-                  margin: const EdgeInsets.symmetric(horizontal: 20), // ★ 16 → 20
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
                 ),
-
-                const SizedBox(height: 28), // ★ 22 → 28
+                const SizedBox(height: 28),
 
                 // 아이디
                 TextField(
@@ -221,8 +220,7 @@ class _LoginPageState extends State<LoginPage> {
                   textInputAction: TextInputAction.next,
                   onChanged: (_) => setState(() {}),
                 ),
-
-                const SizedBox(height: 16), // ★ 12 → 16
+                const SizedBox(height: 16),
 
                 // 비밀번호
                 TextField(
@@ -239,8 +237,7 @@ class _LoginPageState extends State<LoginPage> {
                   onSubmitted: (_) => _canSubmit ? _login() : null,
                   onChanged: (_) => setState(() {}),
                 ),
-
-                const SizedBox(height: 14), // ★ 6 → 14
+                const SizedBox(height: 14),
 
                 // 자동 로그인
                 Row(
@@ -254,18 +251,17 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 18), // ★ 12 → 18
+                const SizedBox(height: 18),
 
                 // 로그인 버튼
                 SizedBox(
-                  height: 52, // ★ 48 → 52
+                  height: 52,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: canSubmit ? kPrimaryRed : const Color(0x33B91111),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)), // ★ 22 → 24
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                       textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                     onPressed: canSubmit ? _login : null,
@@ -277,8 +273,7 @@ class _LoginPageState extends State<LoginPage> {
                         : const Text('로그인'),
                   ),
                 ),
-
-                const SizedBox(height: 20), // ★ 14 → 20
+                const SizedBox(height: 20),
 
                 // 회원가입 링크
                 Center(
@@ -313,5 +308,4 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-
 }
