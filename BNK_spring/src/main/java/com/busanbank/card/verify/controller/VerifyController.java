@@ -74,4 +74,25 @@ public class VerifyController {
             return ResponseEntity.status(500).body(Map.of("status", "ERROR", "reason", e.getMessage()));
         }
     }
+    
+   
+    @PostMapping("/ocr")
+    public ResponseEntity<?> ocrId(@RequestParam("idImage") MultipartFile idImage) {
+        try {
+            String pythonUrl = "http://127.0.0.1:8000/ocr-id";
+            RestTemplate rt = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("idImage", new MultipartInputStreamFileResource(idImage.getInputStream(), idImage.getOriginalFilename()));
+
+            HttpEntity<MultiValueMap<String, Object>> req = new HttpEntity<>(body, headers);
+            ResponseEntity<Map> res = rt.exchange(pythonUrl, HttpMethod.POST, req, Map.class);
+            return ResponseEntity.ok(res.getBody());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("status","ERROR","reason",e.getMessage()));
+        }
+    }
+
 }

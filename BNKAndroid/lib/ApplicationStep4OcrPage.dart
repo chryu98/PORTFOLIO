@@ -1,63 +1,54 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'ApplicationStep1Page.dart' show kPrimaryRed; // 색상 재사용
+import 'ApplicationStep1Page.dart' show kPrimaryRed;
 import 'package:bnkandroid/security/secure_screen.dart';
 import 'package:bnkandroid/security/screenshot_watcher.dart';
-
 import 'ApplicationStep5AccountPage.dart' hide kPrimaryRed;
 
-// HTTP & 파일 전송
 import 'package:dio/dio.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:encrypt/encrypt.dart' as enc;
-import 'package:http_parser/http_parser.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+import 'services/api_client.dart';
+import 'widgets/guided_camera_page.dart';
 
 class ApplicationStep4OcrPage extends StatefulWidget {
-  final int applicationNo; // 필수
-  final int? cardNo;       // Step5에 넘길 카드 번호(선택)
-
-  const ApplicationStep4OcrPage({
-    super.key,
-    required this.applicationNo,
-    this.cardNo,
-  });
+  const ApplicationStep4OcrPage({super.key, required this.applicationNo, this.cardNo});
+  final int applicationNo;
+  final int? cardNo;
 
   @override
   State<ApplicationStep4OcrPage> createState() => _ApplicationStep4OcrPageState();
 }
 
 class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
-  // ====== 환경설정 ======
-  static const String springBaseUrl = 'http://192.168.0.5:8090'; // << 스프링 주소:포트
-  static const String aesKey = 'MySecretKey12345'; // Java AESUtil과 동일(16바이트)
-  final String userNoDefault = 'user123'; // 테스트용 기본 userNo
+  // ===== Config =====
+  static const String springBaseUrl = 'http://192.168.0.5:8090';
+  static const String aesKey = 'MySecretKey12345';
 
-  // ====== 상태/컨트롤 ======
-  final _picker = ImagePicker();
+  // ===== State =====
   File? _idFile;
   File? _faceFile;
 
-  final _frontCtrl = TextEditingController();  // 주민번호 앞 6자리
-  final _genderCtrl = TextEditingController(); // 1~4
-  final _tailCtrl = TextEditingController(text: '******');   // 기본 마스킹
-  final _userNoCtrl = TextEditingController();
+  // 자동채움 대상(읽기전용 기본)
+  final _frontCtrl = TextEditingController();
+  final _genderCtrl = TextEditingController();
+  final _tailCtrl = TextEditingController(text: '******');
+  final _userNoCtrl = TextEditingController(text: 'user123');
 
-  bool _maskedMode = true; // 기본 마스킹 모드(front+gender만 비교)
+  bool _maskedMode = true;   // OCR가 tail을 ******로 주면 true
+  bool _editable = false;    // 수동수정 허용 toggle
   bool _loading = false;
-  Map<String, dynamic>? _resultJson; // 응답 표시
-  bool _pushing = false;
+  Map<String, dynamic>? _resultJson;
 
   @override
   void initState() {
     super.initState();
-    // 스크린샷 감지(모바일에서만)
     if (!kIsWeb) {
       ScreenshotWatcher.instance.start(context);
     }
-    _userNoCtrl.text = userNoDefault;
   }
 
   @override
@@ -72,63 +63,101 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
     super.dispose();
   }
 
-  // ====== 도우미 ======
+  Future<bool> _ensureCamera() async {
+    final st = await Permission.camera.request();
+    return st.isGranted;
+  }
+
+  void _showSnack(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+
   String _encryptRrn(String rrn) {
-    // AES-ECB + PKCS7 (Java AESUtil과 호환)
     final key = enc.Key.fromUtf8(aesKey);
-    final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.ecb, padding: 'PKCS7'));
-    final iv = enc.IV.fromLength(16); // ECB라 실제 사용되진 않지만 시그니처상 필요
-    return encrypter.encrypt(rrn, iv: iv).base64;
+    final ency = enc.Encrypter(enc.AES(key, mode: enc.AESMode.ecb, padding: 'PKCS7'));
+    return ency.encrypt(rrn, iv: enc.IV.fromLength(16)).base64;
   }
 
-  Future<void> _pickId() async {
+  Future<void> _captureId() async {
     if (kIsWeb) {
-      _showSnack('웹에서는 카메라 촬영을 사용할 수 없어요.');
+      _showSnack('웹은 카메라 촬영을 지원하지 않아요.');
       return;
     }
-    final x = await _picker.pickImage(source: ImageSource.camera, imageQuality: 92);
-    if (x != null) setState(() => _idFile = File(x.path));
-  }
-
-  Future<void> _pickFace() async {
-    if (kIsWeb) {
-      _showSnack('웹에서는 카메라 촬영을 사용할 수 없어요.');
+    if (!await _ensureCamera()) {
+      _showSnack('카메라 권한이 필요합니다.');
       return;
     }
-    final x = await _picker.pickImage(source: ImageSource.camera, imageQuality: 92);
-    if (x != null) setState(() => _faceFile = File(x.path));
-  }
+    final file = await Navigator.push<File?>(
+      context,
+      MaterialPageRoute(builder: (_) => const GuidedCameraPage(mode: GuidedMode.idCard)),
+    );
+    if (file == null) return;
+    setState(() => _idFile = file);
 
-  void _toggleMask(bool v) {
-    setState(() {
-      _maskedMode = v;
-      if (_maskedMode) {
-        _tailCtrl.text = '******';
+    // ✅ OCR 호출 → 자동 채움
+    try {
+      setState(() => _loading = true);
+      final api = ApiClient(baseUrl: springBaseUrl);
+      final resp = await api.ocrIdOnly(idImage: file);
+      final data = resp.data is Map<String, dynamic>
+          ? resp.data as Map<String, dynamic>
+          : jsonDecode(resp.data.toString()) as Map<String, dynamic>;
+
+      if ((data['status'] ?? '') == 'OK') {
+        final ocr = (data['ocr'] ?? {}) as Map<String, dynamic>;
+        final front = (ocr['front'] ?? '').toString();
+        final gender = (ocr['gender'] ?? '').toString();
+        final tail = (ocr['tail'] ?? '').toString();
+        final masked = (ocr['masked'] ?? true) == true;
+
+        setState(() {
+          _frontCtrl.text = front;
+          _genderCtrl.text = gender;
+          _tailCtrl.text = masked ? '******' : tail;
+          _maskedMode = masked;
+          _editable = false; // 기본은 자동값 그대로 사용
+        });
+        _showSnack('OCR 자동 채움 완료');
       } else {
-        if (_tailCtrl.text == '******') _tailCtrl.clear();
+        _showSnack('OCR 실패: ${data['reason'] ?? ''}');
+        _editable = true; // 실패 시 수동 입력 허용
+        setState(() {});
       }
-    });
+    } catch (e) {
+      _showSnack('OCR 호출 오류: $e');
+      setState(() => _editable = true);
+    } finally {
+      setState(() => _loading = false);
+    }
   }
 
-  void _showSnack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  Future<void> _captureFace() async {
+    if (kIsWeb) {
+      _showSnack('웹은 카메라 촬영을 지원하지 않아요.');
+      return;
+    }
+    if (!await _ensureCamera()) {
+      _showSnack('카메라 권한이 필요합니다.');
+      return;
+    }
+    final file = await Navigator.push<File?>(
+      context,
+      MaterialPageRoute(builder: (_) => const GuidedCameraPage(mode: GuidedMode.face)),
+    );
+    if (file == null) return;
+    setState(() => _faceFile = file);
   }
 
-  // ====== 업로드 & 검증 ======
   Future<void> _submit() async {
     if (_idFile == null || _faceFile == null) {
-      _showSnack('신분증/셀카 이미지를 모두 촬영해 주세요.');
+      _showSnack('신분증/얼굴 이미지를 모두 촬영해 주세요.');
       return;
     }
-
     final front = _frontCtrl.text.trim();
     final gender = _genderCtrl.text.trim();
-    String tail = _tailCtrl.text.trim();
     final userNo = _userNoCtrl.text.trim();
+    String tail = _tailCtrl.text.trim();
 
     if (front.length != 6 || gender.length != 1) {
-      _showSnack('주민번호 형식을 확인해 주세요(앞6, 성별1).');
+      _showSnack('주민번호 앞6/성별1 확인');
       return;
     }
     if (_maskedMode) {
@@ -142,8 +171,8 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
       return;
     }
 
-    final expectedRrn = '$front-$gender$tail';
-    final encryptedRrn = _encryptRrn(expectedRrn);
+    final expected = '$front-$gender$tail';
+    final encryptedRrn = _encryptRrn(expected);
 
     setState(() {
       _loading = true;
@@ -151,34 +180,15 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
     });
 
     try {
-      final dio = Dio(BaseOptions(
-        baseUrl: springBaseUrl,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 60),
-      ));
-
-      final form = FormData.fromMap({
-        'idImage': await MultipartFile.fromFile(
-          _idFile!.path,
-          filename: 'id_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          contentType: MediaType('image', 'jpeg'),
-        ),
-        'faceImage': await MultipartFile.fromFile(
-          _faceFile!.path,
-          filename: 'face_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          contentType: MediaType('image', 'jpeg'),
-        ),
-        'encryptedRrn': encryptedRrn,
-        'userNo': userNo,
-      });
-
-      final resp = await dio.post('/api/verify', data: form);
+      final api = ApiClient(baseUrl: springBaseUrl);
+      final resp = await api.sendVerification(
+        idImage: _idFile!, faceImage: _faceFile!, encryptedRrn: encryptedRrn, userNo: userNo,
+      );
       final data = resp.data is Map<String, dynamic>
           ? resp.data as Map<String, dynamic>
           : jsonDecode(resp.data.toString()) as Map<String, dynamic>;
 
       setState(() => _resultJson = data);
-
       final status = (data['status'] ?? '').toString().toUpperCase();
       if (status == 'PASS') {
         _showSnack('본인인증 성공! 다음 단계로 이동합니다.');
@@ -188,69 +198,57 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
       } else {
         _showSnack('인증 실패: ${data['reason'] ?? ''}');
       }
+    } on DioException catch (e) {
+      _showSnack('업로드 오류: ${e.message}');
     } catch (e) {
-      _showSnack('업로드 실패: $e');
+      _showSnack('업로드 오류: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   void _goStep5() {
-    if (_pushing) return;
-    _pushing = true;
-
-    Navigator.of(context, rootNavigator: true)
-        .pushReplacement(
+    Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => ApplicationStep5AccountPage(
-          applicationNo: widget.applicationNo,
-          cardNo: widget.cardNo,
+          applicationNo: widget.applicationNo, cardNo: widget.cardNo,
         ),
       ),
-    )
-        .whenComplete(() => _pushing = false);
+    );
   }
 
-  // ====== UI ======
   @override
   Widget build(BuildContext context) {
     return SecureScreen(
       child: Scaffold(
         appBar: AppBar(
-          leading: const BackButton(color: Colors.black87),
           title: const Text('본인인증'),
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black87,
-          elevation: 0.5,
+          actions: [
+            TextButton.icon(
+              onPressed: () => setState(() => _editable = !_editable),
+              icon: Icon(_editable ? Icons.lock_open : Icons.lock, size: 18),
+              label: Text(_editable ? '수정 중' : '자동값', style: const TextStyle(fontSize: 12)),
+            ),
+          ],
         ),
-        backgroundColor: Colors.white,
         body: AbsorbPointer(
           absorbing: _loading,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(
-                children: [
-                  Expanded(child: _ImageBox(
-                    title: '신분증',
-                    file: _idFile,
-                    onPick: _pickId,
-                  )),
-                  const SizedBox(width: 12),
-                  Expanded(child: _ImageBox(
-                    title: '셀카',
-                    file: _faceFile,
-                    onPick: _pickFace,
-                  )),
-                ],
-              ),
+              Row(children: [
+                Expanded(child: _ImageBox(title: '신분증', file: _idFile, onPick: _captureId)),
+                const SizedBox(width: 12),
+                Expanded(child: _ImageBox(title: '얼굴', file: _faceFile, onPick: _captureFace)),
+              ]),
               const SizedBox(height: 16),
-              _RrnInputs(
+              _RrnForm(
                 frontCtrl: _frontCtrl,
                 genderCtrl: _genderCtrl,
                 tailCtrl: _tailCtrl,
                 maskedMode: _maskedMode,
-                onToggleMask: _toggleMask,
+                setMasked: (v) => setState(() => _maskedMode = v),
+                readOnly: !_editable,
               ),
               const SizedBox(height: 8),
               TextField(
@@ -260,17 +258,13 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               SizedBox(
-                width: double.infinity,
-                height: 48,
+                height: 48, width: double.infinity,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimaryRed,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
                   onPressed: _loading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryRed, foregroundColor: Colors.white),
                   child: Text(_loading ? '전송 중...' : '인증 요청'),
                 ),
               ),
@@ -284,25 +278,15 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
   }
 }
 
-// ====== 위젯들 ======
 class _ImageBox extends StatelessWidget {
-  const _ImageBox({
-    required this.title,
-    required this.file,
-    required this.onPick,
-  });
-
-  final String title;
-  final File? file;
-  final VoidCallback onPick;
+  const _ImageBox({required this.title, required this.file, required this.onPick});
+  final String title; final File? file; final VoidCallback onPick;
 
   @override
   Widget build(BuildContext context) {
-    final img = file != null
-        ? ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.file(file!, height: 140, width: double.infinity, fit: BoxFit.cover),
-    )
+    final child = file != null
+        ? ClipRRect(borderRadius: BorderRadius.circular(8),
+        child: Image.file(file!, height: 140, width: double.infinity, fit: BoxFit.cover))
         : Container(
       height: 140,
       decoration: BoxDecoration(
@@ -312,81 +296,51 @@ class _ImageBox extends StatelessWidget {
       ),
       child: const Center(child: Text('촬영 전')),
     );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        img,
-        const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: onPick,
-            icon: const Icon(Icons.camera_alt),
-            label: Text('$title 촬영'),
-          ),
-        )
-      ],
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      const SizedBox(height: 8),
+      child,
+      const SizedBox(height: 8),
+      SizedBox(width: double.infinity,
+          child: OutlinedButton.icon(onPressed: onPick, icon: const Icon(Icons.camera_alt), label: Text('$title 촬영'))),
+    ]);
   }
 }
 
-class _RrnInputs extends StatelessWidget {
-  const _RrnInputs({
-    required this.frontCtrl,
-    required this.genderCtrl,
-    required this.tailCtrl,
-    required this.maskedMode,
-    required this.onToggleMask,
+class _RrnForm extends StatelessWidget {
+  const _RrnForm({
+    required this.frontCtrl, required this.genderCtrl, required this.tailCtrl,
+    required this.maskedMode, required this.setMasked, required this.readOnly,
   });
 
-  final TextEditingController frontCtrl;
-  final TextEditingController genderCtrl;
-  final TextEditingController tailCtrl;
-  final bool maskedMode;
-  final ValueChanged<bool> onToggleMask;
+  final TextEditingController frontCtrl, genderCtrl, tailCtrl;
+  final bool maskedMode, readOnly;
+  final ValueChanged<bool> setMasked;
 
   @override
   Widget build(BuildContext context) {
     return Column(children: [
       Row(children: [
         Expanded(child: TextField(
-          controller: frontCtrl,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: '앞 6자리 (예: 820701)',
-            border: OutlineInputBorder(),
-          ),
+          controller: frontCtrl, readOnly: readOnly, keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: '앞 6자리', border: OutlineInputBorder()),
         )),
         const SizedBox(width: 12),
-        SizedBox(
-          width: 120,
-          child: TextField(
-            controller: genderCtrl,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: '성별(1~4)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ),
+        SizedBox(width: 120, child: TextField(
+          controller: genderCtrl, readOnly: readOnly, keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: '성별(1~4)', border: OutlineInputBorder()),
+        )),
       ]),
       const SizedBox(height: 8),
       Row(children: [
         Expanded(child: TextField(
-          controller: tailCtrl,
-          keyboardType: TextInputType.text,
-          decoration: const InputDecoration(
-            labelText: '뒷 6자리 또는 ******',
-            border: OutlineInputBorder(),
-          ),
+          controller: tailCtrl, readOnly: readOnly || maskedMode, keyboardType: TextInputType.text,
+          decoration: const InputDecoration(labelText: '뒷 6자리 또는 ******', border: OutlineInputBorder()),
         )),
         const SizedBox(width: 12),
         Row(children: [
           const Text('마스킹'),
-          Switch(value: maskedMode, onChanged: onToggleMask),
+          Switch(value: maskedMode, onChanged: readOnly ? null : setMasked),
         ]),
       ]),
     ]);
@@ -402,15 +356,9 @@ class _ResultBox extends StatelessWidget {
     final pretty = const JsonEncoder.withIndent('  ').convert(data);
     final status = (data['status'] ?? '').toString().toUpperCase();
     final color = status == 'PASS' ? Colors.green : (status == 'ERROR' ? Colors.orange : Colors.red);
-
     return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE0E0E0)),
-        borderRadius: BorderRadius.circular(8),
-      ),
+      width: double.infinity, padding: const EdgeInsets.all(12), margin: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(border: Border.all(color: const Color(0xFFE0E0E0)), borderRadius: BorderRadius.circular(8)),
       child: DefaultTextStyle(
         style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

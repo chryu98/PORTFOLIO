@@ -129,3 +129,14 @@ async def verify_endpoint(
         return result
     except Exception as e:
         return {"status": "ERROR", "reason": str(e)}
+
+
+@app.post("/ocr-id")
+async def ocr_id(idImage: UploadFile = File(...)):
+    from verification.id_service import extract_rrn
+    try:
+        id_bytes = await idImage.read()
+        ocr = extract_rrn(id_bytes)  # {'front','gender','tail','masked','preview'}
+        return {"status": "OK", "ocr": ocr}
+    except Exception as e:
+        return {"status": "ERROR", "reason": str(e)}

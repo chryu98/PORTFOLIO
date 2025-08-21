@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:bnkandroid/user/CardListPage.dart';
 import 'package:bnkandroid/user/LoginPage.dart';
+import 'package:bnkandroid/faq/faq.dart';
 
 // 커스텀 애니메이티드 하단바 (토스 스타일)
 import 'package:bnkandroid/ui/toss_nav_bar.dart';
@@ -101,7 +102,8 @@ class _AppShellState extends State<AppShell> {
       case AppTab.benefits:
         return const _KeepAlive(child: _Stub(title: '혜택/이벤트'));
       case AppTab.support:
-        return const _KeepAlive(child: _Stub(title: '문의/고객센터'));
+      // ✅ 여기!
+        return const _KeepAlive(child: FaqPage());
       case AppTab.my:
         return const _KeepAlive(child: _MyRoot());
     }
