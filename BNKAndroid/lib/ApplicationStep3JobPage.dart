@@ -1,18 +1,26 @@
-// lib/ApplicationStep3JobPage.dart
 import 'package:flutter/material.dart';
 import 'ApplicationStep1Page.dart' show kPrimaryRed;
 import 'user/service/card_apply_service.dart' as apply;
-import 'ApplicationStep4OcrPage.dart';
+
+// ✅ 5페이지로 바로 이동하려면 이걸 import
+import 'ApplicationStep5AccountPage.dart';
+// (원복하려면 위 import 대신 4페이지를 import 하고 아래 플래그를 false 로 바꾸면 됨)
+// import 'ApplicationStep4OcrPage.dart';
+
+// -------------------------
+// 개발용: OCR 스킵 여부
+const bool kSkipOcrForDev = true;
+// -------------------------
 
 /// Step 3: 직업/거래목적/자금출처
 class ApplicationStep3JobPage extends StatefulWidget {
   final int applicationNo;
-  final int cardNo; // ✅ 추가: Step4/5로 넘길 카드번호
+  final int cardNo; // ✅ Step5 로 넘길 카드번호
 
   const ApplicationStep3JobPage({
     super.key,
     required this.applicationNo,
-    required this.cardNo, // ✅ 필수로 받기
+    required this.cardNo,
   });
 
   @override
@@ -68,16 +76,29 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
         return;
       }
 
-      // 저장 성공 → Step4로 이동 (✅ cardNo 함께 전달)
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('저장 완료')));
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ApplicationStep4OcrPage(
-            applicationNo: widget.applicationNo,
-            cardNo: widget.cardNo, // ✅ 여기 추가!
+
+      // ✅ OCR 스킵: Step5(계좌연결)로 곧장 이동
+      if (kSkipOcrForDev) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ApplicationStep5AccountPage(
+              applicationNo: widget.applicationNo,
+              cardNo: widget.cardNo,
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        // 원래 흐름(필요 시 사용)
+        // await Navigator.of(context).push(
+        //   MaterialPageRoute(
+        //     builder: (_) => ApplicationStep4OcrPage(
+        //       applicationNo: widget.applicationNo,
+        //       cardNo: widget.cardNo,
+        //     ),
+        //   ),
+        // );
+      }
     } on apply.ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -103,7 +124,7 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           children: [
-            const _StepHeader3(current: 4, total: 5),
+            const _StepHeader3(current: 4, total: 5), // 표시만 그대로 둠
             const SizedBox(height: 12),
             const Align(
               alignment: Alignment.centerLeft,
@@ -198,7 +219,7 @@ class _StepHeader3 extends StatelessWidget {
   }
 }
 
-/// 풀스크린 선택 위젯
+/// 풀스크린 선택 위젯 (그대로)
 class FullScreenSelectField extends FormField<String> {
   FullScreenSelectField({
     Key? key,
