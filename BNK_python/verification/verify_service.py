@@ -1,49 +1,74 @@
-import os
+# verification/verify_service.py
 from verification.id_service import extract_rrn
 from verification.face_service import verify_face
+import logging
 
-def verify_identity(id_path, face_path, expected_rrn: str):
-    """
-    본인인증 전체 프로세스
-    1. 신분증 OCR → 주민번호 추출
-    2. 기대값과 비교 (마스킹 지원)
-    3. 얼굴 비교
-    4. 파일 파기
-    """
+log = logging.getLogger("verify")
+
+def _parse_expected(rrn: str):
+    s = rrn.strip().replace(" ", "")
+    for d in ["‐", "–", "—", "−"]:
+        s = s.replace(d, "-")
+
+    if "-" in s:
+        front, back = s.split("-", 1)
+    else:
+        front, back = s[:6], s[6:]
+
+    if len(front) != 6 or len(back) < 1:
+        raise ValueError("expected_rrn 형식 오류")
+
+    gender = back[0]
+    tail = back[1:] if len(back) > 1 else ""
+    masked = any(ch in tail for ch in ["*", "x", "X"])
+    return {"front": front, "gender": gender, "tail": None if masked else tail, "masked": masked}
+
+def _mask_front(front: str) -> str:
+    return f"{front[:2]}****" if front else ""
+
+def verify_identity(id_bytes: bytes, face_bytes: bytes, expected_rrn: str, face_threshold: float = 0.65):
+    # 1) OCR
     try:
-        # 1. 주민번호 추출
-        rrn = extract_rrn(id_path)
-
-        if rrn is None:
-            cleanup([id_path, face_path])
-            return {"status": "FAIL", "reason": "주민번호 인식 실패"}
-
-        # 2. 뒷자리 비교 (마스킹 지원)
-        expected_back = expected_rrn[-7:]
-        if "*" in rrn:  # 마스킹된 경우
-            if not rrn.startswith(expected_rrn[:8]):  # 앞 7자리 + 성별 코드 비교
-                cleanup([id_path, face_path])
-                return {"status": "FAIL", "reason": "주민번호 불일치(마스킹)"}
-        else:  # 완전 주민번호
-            if rrn[-7:] != expected_back:
-                cleanup([id_path, face_path])
-                return {"status": "FAIL", "reason": "주민번호 불일치"}
-
-        # 3. 얼굴 비교
-        face_ok = verify_face(id_path, face_path)
-        cleanup([id_path, face_path])
-
-        if not face_ok:
-            return {"status": "FAIL", "reason": "얼굴 불일치"}
-
-        return {"status": "PASS", "reason": "본인인증 성공"}
-
+        ocr = extract_rrn(id_bytes)  # {'front','gender','tail','masked','preview'}
     except Exception as e:
-        cleanup([id_path, face_path])
-        return {"status": "ERROR", "reason": str(e)}
+        return {"status": "ERROR", "reason": f"OCR 실패: {e}"}
 
-def cleanup(files):
-    """ 파일 즉시 삭제 """
-    for f in files:
-        if os.path.exists(f):
-            os.remove(f)
+    # 2) expected 파싱
+    try:
+        exp = _parse_expected(expected_rrn)
+    except Exception as e:
+        return {"status": "ERROR", "reason": f"expected_rrn 형식 오류: {e}", "ocr": {"preview": ocr.get("preview", "")}}
+
+    # 최소 로그(앞 2자리 + 길이)
+    ocr_front = str(ocr.get("front", ""))
+    exp_front = str(exp.get("front", ""))
+    log.info(f"[RRN] OCR front={_mask_front(ocr_front)} len={len(ocr_front)} | "
+             f"EXP front={_mask_front(exp_front)} len={len(exp_front)}")
+
+    # 3) 주민번호 비교 (expected tail이 마스킹이면 뒷자리 비교 생략)
+    rrn_ok = (
+        ocr["front"] == exp["front"]
+        and ocr["gender"] == exp["gender"]
+        and (exp["tail"] is None or (ocr["tail"] != "******" and ocr["tail"] == exp["tail"]))
+    )
+
+    # 4) 얼굴
+    face_ok, face_score, face_err = False, None, None
+    try:
+        face_ok, face_score = verify_face(id_bytes, face_bytes, threshold=face_threshold)  # (bool, score)
+    except Exception as e:
+        face_err = str(e)
+
+    status = "PASS" if (rrn_ok and face_ok) else "FAIL"
+    reasons = []
+    if not rrn_ok:
+        reasons.append("주민번호 불일치/미인식")
+    if not face_ok:
+        reasons.append(face_err or (f"얼굴 불일치 (sim={face_score:.3f})" if face_score is not None else "얼굴 불일치/미검출"))
+
+    return {
+        "status": status,
+        "reason": ", ".join(reasons) if reasons else "OK",
+        "ocr": {"preview": ocr.get("preview", "")},
+        "checks": {"rrn": rrn_ok, "face": face_ok, "face_score": face_score, "threshold": face_threshold},
+    }

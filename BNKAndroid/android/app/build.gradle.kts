@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+// import java.nio.file.Files  // ← 안 씀: 제거해도 됨
 
 plugins {
     id("com.android.application")
@@ -14,60 +15,45 @@ android {
     defaultConfig {
         applicationId = "com.example.bnkandroid"
         minSdk = 23
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36               // ← flutter.targetSdkVersion 대신 명시 권장
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-    }
-
-    // ✅ Java 17로 고정
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        // multiDexEnabled = true
     }
 
     buildTypes {
-        getByName("debug") {
+        debug {
             isDebuggable = true
             isMinifyEnabled = false
             isShrinkResources = false
         }
-        getByName("release") {
+        release {
             isDebuggable = false
             isMinifyEnabled = false
             isShrinkResources = false
-            // proguardFiles(
-            //     getDefaultProguardFile("proguard-android-optimize.txt"),
-            //     "proguard-rules.pro"
-            // )
+            // proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
-    splits {
-        abi {
-            isEnable = false
-            // isUniversalApk = true
-        }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
-
-    // ndkVersion = "27.0.12077973" // 필요 시만 지정
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 }
 
 dependencies {
     implementation("com.naver.maps:map-sdk:3.22.1")
+    // implementation("androidx.multidex:multidex:2.0.1")
 }
 
 flutter {
     source = "../.."
 }
 
-// ✅ Kotlin도 17로 고정
 tasks.withType<KotlinCompile>().configureEach {
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions.jvmTarget = "17"
 }
 
-// ✅ Toolchain (모듈 단위에서도 적용)
-kotlin {
-    jvmToolchain(17)
-}

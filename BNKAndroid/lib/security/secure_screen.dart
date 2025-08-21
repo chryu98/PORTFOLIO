@@ -1,15 +1,13 @@
-// lib/security/secure_screen.dart
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:screen_protector/screen_protector.dart';
-import 'package:screenshot_callback/screenshot_callback.dart';
+import 'screenshot_watcher.dart';
 
 typedef ScreenshotHandler = void Function();
 
 /// 이 위젯으로 감싸면:
 /// 1) 스크린샷/녹화 차단(모바일)
-/// 2) 스크린샷 시 스낵바 알림
+/// 2) 스크린샷/녹화 시 스낵바 알림
 /// 3) 앱 복귀 시 보안 상태 재적용
 class SecureScreen extends StatefulWidget {
   final Widget child;
@@ -26,65 +24,38 @@ class SecureScreen extends StatefulWidget {
 }
 
 class _SecureScreenState extends State<SecureScreen> with WidgetsBindingObserver {
-  final _cb = ScreenshotCallback();
+  bool get _isMobile =>
+      !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _enableSecure();
-    _startScreenshotWatch();
+    if (_isMobile) {
+      ScreenshotWatcher.instance.start(context);
+    }
   }
 
   Future<void> _enableSecure() async {
-    if (kIsWeb) return; // 웹은 미지원
+    if (!_isMobile) return;
     try {
-      await ScreenProtector.preventScreenshotOn();
-      if (Platform.isIOS) {
-        await ScreenProtector.protectDataLeakageOn();
-      }
+      await ScreenProtector.preventScreenshotOn();   // Android/iOS 스크린샷 차단
+      await ScreenProtector.protectDataLeakageOn();  // iOS 데이터 유출 보호(안드 no-op)
     } catch (e) {
       debugPrint('[SecureScreen] enable failed: $e');
     }
   }
 
   Future<void> _disableSecure() async {
-    if (kIsWeb) return;
+    if (!_isMobile) return;
     try {
       await ScreenProtector.preventScreenshotOff();
-      if (Platform.isIOS) {
-        await ScreenProtector.protectDataLeakageOff();
-      }
+      await ScreenProtector.protectDataLeakageOff();
     } catch (e) {
       debugPrint('[SecureScreen] disable failed: $e');
-    }
-  }
-
-  void _startScreenshotWatch() {
-    if (kIsWeb) return;
-    try {
-      _cb.addListener(() {
-        widget.onScreenshot?.call();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('캡처가 감지되었습니다. 개인정보 보호를 위해 캡처가 제한됩니다.'),
-            ),
-          );
-        }
-      });
-      // v3.0.1에서는 initialize()를 호출해야 합니다.
-      _cb.initialize();
-    } catch (e) {
-      debugPrint('[SecureScreen] screenshot listen failed: $e');
-    }
-  }
-
-  void _stopScreenshotWatch() {
-    try {
-      _cb.dispose();
-    } catch (e) {
-      debugPrint('[SecureScreen] dispose failed: $e');
     }
   }
 
@@ -97,9 +68,11 @@ class _SecureScreenState extends State<SecureScreen> with WidgetsBindingObserver
 
   @override
   void dispose() {
-    _stopScreenshotWatch();
+    if (_isMobile) {
+      ScreenshotWatcher.instance.stop();
+    }
     WidgetsBinding.instance.removeObserver(this);
-    _disableSecure(); // 이 화면 벗어나면 다시 허용
+    _disableSecure();
     super.dispose();
   }
 

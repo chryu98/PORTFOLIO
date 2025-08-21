@@ -36,9 +36,8 @@ public class SecurityConfig {
                     "/admin/adminLoginForm",
                     "/admin/login",
                     "/admin/logout",
-                    "/admin/pdf/view/**"
+                    "/admin/pdf/**"
                 ).permitAll()
-                .requestMatchers(HttpMethod.DELETE, "/admin/**").authenticated()
                 .anyRequest().access((authContext, context) -> {
                     boolean loggedIn = adminSession.isLoggedIn();
                     return new org.springframework.security.authorization.AuthorizationDecision(loggedIn);
@@ -54,7 +53,13 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .maximumSessions(1)
                 .maxSessionsPreventsLogin(true)
-            );
+            )
+        .headers(h -> {
+            h.frameOptions(f -> f.sameOrigin());                         // 같은 오리진에서만 iframe 허용
+            h.contentSecurityPolicy(csp -> csp.policyDirectives(
+                "frame-ancestors 'self'"                                 // (선택) CSP로도 명시
+            ));
+        });
 
         return http.build();
     }

@@ -10,7 +10,6 @@
 	<h2>정보를 입력해 주세요.</h2>
 
 	<form id="contactForm">
-		<input type="hidden" name="applicationNo" value="${applicationNo}">
 		
 		<div class="form-group">
 			<label for="email">이메일</label>
@@ -28,11 +27,15 @@
 	</form>
 
 	<script>
+		// URL에서 applicationNo 가져오기
+		const params = new URLSearchParams(window.location.search);
+		const applicationNo = params.get('applicationNo');
+		
 		document.getElementById("contactForm").addEventListener("submit", async function(e) {
 	    e.preventDefault();
 
 	    const formData = {
-	        applicationNo: document.querySelector("[name='applicationNo']").value,
+	        applicationNo: applicationNo,
 	        email: document.getElementById("email").value,
 	        phone: document.getElementById("phone").value
 	    };

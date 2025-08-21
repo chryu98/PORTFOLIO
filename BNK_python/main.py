@@ -1,11 +1,38 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+import os, logging
+from logging.handlers import RotatingFileHandler
 from pydantic import BaseModel
 from typing import List, Optional
 import pandas as pd
 import shutil
 from dotenv import load_dotenv
 
+
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+
+logger = logging.getLogger("verify")
+logger.setLevel(logging.INFO)
+
+fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+
+# 파일 회전 로그
+file_handler = RotatingFileHandler(
+    os.path.join(LOG_DIR, "verification.log"),
+    maxBytes=1_000_000,
+    backupCount=5,
+    encoding="utf-8",
+)
+file_handler.setFormatter(fmt)
+
+# 콘솔 출력
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(fmt)
+
+if not logger.handlers:
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
 # 챗봇 관련 import
 from chatbot_module import chat_with_bot, reload_vectors
 from train_card_from_db import run_full_card_training, get_last_training_time
@@ -88,19 +115,35 @@ def card_chat(req: CardChatRequest):
 # 본인인증 API (주민번호 + 얼굴)
 # ───────────────────────────────
 @app.post("/verify")
-async def verify(
+async def verify_endpoint(
     id_image: UploadFile = File(...),
     face_image: UploadFile = File(...),
-    expected_rrn: str = Form(...)
+    expected_rrn: str = Form(...),
+    face_threshold: float = Form(default=0.65),  
 ):
-    # 업로드 파일 저장
-    id_path = f"data/{id_image.filename}"
-    face_path = f"data/{face_image.filename}"
+    id_bytes = await id_image.read()
+    face_bytes = await face_image.read()
 
-    with open(id_path, "wb") as f:
-        shutil.copyfileobj(id_image.file, f)
-    with open(face_path, "wb") as f:
-        shutil.copyfileobj(face_image.file, f)
+    try:
+        # threshold 전달
+        result = verify_identity(
+            id_bytes=id_bytes,
+            face_bytes=face_bytes,
+            expected_rrn=expected_rrn,
+            face_threshold=face_threshold,         
+        )
+        return result
+    except Exception as e:
+        return {"status": "ERROR", "reason": str(e)}
 
-    # 본인인증 실행
-    return verify_identity(id_path, face_path, expected_rrn)
+@app.post("/ocr-id")
+async def ocr_id(idImage: UploadFile = File(...)):
+    from verification.id_service import extract_rrn
+    try:
+        id_bytes = await idImage.read()
+        ocr = extract_rrn(id_bytes)  # {'front','gender','tail','masked','preview'}
+        return {"status": "OK", "ocr": ocr}
+    except Exception as e:
+        return {"status": "ERROR", "reason": str(e)}
+
+

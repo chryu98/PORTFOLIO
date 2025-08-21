@@ -1,8 +1,6 @@
 package com.busanbank.card.cardapply.controller;
 
-import java.util.Base64;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +11,6 @@ import org.springframework.web.bind.annotation.GetMapping;   // prefill
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.busanbank.card.card.dao.CardDao;
@@ -22,7 +19,6 @@ import com.busanbank.card.cardapply.dto.ApplicationPersonTempDto;
 import com.busanbank.card.cardapply.dto.CardApplicationTempDto;
 import com.busanbank.card.cardapply.dto.ContactInfoDto;
 import com.busanbank.card.cardapply.dto.JobInfoDto;
-import com.busanbank.card.cardapply.dto.PdfFilesDto;
 import com.busanbank.card.cardapply.dto.UserInputInfoDto;
 import com.busanbank.card.user.dao.IUserDao;
 import com.busanbank.card.user.dto.UserDto;

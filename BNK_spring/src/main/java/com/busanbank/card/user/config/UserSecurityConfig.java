@@ -90,57 +90,68 @@ public class UserSecurityConfig {
     @Bean(name = "userFilterChain")
     SecurityFilterChain userFilterChain(HttpSecurity http, AuthenticationManager authenticationManager) throws Exception {
 
-    	// REST 로그인용 커스텀 필터
+        // ✅ 이 체인은 API 위주만 매칭 (JWT 필요 구간만)
+        http.securityMatcher(
+                "/user/api/**",
+                "/card/apply/api/**",
+                "/user/chat/**",
+                "/loginProc",
+                "/logout"
+        );
+
         CustomRestAuthenticationFilter restLoginFilter = new CustomRestAuthenticationFilter(authenticationManager);
         restLoginFilter.setAuthenticationSuccessHandler(restLoginSuccessHandler);
         restLoginFilter.setAuthenticationFailureHandler(restLoginFailureHandler);
-    	
+
         http
-        .securityMatcher("/regist/**", "/user/chat/**", "/user/**", "/user/api/**", "/card/apply/**", "/card/apply/api/**", "/loginProc", "/logout")
         .authorizeHttpRequests(auth -> auth
-        		.requestMatchers("/user/api/login").permitAll() // 로그인 API는 JWT 없어도 허용
-        	    .requestMatchers("/user/api/**").authenticated()
-                .anyRequest().permitAll()
-        )
-        .addFilterBefore(new JwtTokenFilter(jwtTokenProvider, userDetailsService),
-                UsernamePasswordAuthenticationFilter.class)
-        .cors(cors -> cors.configurationSource(corsConfigurationSource))  // 반드시 추가
-        .csrf(csrf -> csrf.disable())
-        .formLogin(auth -> auth
-            .loginPage("/user/login")
-            .successHandler(customLoginSuccessHandler)
-            .failureUrl("/user/login?error=true")
-            .permitAll()
-        )
-        .logout(logout -> logout
-            .logoutUrl("/user/api/logout")
-            .logoutSuccessHandler((request, response, authentication) -> {
-                HttpSession session = request.getSession(false);
-                if (session != null) {
-                    session.removeAttribute("loginUser");
-                    session.removeAttribute("SPRING_SECURITY_CONTEXT");
-                    session.removeAttribute("loginUsername");
-                    session.removeAttribute("loginMemberNo");
-                    session.removeAttribute("loginRole");
-                }
-                SecurityContextHolder.clearContext();
+        	    .requestMatchers(
+        	        "/user/api/login",
+        	        "/user/api/regist/**"   // ✅ 회원가입 API 전 구간 허용
+        	    ).permitAll()
+        	    .requestMatchers("/", "/user/login", "/regist/**", "/user/regist/**",
+        	                     "/auth/**", "/css/**", "/js/**", "/images/**").permitAll()
+        	    .anyRequest().authenticated()
+        	)
+          // ✅ JWT 필터는 이 체인에서만
+          .addFilterBefore(new JwtTokenFilter(jwtTokenProvider, userDetailsService),
+                  UsernamePasswordAuthenticationFilter.class)
+          .cors(cors -> cors.configurationSource(corsConfigurationSource))
+          .csrf(csrf -> csrf.disable())
+          .formLogin(auth -> auth
+              .loginPage("/user/login")
+              .successHandler(customLoginSuccessHandler)
+              .failureUrl("/user/login?error=true")
+              .permitAll()
+          )
+          .logout(logout -> logout
+              .logoutUrl("/user/api/logout")
+              .logoutSuccessHandler((request, response, authentication) -> {
+                  var session = request.getSession(false);
+                  if (session != null) {
+                      session.removeAttribute("loginUser");
+                      session.removeAttribute("SPRING_SECURITY_CONTEXT");
+                      session.removeAttribute("loginUsername");
+                      session.removeAttribute("loginMemberNo");
+                      session.removeAttribute("loginRole");
+                  }
+                  SecurityContextHolder.clearContext();
+                  response.setContentType("application/json;charset=UTF-8");
+                  response.getWriter().write("{\"message\":\"로그아웃 되었습니다.\"}");
+                  response.getWriter().flush();
+              })
+          )
+          .sessionManagement(session -> session
+              .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+              .sessionFixation().none()
+              .maximumSessions(1)
+              .expiredSessionStrategy(customSessionExpiredStrategy)
+              .maxSessionsPreventsLogin(false)
+              .sessionRegistry(sessionRegistry())
+          );
 
-                response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write("{\"message\":\"로그아웃 되었습니다.\"}");
-                response.getWriter().flush();
-            })
-        )
-        .sessionManagement(session -> session
-            .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-            .sessionFixation().none()
-            .maximumSessions(1)
-            .expiredSessionStrategy(customSessionExpiredStrategy)
-            .maxSessionsPreventsLogin(false)
-            .sessionRegistry(sessionRegistry())
-        );
-
-    http.addFilterBefore(restLoginFilter, UsernamePasswordAuthenticationFilter.class);
-
-    return http.build();
+        http.addFilterBefore(restLoginFilter, UsernamePasswordAuthenticationFilter.class);
+        return http.build();
     }
+
 }

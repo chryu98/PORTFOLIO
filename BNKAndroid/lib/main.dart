@@ -1,41 +1,47 @@
-import 'package:bnkandroid/user/CustomCardEditorPage.dart';
-import 'package:bnkandroid/user/LoginPage.dart';
 import 'package:flutter/material.dart';
 import 'package:bnkandroid/constants/api.dart';
-
 import 'app_shell.dart';
-import 'auth_state.dart'; // ✅ 푸터 포함 공용 쉘
-import 'user/NaverMapPage.dart';
-import 'webview/SpringCardEditorPage.dart';
-// await NaverMapSdk.instance.initialize(clientId: "your client id");
-// await NaverMapSdk.instance.initialize();
+import 'auth_state.dart';
+import 'package:bnkandroid/constants/faq_api.dart';
+import 'package:bnkandroid/constants/chat_api.dart';
 
 Future<void> main() async {
-  // 🔹 플러터 바인딩을 최우선으로 초기화
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🔹 네이티브 채널 사용 전 초기화 순서 보장
-  await API.initBaseUrl();      // baseUrl 먼저 초기화
-  await AuthState.init();       // SharedPreferences 사용
-  await AuthState.debugDump();  // 자동로그인 체킹
+  try {
+    await API.initBaseUrl();
+    // ✅ 스프링 FAQ 서버
+    FAQApi.useLan(ip: '192.168.0.5', port: 8090);
+    FAQApi.setPathPrefix('/api');
+
+    // ✅ 챗봇 서버(둘 중 하나)
+    ChatAPI.useFastAPI(ip: '192.168.0.5', port: 8000);
+    // ChatAPI.useSpringProxy(ip: '192.168.0.5', port: 8090);
+  } catch (e, _) {
+    debugPrint('[API] init 실패: $e');
+  }
+
+  try {
+    await AuthState.init();
+    await AuthState.debugDump();
+  } catch (e, _) {
+    debugPrint('[AuthState] 초기화 실패: $e');
+  }
 
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 웹뷰용 url
-    const springUrl = 'http://192.168.0.224:8090/editor/card';
-
     return MaterialApp(
       title: 'BNK Card',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        // ★ 전체 배경/표면 흰색 고정
         scaffoldBackgroundColor: Colors.white,
         canvasColor: Colors.white,
         dialogBackgroundColor: Colors.white,
@@ -45,14 +51,12 @@ class MyApp extends StatelessWidget {
           surface: Colors.white,
           background: Colors.white,
         ),
-        // ★ 상단 AppBar 핑크 틴트 제거
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: Color(0xFF4E4E4E),
           surfaceTintColor: Colors.transparent,
           elevation: 0,
         ),
-        // ★ 바텀시트도 흰색/틴트 제거
         bottomSheetTheme: const BottomSheetThemeData(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
@@ -60,14 +64,12 @@ class MyApp extends StatelessWidget {
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
         ),
-        // ★ BottomAppBar(푸터 컨테이너 대신 BottomAppBar 쓸 때)
         bottomAppBarTheme: const BottomAppBarTheme(
           color: Colors.white,
           surfaceTintColor: Colors.transparent,
           elevation: 8,
           shadowColor: Colors.black26,
         ),
-        // ★ NavigationBar(M3 하단바 쓸 때)
         navigationBarTheme: NavigationBarThemeData(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
@@ -78,7 +80,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const CustomCardEditorPage(), // ✅ 하단 푸터 고정되는 앱 쉘
+      home: const AppShell(),
     );
   }
 }

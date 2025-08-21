@@ -18,8 +18,6 @@
     <option value="work">직장</option>
 </select>
 
-<input type="hidden" id="applicationNo" value="${applicationNo}">
-
 <div class="address-wrapper">
     <!-- 집 주소 블록 -->
     <div id="homeAddress" class="address-block">
@@ -48,6 +46,10 @@
 
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 <script>
+//URL에서 applicationNo 가져오기
+const params = new URLSearchParams(window.location.search);
+const applicationNo = params.get('applicationNo');
+
 document.addEventListener('DOMContentLoaded', () => {
 	const jwtToken = localStorage.getItem("jwtToken");
 	const memberNo = localStorage.getItem("memberNo");
@@ -125,7 +127,7 @@ function execDaumPostcode(type) {
     }).open();
 }
 
-const applicationNo = document.getElementById('applicationNo').value;
+//const applicationNo = document.getElementById('applicationNo').value;
 
 document.getElementById('nextBtn').addEventListener('click', () => {
     const type = document.getElementById('addressType').value;
