@@ -10,7 +10,7 @@ class API {
   static String? baseUrl;
 
   // 사내/로컬 환경 기본값
-  static const String _fallbackHost = '192.168.100.106';
+  static const String _fallbackHost = '192.168.0.5';
   static const int _configPort = 8090; // 설정 서버
   static const int _apiPort    = 8090; // 실제 스프링 API
 

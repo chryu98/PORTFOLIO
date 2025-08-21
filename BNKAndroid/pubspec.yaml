@@ -14,14 +14,13 @@ dependencies:
   http: ^1.2.2
   shared_preferences: ^2.2.3
   path_provider: ^2.1.4
-  syncfusion_flutter_pdfviewer: ^26.1.40
+  syncfusion_flutter_pdfviewer: ^30.2.6
   open_filex: ^4.5.0
 
   # 기존
   flutter_staggered_animations: ^1.0.0
   visibility_detector: ^0.4.0
   screen_protector: ^1.4.0
-
   web_socket_channel: ^3.0.1
   stomp_dart_client: ^2.1.3
   geolocator: ^14.0.2
@@ -33,8 +32,8 @@ dependencies:
   webview_flutter_web: ^0.2.2+7
   webview_flutter_android: ^4.10.0
   flutter_inappwebview: ^6.1.5
-  permission_handler: ^11.3.1
-  share_plus: ^10.0.2
+  permission_handler: ^12.0.1
+  share_plus: ^11.1.0
   screen_capture_event: ^1.2.0
   cupertino_icons: ^1.0.8
   smooth_page_indicator: ^1.2.1
@@ -50,7 +49,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true
