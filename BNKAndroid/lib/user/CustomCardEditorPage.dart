@@ -17,6 +17,12 @@ class CustomCardEditorPage extends StatefulWidget {
 }
 
 class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
+  bool get _hasSelection => _selectedId != null && _selected?.id != -1;
+  bool _bgEditMode = true; // 배경 편집 모드 토글
+
+  String _activeBottom = '배경'; // 기본은 배경 선택 상태
+
+
   // ===== 카드/배경 상태 =====
   final GlobalKey _cardKey = GlobalKey();            // 카드 전체의 위치/크기 계산용
   final GlobalKey _repaintKey = GlobalKey();         // 저장(캡쳐)용
@@ -58,7 +64,10 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
       _elements.firstWhere((e) => e.id == _selectedId, orElse: () => _TextElement.none());
 
   void _deselectAll() {
-    setState(() => _selectedId = null);
+    setState(() {
+      _selectedId = null;
+      _bgEditMode = true; // 빈 곳을 누르면 배경 모드도 종료
+    });
   }
 
   // 카드 위젯 크기/좌표 → 전역좌표 변환용
@@ -102,13 +111,116 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
 
   void _resetAll() {
     setState(() {
+      // 배경 관련
+      _bgImage = null;
+      _bgProvider = null;
       _bgOffset = Offset.zero;
       _bgScale = 1.0;
       _bgRotateDeg = 0.0;
+
+      // 카드 배경색(완전 초기화 느낌이면 흰색 또는 투명 중 선택)
       _cardBgColor = Colors.white;
+      // 필요하면 투명으로: _cardBgColor = Colors.transparent;
+
+      // 요소(텍스트/이모지)
+      _elements.clear();
       _selectedId = null;
+
+      // 하단 패널 토글들 닫기
+      _showEmojiList = false;
+      _showFontList = false;
     });
+
+    // 사용자 피드백
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('카드를 초기화했습니다.')),
+      );
+    }
   }
+
+  Future<void> _confirmAndReset() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('초기화'),
+        content: const Text('텍스트, 이모티콘, 배경 이미지/색을 모두 삭제합니다. 계속하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('초기화'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) _resetAll();
+  }
+
+  Future<void> _openBackgroundSheet() async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1B1E22),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '배경 설정',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () { Navigator.pop(context); _setBgColor(); },
+                        icon: const Icon(Icons.format_color_fill, color: Colors.white),
+                        label: const Text('배경 색상', style: TextStyle(color: Colors.white)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white24),
+                          backgroundColor: const Color(0xFF23272D),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () { Navigator.pop(context); _pickBackgroundImage(); },
+                        icon: const Icon(Icons.image_outlined, color: Colors.white),
+                        label: const Text('배경 이미지', style: TextStyle(color: Colors.white)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white24),
+                          backgroundColor: const Color(0xFF23272D),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
 
   // =============== 요소(텍스트/이모지) 처리 ===============
 
@@ -126,6 +238,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
         isEditing: false,
       ));
       _selectedId = id;
+      _bgEditMode = false; // ✅ 텍스트 추가 후 상단 툴바를 "텍스트 전용"으로 전환
     });
   }
 
@@ -143,6 +256,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
         isEditing: false,
       ));
       _selectedId = id;
+      _bgEditMode = false; // ✅ 이모티콘 추가 후에도 텍스트 전용 툴바로
     });
   }
 
@@ -275,143 +389,396 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
     final w = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('커스텀 카드 에디터')),
-      body: GestureDetector(
-        onTap: _deselectAll, // 빈 곳 탭하면 선택 해제
+      backgroundColor: const Color(0xFF111216), // 🔸 어두운 배경
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF111216),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('커스텀 카드 에디터'),
+        centerTitle: false,
+      ),
+      body: SafeArea(
         child: Column(
           children: [
-            // ---- 상단 컨트롤 바 ----
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Wrap(
-                spacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  ElevatedButton(onPressed: _addText, child: const Text('텍스트 추가')),
-                  OutlinedButton(onPressed: _increaseFont, child: const Text('A+')),
-                  OutlinedButton(onPressed: _decreaseFont, child: const Text('A-')),
-                  OutlinedButton(
-                    onPressed: () => setState(() {
-                      _showFontList = !_showFontList;
-                      _showEmojiList = false;
-                    }),
-                    child: const Text('🔤 폰트'),
-                  ),
-                  OutlinedButton(onPressed: _pickFontColor, child: const Text('T 색상')),
-                  ElevatedButton.icon(
-                    onPressed: _pickBackgroundImage,
-                    icon: const Icon(Icons.image_outlined),
-                    label: const Text('배경 이미지'),
-                  ),
-                  OutlinedButton(onPressed: _setBgColor, child: const Text('배경 색상')),
-                  IconButton(onPressed: _zoomInBg, icon: const Icon(Icons.zoom_in)),
-                  IconButton(onPressed: _zoomOutBg, icon: const Icon(Icons.zoom_out)),
-                  TextButton(onPressed: _resetAll, child: const Text('초기화')),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('회전'),
-                      SizedBox(
-                        width: 140,
-                        child: Slider(
-                          min: -180,
-                          max: 180,
-                          value: _bgRotateDeg,
-                          onChanged: (v) => setState(() => _bgRotateDeg = v),
-                        ),
-                      ),
-                    ],
-                  ),
-                  OutlinedButton(
-                    onPressed: () => setState(() {
-                      _showEmojiList = !_showEmojiList;
-                      _showFontList = false;
-                    }),
-                    child: const Text('😊 이모티콘'),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _saveCardAsImage,
-                    icon: const Icon(Icons.save_alt),
-                    label: const Text('카드 저장'),
-                  ),
-                ],
-              ),
-            ),
+            // ───── 상단 툴바 ─────
+            _buildTopToolbar(),
 
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
 
-            // ---- 카드 영역 ----
+            // ───── 카드 영역 ─────
             Expanded(
               child: Center(
-                child: RepaintBoundary(
-                  key: _repaintKey,
-                  child: Container(
-                    key: _cardKey,
-                    width: math.min(w * 0.9, 340),
-                    // aspect-ratio 3:5
-                    height: math.min(w * 0.9, 340) * (5 / 3),
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(
-                      color: _bgProvider == null ? _cardBgColor : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.black12),
-                    ),
-                    child: Stack(
-                      children: [
-                        // --- 배경 이미지 (드래그/줌/회전) ---
-                        if (_bgProvider != null)
-                          GestureDetector(
-                            onPanUpdate: (d) => setState(() => _bgOffset += d.delta),
-                            child: Center(
-                              child: Transform.translate(
-                                offset: _bgOffset,
-                                child: Transform.rotate(
-                                  angle: _bgRotateDeg * math.pi / 180,
-                                  child: Transform.scale(
-                                    scale: _bgScale,
-                                    child: IgnorePointer(
-                                      ignoring: true,
-                                      child: Image(
-                                        image: _bgProvider!,
-                                        fit: BoxFit.cover,
-                                        height: double.infinity,
-                                        width: double.infinity,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0C0D0E),  // 카드 주변 배경 더 어둡게
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: RepaintBoundary(
+                      key: _repaintKey,
+                      child: Container(
+                        key: _cardKey,
+                        width: math.min(w * 0.9, 340),
+                        height: math.min(w * 0.9, 340) * (5 / 3), // 3:5 비율
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          color: _bgProvider == null ? _cardBgColor : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white10),
+                          boxShadow: const [
+                            BoxShadow(
+                              blurRadius: 18,
+                              spreadRadius: 2,
+                              color: Colors.black54,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            // 배경 (드래그/줌/회전) — 카드 전체 히트
+                            if (_bgProvider != null)
+                              Positioned.fill(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onPanUpdate: (d) => setState(() => _bgOffset += d.delta),
+                                  child: Transform.translate(
+                                    offset: _bgOffset,
+                                    child: Transform.rotate(
+                                      angle: _bgRotateDeg * math.pi / 180,
+                                      child: Transform.scale(
+                                        scale: _bgScale,
+                                        child: Image(
+                                          image: _bgProvider!,
+                                          fit: BoxFit.cover,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
 
-                        // --- 요소(텍스트/이모지)들 ---
-                        ..._elements.map((el) => _TextElementWidget(
-                          element: el,
-                          selected: el.id == _selectedId,
-                          fontBuilder: _fonts[el.fontIndex].builder,
-                          onTap: () => setState(() => _selectedId = el.id),
-                          onDrag: (delta) => setState(() => el.offset += delta),
-                          onStartEdit: () => _toggleEdit(el, force: true),
-                          onSubmitEdit: (value) => setState(() {
-                            el.text = value.isEmpty ? el.text : value;
-                            el.isEditing = false;
-                          }),
-                          onDelete: _removeSelected,
-                          onRotateDrag: (d, key) => _onRotateDrag(el, d, key),
-                        )),
-                      ],
+                            // 요소(텍스트/이모티콘)
+                            ..._elements.map((el) => _TextElementWidget(
+                              element: el,
+                              selected: el.id == _selectedId,
+                              fontBuilder: _fonts[el.fontIndex].builder,
+                              onTap: () => setState(() {
+                                _selectedId = el.id;
+                                _bgEditMode = false; // 텍스트/이모지 선택 시 배경 편집 모드는 종료
+                              }),
+                              onDrag: (delta) => setState(() => el.offset += delta),
+                              onStartEdit: () => _toggleEdit(el, force: true),
+                              onSubmitEdit: (value) => setState(() {
+                                el.text = value.isEmpty ? el.text : value;
+                                el.isEditing = false;
+                              }),
+                              onDelete: _removeSelected,
+                              onRotateDrag: (d, key) => _onRotateDrag(el, d, key),
+                            )),
+                            Positioned(
+                              top: 20, // 카드 안의 중앙 상단
+                              left: 0,
+                              right: 0,
+                              child: Align(
+                                alignment: Alignment.topCenter,
+                                child: Image.asset(
+                                  'assets/custommag.png',
+                                  width: 60,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 16,
+                              left: 16,
+                              child: Image.asset(
+                                'assets/customlogo.png',
+                                width: 80,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
 
-            // ---- 하단 패널: 폰트 / 이모지 ----
+            // 폰트/이모티콘 패널(토글)
             if (_showFontList) _buildFontBar(),
             if (_showEmojiList) _buildEmojiBar(),
+
+            // ───── 하단 액션 바 ─────
+            _buildBottomActionBar(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTopToolbar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: const BoxDecoration(
+        color: Color(0xFF15171A),
+        border: Border(bottom: BorderSide(color: Colors.white12)),
+      ),
+      child: _bgEditMode
+          ? _buildTopToolbarForBackground() // ⬅️ 배경 모드 우선
+          : (_hasSelection
+          ? _buildTopToolbarForText()     // 텍스트/이모지 선택 시
+          : _buildTopToolbarIdle()),      // 아무 것도 아닐 때(간단 모드)
+    );
+  }
+
+  Widget _buildTopToolbarForBackground() {
+    final labelStyle = const TextStyle(color: Colors.white70);
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          // 종료(완료)
+          _chipBtn('완료', onTap: () => setState(() => _bgEditMode = false)),
+
+          // 배경 이미지/색
+          _chipBtnIcon(Icons.image_outlined, '배경 이미지', onTap: _pickBackgroundImage),
+          _chipBtn('배경 색상', onTap: _setBgColor),
+
+          // 회전
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('회전', style: labelStyle),
+              SizedBox(
+                width: 140,
+                child: Slider(
+                  min: -180, max: 180,
+                  value: _bgRotateDeg,
+                  onChanged: (v) => setState(() => _bgRotateDeg = v),
+                ),
+              ),
+            ],
+          ),
+
+          // 크기(스케일)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('크기', style: labelStyle),
+              IconButton(
+                onPressed: () => setState(() => _bgScale = (_bgScale - 0.1).clamp(0.3, 3.0)),
+                icon: const Icon(Icons.remove, color: Colors.white),
+                tooltip: '축소',
+              ),
+              SizedBox(
+                width: 140,
+                child: Slider(
+                  min: 0.3, max: 3.0,
+                  value: _bgScale,
+                  onChanged: (v) => setState(() => _bgScale = v),
+                ),
+              ),
+              IconButton(
+                onPressed: () => setState(() => _bgScale = (_bgScale + 0.1).clamp(0.3, 3.0)),
+                icon: const Icon(Icons.add, color: Colors.white),
+                tooltip: '확대',
+              ),
+            ],
+          ),
+
+          // (선택) 배경 위치 초기화
+          _chipBtn('위치 초기화', onTap: () => setState(() => _bgOffset = Offset.zero)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopToolbarIdle() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Wrap(
+        spacing: 8,
+        children: [
+          _chipBtn('초기화', onTap: _confirmAndReset),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopToolbarForText() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          _chipBtn('A+', onTap: _increaseFont),
+          _chipBtn('A-', onTap: _decreaseFont),
+          _chipBtn('🔤 폰트', onTap: () => setState(() {
+            _showFontList = !_showFontList;
+            _showEmojiList = false;
+          })),
+          _chipBtn('T 색상', onTap: _pickFontColor),
+          // (선택) 삭제 버튼을 상단에도 노출하고 싶다면:
+          _chipBtn('삭제', onTap: _removeSelected),
+          // (선택) 편집 진입
+          _chipBtn('편집', onTap: () {
+            final sel = _selected;
+            if (sel != null && sel.id != -1) _toggleEdit(sel, force: true);
+          }),
+        ],
+      ),
+    );
+  }
+
+
+
+  Widget _buildBottomActionBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: const BoxDecoration(
+        color: Color(0xFF15171A),
+        border: Border(top: BorderSide(color: Colors.white12)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _actionItem(Icons.text_fields, '텍스트', _addText),
+            _actionItem(Icons.layers, '배경', () {
+              setState(() {
+                _bgEditMode = true;     // 상단 툴바를 배경 모드로
+                _selectedId = null;     // 요소 선택 해제
+              });
+            }),
+            _actionItem(Icons.emoji_emotions, '이모티콘', () => setState(() {
+              _showEmojiList = !_showEmojiList; _showFontList = false;
+            })),
+            _actionItem(Icons.download, '이미지', _saveCardAsImage),
+            _actionItem(Icons.check_circle, '디자인 결정', _finishDesign),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _finishDesign() {
+    // TODO: 서버 저장 or 다음 단계 이동 로직 연결
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('디자인이 결정되었습니다.')),
+    );
+  }
+
+  Widget _chipBtn(String label, {required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E2126),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Text(label, style: const TextStyle(color: Colors.white)),
+      ),
+    );
+  }
+
+  Widget _chipBtnIcon(IconData icon, String label, {required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E2126),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: Colors.white),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(color: Colors.white)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _actionItem(IconData icon, String label, VoidCallback onTap) {
+    final bool isActive = _activeBottom == label;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _activeBottom = label; // 눌린 항목을 active 상태로 기록
+        });
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: isActive ? Colors.white : Colors.white70, // ✅ 강조
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: isActive ? Colors.white : Colors.white70, // ✅ 강조
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  Widget _primaryActionItem(IconData icon, String label, VoidCallback onTap) {
+    return ElevatedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFB91111), // BNK 레드 톤
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 0,
+      ),
+    );
+  }
+
+  Widget _sheetButton(IconData icon, String label, VoidCallback onTap) {
+    return OutlinedButton.icon(
+      onPressed: () { Navigator.pop(context); onTap(); },
+      icon: Icon(icon, color: Colors.white),
+      label: Text(label, style: const TextStyle(color: Colors.white)),
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Colors.white24),
+        backgroundColor: const Color(0xFF23272D),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -560,6 +927,8 @@ class _TextElementWidgetState extends State<_TextElementWidget> {
     super.dispose();
   }
 
+  static const double _kHandlePad = 20; // 버튼이 들어갈 여유 공간
+
   @override
   Widget build(BuildContext context) {
     final el = widget.element;
@@ -569,61 +938,68 @@ class _TextElementWidgetState extends State<_TextElementWidget> {
       top: el.offset.dy,
       child: GestureDetector(
         onTap: widget.onTap,
-        onLongPress: widget.onStartEdit,         // 모바일: 길게 눌러 편집
-        onDoubleTap: widget.onStartEdit,         // 데스크탑: 더블탭 편집
-        onPanUpdate: (d) => widget.onDrag(d.delta),
+        onLongPress: widget.onStartEdit,
+        onDoubleTap: widget.onStartEdit,
         child: Transform.rotate(
           angle: el.rotationDeg * math.pi / 180,
           child: Stack(
-            clipBehavior: Clip.none,
+            clipBehavior: Clip.none, // 유지
             children: [
-              // 텍스트/에디터 본체
-              Container(
-                key: _boxKey,
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                decoration: widget.selected
-                    ? BoxDecoration(
-                  border: Border.all(color: Colors.blueAccent),
-                  borderRadius: BorderRadius.circular(4),
-                )
-                    : null,
-                child: el.isEditing
-                    ? ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 40, maxWidth: 220),
-                  child: TextField(
-                    controller: _ctrl,
-                    focusNode: _focus,
-                    style: widget.fontBuilder(el.fontSize, el.color),
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                    ),
-                    maxLines: null,
-                    onSubmitted: (v) => widget.onSubmitEdit(v),
+              // ✅ 패딩으로 버튼 공간을 "스택 내부"에 포함시킴
+              Padding(
+                key: _boxKey, // ⬅️ 회전 중심 계산에 쓰는 키를 '패딩 박스'에 부착
+                padding: const EdgeInsets.all(_kHandlePad),
+                child: GestureDetector(
+                  onPanUpdate: (d) => widget.onDrag(d.delta), // 이동 제스처는 본체에만
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: widget.selected
+                        ? BoxDecoration(
+                      border: Border.all(color: Colors.blueAccent),
+                      borderRadius: BorderRadius.circular(4),
+                    )
+                        : null,
+                    child: el.isEditing
+                        ? ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 40, maxWidth: 220),
+                      child: TextField(
+                        controller: _ctrl,
+                        focusNode: _focus,
+                        style: widget.fontBuilder(el.fontSize, el.color),
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          border: InputBorder.none,
+                        ),
+                        maxLines: null,
+                        onSubmitted: widget.onSubmitEdit,
+                      ),
+                    )
+                        : Text(el.text, style: widget.fontBuilder(el.fontSize, el.color)),
                   ),
-                )
-                    : Text(el.text, style: widget.fontBuilder(el.fontSize, el.color)),
+                ),
               ),
 
-              // 삭제(X) 버튼 - 우상단
+              // ✅ 삭제 버튼(우상단) — 이제 음수 좌표 없음
               if (widget.selected)
                 Positioned(
-                  right: -14,
-                  top: -14,
+                  right: 2,
+                  top: 2,
                   child: GestureDetector(
                     onTap: widget.onDelete,
+                    behavior: HitTestBehavior.opaque, // 히트 박스 보장
                     child: _roundIcon(Colors.red, Icons.close, size: 18),
                   ),
                 ),
 
-              // 회전(⟳) 버튼 - 좌상단 (드래그 회전)
+              // ✅ 회전 버튼(좌상단) — 이제 음수 좌표 없음
               if (widget.selected)
                 Positioned(
-                  left: -14,
-                  top: -14,
+                  left: 2,
+                  top: 2,
                   child: GestureDetector(
+                    behavior: HitTestBehavior.opaque, // 히트 박스 보장
                     onPanUpdate: (d) => widget.onRotateDrag(d, _boxKey),
-                    child: _roundIcon(Colors.black54, Icons.rotate_right, size: 16),
+                    child: _roundIcon(Colors.black54, Icons.rotate_right, size: 18),
                   ),
                 ),
             ],
@@ -633,10 +1009,11 @@ class _TextElementWidgetState extends State<_TextElementWidget> {
     );
   }
 
+
   Widget _roundIcon(Color bg, IconData icon, {double size = 16}) {
     return Container(
-      width: 24,
-      height: 24,
+      width: 28,  // <- 24 → 28
+      height: 28, // <- 24 → 28
       decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
       alignment: Alignment.center,
       child: Icon(icon, color: Colors.white, size: size),
