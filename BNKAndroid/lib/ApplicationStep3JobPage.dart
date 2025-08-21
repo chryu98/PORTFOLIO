@@ -3,9 +3,9 @@ import 'ApplicationStep1Page.dart' show kPrimaryRed;
 import 'user/service/card_apply_service.dart' as apply;
 
 // ✅ 5페이지로 바로 이동하려면 이걸 import
-import 'ApplicationStep5AccountPage.dart';
+//import 'ApplicationStep5AccountPage.dart';
 // (원복하려면 위 import 대신 4페이지를 import 하고 아래 플래그를 false 로 바꾸면 됨)
-// import 'ApplicationStep4OcrPage.dart';
+ import 'ApplicationStep4OcrPage.dart';
 
 // -------------------------
 // 개발용: OCR 스킵 여부
@@ -82,7 +82,7 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
       if (kSkipOcrForDev) {
         await Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => ApplicationStep5AccountPage(
+            builder: (_) => ApplicationStep4OcrPage(
               applicationNo: widget.applicationNo,
               cardNo: widget.cardNo,
             ),

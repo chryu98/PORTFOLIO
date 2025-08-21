@@ -8,14 +8,25 @@ import '../constants/chat_api.dart';
 import '../user/cardListPage.dart';
 import '../chat/widgets/chatbot_modal.dart';
 import '../constants/api.dart';  // 카드 API
+import '../feedback/feedback_sheet.dart';
+
+// ===== FEEDBACK INJECT START =====
+const bool kFeedbackOnFaqEnabled = true;   // <- 나중에 false로 끄면 끝
+const int  kFeedbackFaqCardNo    = 999000; // FAQ용 더미 카드번호(백엔드 NOT NULL 회피)
+// ===== FEEDBACK INJECT END =====
+
 
 class FaqPage extends StatefulWidget {
+
   const FaqPage({super.key});
   @override
   State<FaqPage> createState() => _FaqPageState();
+
 }
 
 class _FaqPageState extends State<FaqPage> {
+  // ...
+  bool _feedbackShownOnce = false; // ===== FEEDBACK INJECT
   // ── BNK 부산은행 톤
   static const _bnkRed = Color(0xFFD6001C);      // BNK 레드 (브랜드 메인)
   static const _bnkRedDark = Color(0xFFA80016);  // 딥 레드 (그라데이션 하단)
@@ -48,6 +59,21 @@ class _FaqPageState extends State<FaqPage> {
     super.initState();
     _goTo(0);
     _startTipTicker();
+
+    // ===== FEEDBACK INJECT START =====
+    if (kFeedbackOnFaqEnabled) {
+      // 첫 프레임 이후 컨텍스트가 안정되면 모달 오픈
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _feedbackShownOnce) return;
+        _feedbackShownOnce = true;
+        showFeedbackSheet(
+          context,
+          cardNo: kFeedbackFaqCardNo, // 실제 카드 연결 없으면 이 더미 사용
+          userNo: null,               // 있으면 넘겨도 됨
+        );
+      });
+    }
+    // ===== FEEDBACK INJECT END =====
   }
 
   @override

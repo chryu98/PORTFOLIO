@@ -1,3 +1,4 @@
+// com/busanbank/card/feedback/service/CardFeedbackService.java
 package com.busanbank.card.feedback.service;
 
 import com.busanbank.card.feedback.dto.*;
@@ -9,15 +10,17 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Date;
+import java.util.Objects;
+import java.util.Optional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class CardFeedbackService {
+
     private final CardFeedbackRepository repo;
-    private final FeedbackAnalysisClient analysisClient;
+    private final FeedbackAnalysisClient analysisClient; // 이 Bean이 @Component/@Service 또는 @Bean으로 등록돼 있어야 합니다.
 
     @Transactional
     public FeedbackCreateResp create(FeedbackCreateReq req) {
@@ -25,31 +28,28 @@ public class CardFeedbackService {
         CardFeedback cf = new CardFeedback();
         cf.setCardNo(req.cardNo());
         cf.setUserNo(req.userNo());
-        cf.setRating(req.rating());         // Integer로 맞춤
-        cf.setComment(req.comment());
+        cf.setRating(req.rating());
+        // 엔티티 게터/세터명에 맞추세요. (feedbackComment 필드라면 아래처럼)
+        cf.setFeedbackComment(req.comment());
         repo.save(cf);
 
-        // 2) ID가 트리거/IDENTITY로 채워지는 환경에서 방어적으로 한 번 더 확인
+        // 2) ID 보정 (트리거/IDENTITY 환경 방어)
         Long fid = cf.getFeedbackNo();
         if (fid == null) {
-            // 가장 최근 레코드 한 건 재조회 (개발환경 간단 방어)
             var latest = repo.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 1))
                     .getContent().stream().findFirst();
             if (latest.isPresent()) {
-                fid = latest.get().getFeedbackNo();
                 cf = latest.get();
+                fid = cf.getFeedbackNo();
             }
         }
 
-        // 3) AI 분석 (실패해도 저장은 성공하도록 보호)
+        // 3) AI 분석 (실패해도 저장은 성공하도록)
         try {
-            AnalysisUpdateReq ar = analysisClient.analyze(
-                    fid, req.comment(), req.rating()
-            );
-            applyAnalysis(ar); // 같은 트랜잭션 안에서 업데이트
+            AnalysisUpdateReq ar = analysisClient.analyze(fid, req.comment(), req.rating());
+            applyAnalysis(ar);
         } catch (Exception e) {
             log.warn("AI 분석 실패 - feedbackNo={}", fid, e);
-            // 실패해도 OK. 대시보드는 analyzedAt IS NOT NULL만 집계하므로 영향 없음.
         }
 
         return new FeedbackCreateResp(fid);
@@ -60,9 +60,8 @@ public class CardFeedbackService {
         CardFeedback cf = repo.findById(ar.feedbackNo())
                 .orElseThrow(() -> new IllegalArgumentException("Not found: " + ar.feedbackNo()));
         cf.setSentimentLabel(ar.sentimentLabel());
-        cf.setSentimentScore(
-                ar.sentimentScore() == null ? null : java.math.BigDecimal.valueOf(ar.sentimentScore())
-        );
+        cf.setSentimentScore(ar.sentimentScore() == null ? null :
+                java.math.BigDecimal.valueOf(ar.sentimentScore()));
         cf.setAiKeywords(ar.keywords() == null ? null : String.join(",", ar.keywords()));
         cf.setInconsistencyFlag(ar.inconsistency() ? "Y" : "N");
         cf.setInconsistencyReason(ar.reason());
@@ -90,7 +89,7 @@ public class CardFeedbackService {
                 .map(r -> new KeywordStat(
                         r[0] == null ? "" : r[0].toString(),
                         ((Number) r[1]).longValue()))
-                .collect(Collectors.toList());
+                .toList();
 
         // 평균 평점
         double avg = Optional.ofNullable(repo.avgRatingAll()).orElse(0.0);
@@ -100,5 +99,10 @@ public class CardFeedbackService {
         var anomalies = repo.findInconsistencies();
 
         return new DashboardSummary(positiveRatio, negativeRatio, avg, top, recent, anomalies);
+    }
+
+    @Transactional(readOnly = true)
+    public CardFeedback getOne(Long id) {
+        return repo.findById(id).orElseThrow();
     }
 }

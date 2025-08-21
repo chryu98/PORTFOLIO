@@ -1,19 +1,24 @@
 package com.busanbank.card.feedback.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.math.BigDecimal;
 import java.util.Date;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-@Getter
-@Setter
 @Entity
 @Table(name = "CARD_FEEDBACK")
+@Getter @Setter @NoArgsConstructor
 public class CardFeedback {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "card_feedback_seq")
+    @SequenceGenerator(
+        name = "card_feedback_seq",
+        sequenceName = "SEQ_CARD_FEEDBACK", // DB에 만든 시퀀스명
+        allocationSize = 1
+    )
     @Column(name = "FEEDBACK_NO")
     private Long feedbackNo;
 
@@ -23,17 +28,16 @@ public class CardFeedback {
     @Column(name = "USER_NO")
     private Long userNo;
 
-    // DDL: FEEDBACK_COMMENT
-    @Column(name = "FEEDBACK_COMMENT")
-    private String comment;
-
     @Column(name = "RATING")
     private Integer rating;
+
+    @Column(name = "FEEDBACK_COMMENT")
+    private String feedbackComment; // ← 필드명 통일
 
     @Column(name = "SENTIMENT_LABEL")
     private String sentimentLabel;
 
-    @Column(name = "SENTIMENT_SCORE")
+    @Column(name = "SENTIMENT_SCORE", precision = 5, scale = 4)
     private BigDecimal sentimentScore;
 
     @Column(name = "AI_KEYWORDS")
@@ -50,6 +54,6 @@ public class CardFeedback {
     private Date analyzedAt;
 
     @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "CREATED_AT", insertable = false, updatable = false)
+    @Column(name = "CREATED_AT")
     private Date createdAt;
 }
