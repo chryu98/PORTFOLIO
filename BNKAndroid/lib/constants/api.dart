@@ -152,6 +152,11 @@ class API {
   static String get termsAgree           => _j('/api/card/apply/terms-agree');    // POST
   static String get customerInfo         => _j('/api/card/apply/customer-info');  // GET ?cardNo=
 
+  // 페이지 0(약관)용 엔드포인트 모음 아래쪽에 추가
+  static String termsPdf(int pdfNo) => _j('/api/card/apply/pdf/$pdfNo');
+
+
+
   // JWT
   static String get jwtLogin   => _j('/jwt/api/login');
   static String get jwtLogout  => _j('/jwt/api/logout');
