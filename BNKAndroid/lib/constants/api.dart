@@ -25,6 +25,7 @@ class API {
 
   /// 앱 시작 시 1회 호출
   static Future<void> initBaseUrl() async {
+    const fallbackIp = '192.168.0.224'; // 각자 로컬/사내망 IP면 여기만 개인별로 바꿔도 동작
     try {
       final cfg = await _client.get(
         Uri.parse('http://$_fallbackHost:$_configPort/api/config/base-url'),

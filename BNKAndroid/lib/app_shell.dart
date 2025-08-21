@@ -1,4 +1,5 @@
 // lib/app_shell.dart
+import 'package:bnkandroid/user/CustomCardEditorPage.dart';
 import 'package:flutter/material.dart';
 
 import 'package:bnkandroid/user/CardListPage.dart';

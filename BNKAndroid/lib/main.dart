@@ -1,3 +1,5 @@
+import 'package:bnkandroid/user/CustomCardEditorPage.dart';
+import 'package:bnkandroid/user/MainPage.dart';
 import 'package:flutter/material.dart';
 import 'package:bnkandroid/constants/api.dart';
 import 'app_shell.dart';
@@ -80,7 +82,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const AppShell(),
+      home: const CardMainPage(),
     );
   }
 }
