@@ -40,7 +40,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _remember = true;
   bool _loading = false;
   bool _obscure = true;
-  String userName = '사용자'; // 클래스 필드
+  String userName = '사용자';
 
   @override
   void dispose() {
@@ -52,22 +52,23 @@ class _LoginPageState extends State<LoginPage> {
   bool get _canSubmit =>
       !_loading && _idCtl.text.trim().isNotEmpty && _pwCtl.text.trim().isNotEmpty;
 
-  InputDecoration _dec(String hint) => InputDecoration(
+  // ▶ 두 번째 스샷 느낌의 둥근 입력필드 데코레이터
+  InputDecoration _pillDec(String hint) => InputDecoration(
     hintText: hint,
-    hintStyle: const TextStyle(color: kHint, fontSize: 16),
+    hintStyle: const TextStyle(color: kHint, fontSize: 15),
     filled: true,
-    fillColor: kFieldBg,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    fillColor: Colors.white,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(22),
       borderSide: const BorderSide(color: kFieldStroke),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: kPrimaryRed, width: 1.2),
+      borderRadius: BorderRadius.circular(22),
+      borderSide: const BorderSide(color: kPrimaryRed, width: 1.6),
     ),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(22),
       borderSide: const BorderSide(color: kFieldStroke),
     ),
   );
@@ -81,7 +82,6 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     setState(() => _loading = true);
-
     try {
       final url = Uri.parse(API.jwtLogin);
       final res = await http.post(
@@ -123,7 +123,7 @@ class _LoginPageState extends State<LoginPage> {
       if (access.startsWith('Bearer ')) access = access.substring(7);
 
       final payload = _decodeJwt(access);
-      userName = payload['name']?.toString() ?? '사용자'; // JWT에서 name 추출
+      userName = payload['name']?.toString() ?? '사용자';
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('jwt_token', access);
@@ -132,7 +132,7 @@ class _LoginPageState extends State<LoginPage> {
         await prefs.setString('refreshToken', refresh);
       }
       await prefs.setBool('remember', _remember);
-      await prefs.setString('user_name', userName); // SharedPreferences에 저장
+      await prefs.setString('user_name', userName);
 
       await AuthState.markLoggedIn(remember: _remember, access: access, refresh: refresh);
 
@@ -142,10 +142,6 @@ class _LoginPageState extends State<LoginPage> {
         MaterialPageRoute(builder: (_) => widget.redirectBuilder?.call(context) ?? const AppShell()),
             (route) => false,
       );
-
-      print('JWT name = $userName');
-      print('prefs 저장 완료');
-
     } catch (e) {
       _showError('네트워크 오류: $e');
     } finally {
@@ -189,131 +185,133 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    splashRadius: 22,
-                    icon: const Icon(Icons.close, color: Colors.black87),
-                    onPressed: () => Navigator.of(context, rootNavigator: true).maybePop(),
+        child: Center(
+          child: SingleChildScrollView(
+            // ⬆️ 바깥 패딩 살짝 넉넉하게
+            padding: const EdgeInsets.fromLTRB(24, 32, 24, 32), // ★ 20,24,20,24 → 24,32,24,32
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 12), // ★ 8 → 12
+
+                const Center(
+                  child: Text(
+                    '로그인',
+                    style: TextStyle(
+                      color: kTitle,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+
+                const SizedBox(height: 12), // ★ 8 → 12
+                Container(
+                  height: 2,
+                  color: kPrimaryRed,
+                  margin: const EdgeInsets.symmetric(horizontal: 20), // ★ 16 → 20
+                ),
+
+                const SizedBox(height: 28), // ★ 22 → 28
+
+                // 아이디
+                TextField(
+                  controller: _idCtl,
+                  decoration: _pillDec('아이디를 입력해주세요'),
+                  textInputAction: TextInputAction.next,
+                  onChanged: (_) => setState(() {}),
+                ),
+
+                const SizedBox(height: 16), // ★ 12 → 16
+
+                // 비밀번호
+                TextField(
+                  controller: _pwCtl,
+                  decoration: _pillDec('비밀번호를 입력해주세요').copyWith(
+                    suffixIcon: IconButton(
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                      icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                      color: kHint,
+                    ),
+                  ),
+                  obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _canSubmit ? _login() : null,
+                  onChanged: (_) => setState(() {}),
+                ),
+
+                const SizedBox(height: 14), // ★ 6 → 14
+
+                // 자동 로그인
+                Row(
                   children: [
-                    const Text('로그인', style: TextStyle(color: kTitle, fontSize: 28, fontWeight: FontWeight.w800, height: 1.25)),
-                    const SizedBox(height: 6),
-                    const Text('BNK 서비스를 안전하게 이용할 수 있도록 로그인해 주세요.', style: TextStyle(color: kText, fontSize: 14)),
-                    const SizedBox(height: 24),
-                    TextField(
-                      controller: _idCtl,
-                      decoration: _dec('아이디'),
-                      textInputAction: TextInputAction.next,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _pwCtl,
-                      decoration: _dec('비밀번호').copyWith(
-                        suffixIcon: IconButton(
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                          icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
-                          color: kHint,
-                        ),
-                      ),
-                      obscureText: _obscure,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _canSubmit ? _login() : null,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: 10),
-                    SwitchListTile.adaptive(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('자동 로그인', style: TextStyle(fontSize: 15)),
+                    const Text('자동 로그인', style: TextStyle(fontSize: 15)),
+                    const Spacer(),
+                    Switch.adaptive(
                       value: _remember,
                       activeColor: kPrimaryRed,
                       onChanged: (v) => setState(() => _remember = v),
                     ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {},
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.black54,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: const Text('비밀번호 찾기'),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Center(
-                        child: RichText(
-                          text: TextSpan(
-                            text: '아직 회원이 아니신가요? ',
-                            style: const TextStyle(color: Colors.black87, fontSize: 14),
-                            children: [
-                              TextSpan(
-                                text: '회원가입',
-                                style: const TextStyle(
-                                  color: kPrimaryRed,
-                                  fontWeight: FontWeight.bold,
-                                  decoration: TextDecoration.underline,
-                                ),
-                                recognizer: TapGestureRecognizer()
-                                  ..onTap = () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (_) => const SelectMemberTypePage()),
-                                    );
-                                  },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-          child: SizedBox(
-            height: 52,
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: canSubmit ? kPrimaryRed : const Color(0x33B91111),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-              onPressed: canSubmit ? _login : null,
-              child: _loading
-                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('로그인'),
+
+                const SizedBox(height: 18), // ★ 12 → 18
+
+                // 로그인 버튼
+                SizedBox(
+                  height: 52, // ★ 48 → 52
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: canSubmit ? kPrimaryRed : const Color(0x33B91111),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)), // ★ 22 → 24
+                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                    onPressed: canSubmit ? _login : null,
+                    child: _loading
+                        ? const SizedBox(
+                      width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                        : const Text('로그인'),
+                  ),
+                ),
+
+                const SizedBox(height: 20), // ★ 14 → 20
+
+                // 회원가입 링크
+                Center(
+                  child: RichText(
+                    text: TextSpan(
+                      text: '아직 회원이 아니신가요? ',
+                      style: const TextStyle(color: Colors.black87, fontSize: 14),
+                      children: [
+                        TextSpan(
+                          text: '회원가입',
+                          style: const TextStyle(
+                            color: kPrimaryRed,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const SelectMemberTypePage()),
+                              );
+                            },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
+
 }
