@@ -15,9 +15,9 @@ import 'services/api_client.dart';
 import 'widgets/guided_camera_page.dart';
 
 class ApplicationStep4OcrPage extends StatefulWidget {
-  const ApplicationStep4OcrPage({super.key, required this.applicationNo, this.cardNo});
+  const ApplicationStep4OcrPage({super.key, required this.applicationNo, required this.cardNo});
   final int applicationNo;
-  final int? cardNo;
+  final int cardNo;
 
   @override
   State<ApplicationStep4OcrPage> createState() => _ApplicationStep4OcrPageState();

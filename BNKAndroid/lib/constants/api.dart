@@ -155,13 +155,16 @@ class API {
   // 페이지 0(약관)용 엔드포인트 모음 아래쪽에 추가
   static String termsPdf(int pdfNo) => _j('/api/card/apply/pdf/$pdfNo');
 
-
+  // 페이지 8(카드비번)
+  static String pinSave(int cardNo) => _j('/card/apply/api/card-password/$cardNo/pin');
 
   // JWT
   static String get jwtLogin   => _j('/jwt/api/login');
   static String get jwtLogout  => _j('/jwt/api/logout');
   static String get jwtRefresh => _j('/jwt/api/refresh');
 }
+
+
 
 /// 통일된 예외 타입
 class ApiException implements Exception {
