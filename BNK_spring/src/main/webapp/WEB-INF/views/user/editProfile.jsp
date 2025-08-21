@@ -280,46 +280,59 @@ input::placeholder {
 	
 	//수정 버튼
 	function editProfile(){
-		const form = document.getElementById("updateForm");
-		
-		//비밀번호 검사
-		const password = document.getElementById("password");
-		const passwordCheck = document.getElementById("passwordCheck");
-
-		//비밀번호를 입력하였을 때
-		if(password.value.trim()){
-			//비밀번호 확인란 검사
-			if(!passwordCheck.value.trim()){
-				alert("비밀번호를 확인하세요.");
-				passwordCheck.focus();
-				return;
-			}
-			//유효성 검사
-			if(!isPasswordValid(password.value)){
-				pwErrorMsg.textContent = "비밀번호는 영문자, 숫자, 특수문자를 포함한 8~12자리여야 합니다.";
-			    pwErrorMsg.style.color = "red";
-			    password.focus();
-			}
-			else{
-				pwErrorMsg.textContent = "사용가능한 비밀번호입니다.";	
-				pwErrorMsg.style.color = "green";
-			}
-		}
-			
-		//주소 검사
-		if(!document.getElementById("zipCode").value.trim() || !document.getElementById("address1").value.trim()) {
-			alert("주소를 입력해주세요.");
-			document.getElementById("zipCode").focus();
-			return;
-		}
-		if(!document.getElementById("address2").value.trim()){			
-			alert("상세주소를 입력해주세요.");
-			document.getElementById("address2").focus();
-			return;
-		}
-		
-		form.submit();
+	    const form = document.getElementById("updateForm");
+	    
+	    const password = document.getElementById("password");
+	    const passwordCheck = document.getElementById("passwordCheck");
+	
+	    if(password.value.trim()){
+	        if(!passwordCheck.value.trim()){
+	            alert("비밀번호를 확인하세요.");
+	            passwordCheck.focus();
+	            return;
+	        }
+	        if(!isPasswordValid(password.value)){
+	            pwErrorMsg.textContent = "비밀번호는 영문자, 숫자, 특수문자를 포함한 8~12자리여야 합니다.";
+	            pwErrorMsg.style.color = "red";
+	            password.focus();
+	            return;
+	        }
+	    }
+	
+	    if(!document.getElementById("zipCode").value.trim() || !document.getElementById("address1").value.trim()) {
+	        alert("주소를 입력해주세요.");
+	        document.getElementById("zipCode").focus();
+	        return;
+	    }
+	    if(!document.getElementById("address2").value.trim()){            
+	        alert("상세주소를 입력해주세요.");
+	        document.getElementById("address2").focus();
+	        return;
+	    }
+	
+	    const formData = new FormData(form);
+	    const jwtToken = localStorage.getItem("jwtToken");
+	    
+	    fetch('/user/api/update', {
+	        method: 'POST',
+	        headers: {
+                "Authorization": "Bearer " + jwtToken  // JWT 헤더 추가
+            },
+            body: formData
+	    })
+	    .then(res => {
+		    if (!res.ok) return res.text().then(text => { throw new Error(text); });
+		    return res.json();
+		})
+	    .then(data => {
+	        alert(data.msg);
+	        if(data.success){
+	            location.href = "/user/mypage";
+	        }
+	    })
+	    .catch(err => console.error(err));
 	}
+
 	
 	//취소버튼
 	function cancelEdit(){

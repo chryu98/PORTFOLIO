@@ -1,5 +1,6 @@
 package com.busanbank.card.user.controller;
 
+import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,11 +17,13 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.busanbank.card.cardapply.config.JwtTokenProvider;
@@ -43,6 +46,8 @@ public class UserRestController {
 	private JwtTokenProvider jwtTokenProvider;
 	@Autowired
 	private IUserDao userDao;
+	@Autowired
+	private BCryptPasswordEncoder bCryptPasswordEncoder;
 	
 	@PostMapping(value = "/login", produces = "application/json; charset=UTF-8")
 	public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest, HttpServletRequest request) {
@@ -69,7 +74,7 @@ public class UserRestController {
 	        int memberNo = user.getMemberNo();
 	        String name = user.getName();
 	        
-	        String token = jwtTokenProvider.createToken(username, name, roles);
+	        String token = jwtTokenProvider.createToken(username, memberNo, name, roles);
 	        
 			response.put("success", true);
 			response.put("message", "로그인 성공");
@@ -90,6 +95,57 @@ public class UserRestController {
 		}
 	}
 
+	@GetMapping("/get-info")
+	public ResponseEntity<UserDto> getMyPage(Principal principal) {
+        // 로그인한 사용자의 username으로 정보 조회
+        UserDto userDto = userDao.findByUsername(principal.getName());
+        return ResponseEntity.ok(userDto);
+    }
+	
+	@PostMapping("/update")
+	public Map<String, Object> updateRest(UserDto user,
+	                                      @RequestParam("extraAddress") String extraAddress,
+	                                      HttpSession session) {
+
+	    Map<String, Object> result = new HashMap<>();
+	    UserDto loginUser = userDao.findByUsername(user.getUsername());
+
+	    if (user.getUsername().equals(session.getAttribute("loginUsername"))) {
+
+	        // 비밀번호 변경 여부 확인
+	        if(user.getPassword() != null && !user.getPassword().isEmpty()) {
+
+	            if(bCryptPasswordEncoder.matches(user.getPassword(), loginUser.getPassword())) {
+	                result.put("success", false);
+	                result.put("msg", "기존 비밀번호와 동일합니다. 새로운 비밀번호를 입력해주세요.");
+	                return result;
+	            }
+
+	            String encodedPassword = bCryptPasswordEncoder.encode(user.getPassword());
+	            user.setPassword(encodedPassword);
+	        } else {
+	            user.setPassword(loginUser.getPassword());
+	        }
+
+	        // 주소 처리
+	        if (!extraAddress.trim().isEmpty()) {
+	            user.setAddress1(user.getAddress1() + extraAddress);
+	        } else {
+	            user.setAddress1(user.getAddress1());
+	        }
+
+	        // DB 수정
+	        userDao.updateMember(user);
+	        result.put("success", true);
+	        result.put("msg", "회원정보가 수정되었습니다.");
+	    } else {
+	        result.put("success", false);
+	        result.put("msg", "잘못된 접근입니다.");
+	    }
+
+	    return result;
+	}
+	
 	@GetMapping("/session-status")
 	public ResponseEntity<?> sessionStatus(HttpSession session) {
 	    Map<String, Object> response = new HashMap<>();

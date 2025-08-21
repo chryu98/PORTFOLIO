@@ -29,8 +29,8 @@ public class UserController {
 	private IUserDao userDao;
 	@Autowired
 	private SessionService sessionService;
-	@Autowired
-	private BCryptPasswordEncoder bCryptPasswordEncoder;
+//	@Autowired
+//	private BCryptPasswordEncoder bCryptPasswordEncoder;
 	
 //	@GetMapping("/login")
 //	public String login(HttpServletRequest request,
@@ -103,49 +103,49 @@ public class UserController {
 		return "user/editProfile";
 	}
 	
-	@PostMapping("/update")
-	public String update(UserDto user,
-						@RequestParam("extraAddress") String extraAddress,
-						HttpSession session, Model model,
-						RedirectAttributes rttr) {
-		
-		UserDto loginUser = userDao.findByUsername(user.getUsername());
-		
-		//로그인 사용자와 세션에 저장된 사용자가 같을 때
-		if(user.getUsername().equals(session.getAttribute("loginUsername"))) {
-			
-			//비밀번호 변경 여부 확인
-			if(user.getPassword() != null && !user.getPassword().isEmpty()) {
-				
-				//기존 비밀번호와 일치 여부 확인
-				if(bCryptPasswordEncoder.matches(user.getPassword(), loginUser.getPassword())) {
-					rttr.addFlashAttribute("msg", "기존 비밀번호와 동일합니다. 새로운 비밀번호를 입력해주세요.");
-					return "redirect:/user/editProfile";
-				}
-				//새 비밀번호 암호화 후 update
-				String encodedPassword = bCryptPasswordEncoder.encode(user.getPassword());
-				user.setPassword(encodedPassword);
-				
-			}
-			else {
-				//기존값 유지
-				user.setPassword(loginUser.getPassword());				
-			}
-			
-			//주소 처리
-			if (!extraAddress.trim().isEmpty()) {
-		        user.setAddress1(user.getAddress1() + extraAddress);
-		    }
-			else {
-		        user.setAddress1(user.getAddress1());
-		    }
-			
-			//DB 수정
-			userDao.updateMember(user);
-			System.out.println(user);
-		}
-		return "redirect:/user/mypage";
-	}
+//	@PostMapping("/update")
+//	public String update(UserDto user,
+//						@RequestParam("extraAddress") String extraAddress,
+//						HttpSession session, Model model,
+//						RedirectAttributes rttr) {
+//		
+//		UserDto loginUser = userDao.findByUsername(user.getUsername());
+//		
+//		//로그인 사용자와 세션에 저장된 사용자가 같을 때
+//		if(user.getUsername().equals(session.getAttribute("loginUsername"))) {
+//			
+//			//비밀번호 변경 여부 확인
+//			if(user.getPassword() != null && !user.getPassword().isEmpty()) {
+//				
+//				//기존 비밀번호와 일치 여부 확인
+//				if(bCryptPasswordEncoder.matches(user.getPassword(), loginUser.getPassword())) {
+//					rttr.addFlashAttribute("msg", "기존 비밀번호와 동일합니다. 새로운 비밀번호를 입력해주세요.");
+//					return "redirect:/user/editProfile";
+//				}
+//				//새 비밀번호 암호화 후 update
+//				String encodedPassword = bCryptPasswordEncoder.encode(user.getPassword());
+//				user.setPassword(encodedPassword);
+//				
+//			}
+//			else {
+//				//기존값 유지
+//				user.setPassword(loginUser.getPassword());				
+//			}
+//			
+//			//주소 처리
+//			if (!extraAddress.trim().isEmpty()) {
+//		        user.setAddress1(user.getAddress1() + extraAddress);
+//		    }
+//			else {
+//		        user.setAddress1(user.getAddress1());
+//		    }
+//			
+//			//DB 수정
+//			userDao.updateMember(user);
+//			System.out.println(user);
+//		}
+//		return "redirect:/user/mypage";
+//	}
 	
 	
 }
