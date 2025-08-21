@@ -119,17 +119,22 @@ async def verify_endpoint(
     id_image: UploadFile = File(...),
     face_image: UploadFile = File(...),
     expected_rrn: str = Form(...),
+    face_threshold: float = Form(default=0.65),  
 ):
     id_bytes = await id_image.read()
     face_bytes = await face_image.read()
 
-    from verification.verify_service import verify_identity
     try:
-        result = verify_identity(id_bytes=id_bytes, face_bytes=face_bytes, expected_rrn=expected_rrn)
+        # threshold 전달
+        result = verify_identity(
+            id_bytes=id_bytes,
+            face_bytes=face_bytes,
+            expected_rrn=expected_rrn,
+            face_threshold=face_threshold,         
+        )
         return result
     except Exception as e:
         return {"status": "ERROR", "reason": str(e)}
-
 
 @app.post("/ocr-id")
 async def ocr_id(idImage: UploadFile = File(...)):
@@ -140,3 +145,5 @@ async def ocr_id(idImage: UploadFile = File(...)):
         return {"status": "OK", "ocr": ocr}
     except Exception as e:
         return {"status": "ERROR", "reason": str(e)}
+
+

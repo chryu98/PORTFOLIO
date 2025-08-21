@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 enum GuidedMode { idCard, face }
 
@@ -16,40 +18,91 @@ class _GuidedCameraPageState extends State<GuidedCameraPage> {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
   bool _busy = true;
+  bool _torch = false;
+
+  // 고정 줌(사용자 제스처 비활성)
+  double _zoom = 1.0;
+  double _minZoom = 1.0;
+  double _maxZoom = 1.0;
 
   @override
   void initState() {
     super.initState();
+    // ✅ 둘 다 세로 고정(회전 이슈 근절)
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     _init();
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    super.dispose();
   }
 
   Future<void> _init() async {
     try {
       WidgetsFlutterBinding.ensureInitialized();
       _cameras = await availableCameras();
-      // 신분증은 후면, 얼굴은 전면 권장
-      final camera = widget.mode == GuidedMode.face
-          ? _cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.front,
-          orElse: () => _cameras.first)
-          : _cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.back,
-          orElse: () => _cameras.first);
+
+      final cam = widget.mode == GuidedMode.face
+          ? _cameras.firstWhere(
+            (c) => c.lensDirection == CameraLensDirection.front,
+        orElse: () => _cameras.first,
+      )
+          : _cameras.firstWhere(
+            (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => _cameras.first,
+      );
 
       _controller = CameraController(
-        camera,
-        ResolutionPreset.medium,
+        cam,
+        widget.mode == GuidedMode.idCard
+            ? ResolutionPreset.medium   // 신분증: 용량/속도 밸런스
+            : ResolutionPreset.high,    // 얼굴: 조금 더 선명
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
+
       await _controller!.initialize();
-    } catch (_) {} finally {
+
+      // 줌 한계
+      _minZoom = await _controller!.getMinZoomLevel();
+      _maxZoom = await _controller!.getMaxZoomLevel();
+
+      // ✅ 초기 고정 줌(신분증은 조금 더 당겨서 인식 안정화)
+      final desired = widget.mode == GuidedMode.idCard ? 2.0 : 1.3;
+      _zoom = desired.clamp(_minZoom, _maxZoom);
+      await _controller!.setZoomLevel(_zoom);
+
+      // 플래시는 기본 Off
+      if (_controller!.value.flashMode != FlashMode.off) {
+        await _controller!.setFlashMode(FlashMode.off);
+      }
+    } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
+  Future<void> _toggleTorch() async {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    if (_controller!.description.lensDirection != CameraLensDirection.back) return;
+    _torch = !_torch;
+    await _controller!.setFlashMode(_torch ? FlashMode.torch : FlashMode.off);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _tapToFocus(TapDownDetails d, BoxConstraints cons) async {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    final nx = (d.localPosition.dx / cons.maxWidth).clamp(0.0, 1.0);
+    final ny = (d.localPosition.dy / cons.maxHeight).clamp(0.0, 1.0);
+    try {
+      await _controller!.setFocusPoint(Offset(nx, ny));
+      await _controller!.setExposurePoint(Offset(nx, ny));
+    } catch (_) {}
   }
 
   Future<void> _take() async {
@@ -59,78 +112,210 @@ class _GuidedCameraPageState extends State<GuidedCameraPage> {
     Navigator.pop(context, File(x.path));
   }
 
+  /// 실제 센서 비율에 맞춘 프리뷰 + 화면 채우기
+  Widget _previewCovered() {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      return const SizedBox.shrink();
+    }
+    final ar = _controller!.value.aspectRatio; // width/height
+    return LayoutBuilder(
+      builder: (context, cons) {
+        // 센서 비율대로 캔버스 잡고, scale로 화면 꽉 채움
+        final previewH = cons.maxHeight;
+        final previewW = previewH * ar;
+        final coverScale = (cons.maxWidth / previewW).clamp(1.0, 3.0);
+
+        return Center(
+          child: Transform.scale(
+            scale: coverScale,
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: previewW,
+              height: previewH,
+              child: CameraPreview(_controller!),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final title = widget.mode == GuidedMode.idCard ? '신분증 촬영' : '얼굴 촬영';
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: _busy
-          ? const Center(child: CircularProgressIndicator())
-          : Stack(
-        fit: StackFit.expand,
-        children: [
-          if (_controller != null && _controller!.value.isInitialized)
-            CameraPreview(_controller!),
-          IgnorePointer(
-            child: CustomPaint(
-              painter: _GuidePainter(mode: widget.mode),
-            ),
-          ),
-          Positioned(
-            bottom: 24,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: FloatingActionButton(
-                onPressed: _take,
-                child: const Icon(Icons.camera),
+    final isBack = _controller?.description.lensDirection == CameraLensDirection.back;
+
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: Text(widget.mode == GuidedMode.idCard ? '신분증 촬영' : '얼굴 촬영'),
+          toolbarHeight: 44,
+          actions: [
+            if (isBack)
+              IconButton(
+                tooltip: _torch ? '플래시 끄기' : '플래시 켜기',
+                onPressed: _toggleTorch,
+                icon: Icon(_torch ? Icons.flash_on : Icons.flash_off),
               ),
+          ],
+        ),
+        body: _busy
+            ? const Center(child: CircularProgressIndicator())
+            : LayoutBuilder(
+          builder: (context, cons) => GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (d) => _tapToFocus(d, cons),
+            // ⛔ 핀치/더블탭 줌 비활성(미리보기-촬영 화각 불일치 유발 방지)
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _previewCovered(),
+
+                // 안내
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  right: 10,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.28),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        widget.mode == GuidedMode.idCard
+                            ? '카드를 브래킷(모서리 ㄱ자)에 정확히 맞춰주세요'
+                            : '얼굴을 원 안에 맞추고 눈높이를 선에 맞춰주세요',
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 오버레이
+                IgnorePointer(
+                  child: widget.mode == GuidedMode.idCard
+                      ? const _IdBracketOverlay()
+                      : const _FaceGuideOverlay(),
+                ),
+
+                // 셔터
+                Positioned(
+                  bottom: 24,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: FloatingActionButton(
+                      onPressed: _take,
+                      child: const Icon(Icons.camera_alt),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _GuidePainter extends CustomPainter {
-  _GuidePainter({required this.mode});
-  final GuidedMode mode;
+/// ─── 오버레이들 ───────────────────────────────────────────────────────────────
+
+class _IdBracketOverlay extends StatelessWidget {
+  const _IdBracketOverlay({super.key});
+  @override
+  Widget build(BuildContext context) => CustomPaint(painter: _IdBracketPainter());
+}
+
+class _IdBracketPainter extends CustomPainter {
+  static const ratio = 1.585; // ISO/ID 카드 가로:세로
 
   @override
   void paint(Canvas canvas, Size size) {
-    final overlay = Paint()..color = Colors.black.withOpacity(0.45);
-    final clear = Paint()..blendMode = BlendMode.clear;
-    final r = Rect.fromLTWH(0, 0, size.width, size.height);
-    canvas.drawRect(r, overlay);
+    final layer = Offset.zero & size;
 
-    if (mode == GuidedMode.idCard) {
-      // 신분증 가이드: 화면 가운데 가로 꽉 + 신분증 비율(약 1.58:1)
-      final guideW = size.width * 0.88;
-      final guideH = guideW / 1.58;
-      final rect = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: r.center, width: guideW, height: guideH),
-        const Radius.circular(12),
-      );
-      canvas.drawRRect(rect, clear);
-
-      final border = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3;
-      canvas.drawRRect(rect, border);
-    } else {
-      // 얼굴 가이드: 원형
-      final d = size.width * 0.70;
-      final c = Offset(size.width / 2, size.height / 2.1);
-      canvas.drawCircle(c, d / 2, clear);
-
-      final border = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3;
-      canvas.drawCircle(c, d / 2, border);
+    // 화면 높이의 80% → 가로는 비율, 폭 92% 초과 시 폭에 맞춤
+    double h = size.height * 0.80;
+    double w = h * ratio;
+    if (w > size.width * 0.92) {
+      w = size.width * 0.92;
+      h = w / ratio;
     }
+    final rect = Rect.fromCenter(center: layer.center, width: w, height: h);
+    final rr = RRect.fromRectAndRadius(rect, const Radius.circular(14));
+
+    // 바깥 약한 딤 + 중앙 clear
+    canvas.saveLayer(layer, Paint());
+    final dim = Paint()..color = Colors.black.withOpacity(0.20);
+    canvas.drawRect(layer, dim);
+    final clear = Paint()..blendMode = BlendMode.clear;
+    canvas.drawRRect(rr, clear);
+    canvas.restore();
+
+    // 모서리 브래킷
+    final p = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+    const L = 26.0;
+
+    void bracket(bool left, bool top) {
+      final x = left ? rect.left : rect.right;
+      final y = top ? rect.top : rect.bottom;
+      final dx = left ? L : -L;
+      final dy = top ? L : -L;
+      canvas.drawLine(Offset(x, y), Offset(x + dx, y), p);
+      canvas.drawLine(Offset(x, y), Offset(x, y + dy), p);
+    }
+
+    bracket(true,  true);
+    bracket(false, true);
+    bracket(true,  false);
+    bracket(false, false);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _FaceGuideOverlay extends StatelessWidget {
+  const _FaceGuideOverlay({super.key});
+  @override
+  Widget build(BuildContext context) => CustomPaint(painter: _FaceGuidePainter());
+}
+
+class _FaceGuidePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final layer = Offset.zero & size;
+
+    canvas.saveLayer(layer, Paint());
+    final dim = Paint()..color = Colors.black.withOpacity(0.25);
+    canvas.drawRect(layer, dim);
+
+    final d = size.shortestSide * 0.72; // 살짝 더 큼
+    final c = Offset(size.width / 2, size.height * 0.42);
+    final clear = Paint()..blendMode = BlendMode.clear;
+    canvas.drawOval(Rect.fromCircle(center: c, radius: d / 2), clear);
+    canvas.restore();
+
+    final border = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawCircle(c, d / 2, border);
+
+    final eye = Paint()
+      ..color = Colors.white.withOpacity(0.85)
+      ..strokeWidth = 1.2;
+    canvas.drawLine(
+      Offset(c.dx - d * 0.46, c.dy),
+      Offset(c.dx + d * 0.46, c.dy),
+      eye,
+    );
   }
 
   @override
