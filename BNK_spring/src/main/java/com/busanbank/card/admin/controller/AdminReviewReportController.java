@@ -1,69 +1,104 @@
-// src/main/java/com/busanbank/card/admin/controller/AdminReviewReportController.java
 package com.busanbank.card.admin.controller;
 
-import java.util.Date;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.busanbank.card.admin.dto.FunnelSummary;
-import com.busanbank.card.admin.dto.OverviewKpi;
-import com.busanbank.card.admin.dto.ProductDemographic;
-import com.busanbank.card.admin.dto.ProductSummary;
-import com.busanbank.card.admin.dto.SalesTrendPoint;
+import com.busanbank.card.admin.dto.KpiDto;
+import com.busanbank.card.admin.dto.StatDto;
+import com.busanbank.card.admin.dto.DemogRow;
 import com.busanbank.card.admin.service.AdminReviewReportService;
 
-import lombok.RequiredArgsConstructor;
-
 @RestController
-@RequestMapping("/admin/report")
-@RequiredArgsConstructor
 public class AdminReviewReportController {
 
     private final AdminReviewReportService service;
 
-    // 1) KPI
-    @GetMapping("/overview")
-    public OverviewKpi getOverview(
-            @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd") Date from,
-            @RequestParam("to")   @DateTimeFormat(pattern = "yyyy-MM-dd") Date to) {
-        return service.getOverview(from, to);
+    public AdminReviewReportController(AdminReviewReportService service) {
+        this.service = service;
     }
 
-    // 2) 판매 추세 (일별 ISSUED)
-    @GetMapping("/sales-trend")
-    public List<SalesTrendPoint> getSalesTrend(
-            @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd") Date from,
-            @RequestParam("to")   @DateTimeFormat(pattern = "yyyy-MM-dd") Date to) {
-        return service.getSalesTrend(from, to);
+    @GetMapping("/admin/api/review-report/kpi")
+    public KpiDto kpi(@RequestParam("startDt") String startDt,
+                      @RequestParam("endDt")   String endDt) {
+        return service.kpi(startDt, endDt);
     }
 
-    // 3) 상품별 판매 Top-N
-    @GetMapping("/sales-by-product")
-    public List<ProductSummary> getSalesByProduct(
-            @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd") Date from,
-            @RequestParam("to")   @DateTimeFormat(pattern = "yyyy-MM-dd") Date to,
-            @RequestParam(name = "top", required = false, defaultValue = "10") Integer top) {
-        return service.getSalesByProduct(from, to, top);
+    @GetMapping("/admin/api/review-report/trends")
+    public Map<String, List<StatDto>> trends(@RequestParam("startDt") String startDt,
+                                             @RequestParam("endDt")   String endDt) {
+        return service.trends(startDt, endDt);
     }
 
-    // 4) 퍼널 요약
-    @GetMapping("/funnel")
-    public FunnelSummary getFunnel(
-            @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd") Date from,
-            @RequestParam("to")   @DateTimeFormat(pattern = "yyyy-MM-dd") Date to) {
-        return service.getFunnel(from, to);
+    @GetMapping("/admin/api/review-report/products")
+    public List<StatDto> productStats(@RequestParam("startDt") String startDt,
+                                      @RequestParam("endDt")   String endDt) {
+        return service.productStats(startDt, endDt);
     }
 
-    // 5) 인구통계 (성별/연령)
-    @GetMapping("/demographics")
-    public List<ProductDemographic> getDemographics(
-            @RequestParam("from") @DateTimeFormat(pattern = "yyyy-MM-dd") Date from,
-            @RequestParam("to")   @DateTimeFormat(pattern = "yyyy-MM-dd") Date to) {
-        return service.getProductDemographics(from, to);
+    /** 프론트 호환을 위해 엔드포인트는 유지하되 creditKind만 반환 */
+    @GetMapping("/admin/api/review-report/breakdowns")
+    public Map<String, List<StatDto>> breakdowns(@RequestParam("startDt") String startDt,
+                                                 @RequestParam("endDt")   String endDt) {
+        return service.breakdowns(startDt, endDt); // flags 제거됨
+    }
+
+    /** 인구통계 */
+    @GetMapping("/admin/api/review-report/demography")
+    public Map<String, List<DemogRow>> demography(@RequestParam("startDt") String startDt,
+                                                  @RequestParam("endDt")   String endDt) {
+        return service.demography(startDt, endDt);
+    }
+    /** 카드 이미지 프록시 (CORS 회피용) */
+    @GetMapping("/admin/proxy-img")
+    public ResponseEntity<byte[]> proxyImg(@RequestParam("url") String url) {
+        HttpURLConnection conn = null;
+        try {
+            URL u = new URL(url);
+            conn = (HttpURLConnection) u.openConnection();
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(7000);
+            conn.setInstanceFollowRedirects(true);
+            conn.setRequestProperty("User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+            conn.setRequestProperty("Referer", u.getProtocol() + "://" + u.getHost() + "/");
+
+            int code = conn.getResponseCode();
+            if (code != HttpURLConnection.HTTP_OK) {
+                return ResponseEntity.status(code).build();
+            }
+
+            String ctype = conn.getContentType();
+            if (ctype == null || !ctype.startsWith("image/")) {
+                return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
+            }
+
+            byte[] body;
+            try (InputStream in = conn.getInputStream()) {
+                body = in.readAllBytes();
+            }
+
+            return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(ctype))
+                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                .body(body);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
     }
 }
