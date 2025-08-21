@@ -8,12 +8,12 @@ enum _PadStyle { card, flat }
 
 class ApplicationStep5AccountPage extends StatefulWidget {
   final int applicationNo;
-  final int? cardNo;
+  final int cardNo; // ✅ 넌널러블
 
   const ApplicationStep5AccountPage({
     super.key,
     required this.applicationNo,
-    this.cardNo,
+    required this.cardNo, // ✅
   });
 
   @override
@@ -213,10 +213,15 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
 
   void _goStep6() {
     if (!mounted) return;
+    if (widget.cardNo == null) {
+      _snack('카드가 선택되지 않았습니다. 카드 선택 후 진행해주세요.');
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ApplicationStep6CardOptionPage(
           applicationNo: widget.applicationNo,
+          cardNo: widget.cardNo!, // ✅ null 아님 보장 후 강제 언랩
         ),
       ),
     );

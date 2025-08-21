@@ -7,7 +7,13 @@ import 'user/service/card_apply_service.dart';
 
 class ApplicationStep6CardOptionPage extends StatefulWidget {
   final int applicationNo;
-  const ApplicationStep6CardOptionPage({super.key, required this.applicationNo});
+  final int cardNo; // ✅ 추가
+
+  const ApplicationStep6CardOptionPage({
+    super.key,
+    required this.applicationNo,
+    required this.cardNo, // ✅ 추가
+  });
 
   @override
   State<ApplicationStep6CardOptionPage> createState() => _ApplicationStep6CardOptionPageState();
@@ -36,6 +42,7 @@ class _ApplicationStep6CardOptionPageState extends State<ApplicationStep6CardOpt
           MaterialPageRoute(
             builder: (_) => ApplicationStep7AddressPage(
               applicationNo: widget.applicationNo,
+              cardNo: widget.cardNo, // ✅ 추가
             ),
           ),
         );

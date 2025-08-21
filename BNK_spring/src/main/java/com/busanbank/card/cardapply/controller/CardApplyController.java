@@ -37,14 +37,14 @@ public class CardApplyController {
 //		model.addAttribute("cardNo", cardNo);
 //		return "cardapply/termsAgree";
 //	}
-	
+
 	@GetMapping("/termsAgree")
 	public String termsAgree(HttpSession session) {
-	    Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
-	    if (memberNo == null) {
-	        return "user/userLogin";
-	    }
-	    return "cardapply/termsAgree";
+		Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
+		if (memberNo == null) {
+			return "user/userLogin";
+		}
+		return "cardapply/termsAgree";
 	}
 
 //	@GetMapping("/customer-info")
@@ -69,17 +69,17 @@ public class CardApplyController {
 //
 //		return "cardapply/customerInfo";
 //	}
-	
+
 	@GetMapping("/customer-info")
 	public String customerInfo(HttpSession session) {
-	    Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
+		Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
 
-	    if (memberNo == null) {
-	        return "user/userLogin";
-	    }
+		if (memberNo == null) {
+			return "user/userLogin";
+		}
 
-	    // 모델에 아무 것도 담지 않고 단순히 뷰 반환
-	    return "cardapply/customerInfo";
+		// 모델에 아무 것도 담지 않고 단순히 뷰 반환
+		return "cardapply/customerInfo";
 	}
 
 //	@GetMapping("/contactInfo")
@@ -111,52 +111,56 @@ public class CardApplyController {
 //		model.addAttribute("applicationNo", applicationNo);
 //		return "cardapply/nextPage";
 //	}
-	
+
 	@GetMapping("/contactInfo")
 	public String contactInfo() {
-	    return "cardapply/contactInfo";
+		return "cardapply/contactInfo";
 	}
 
 	@GetMapping("/jobInfo")
 	public String jobInfo() {
-	    return "cardapply/jobInfo";
+		return "cardapply/jobInfo";
 	}
 
 	@GetMapping("/addressInfo")
 	public String addressInfo() {
-	    return "cardapply/addressInfo";
+		return "cardapply/addressInfo";
 	}
 
 	@GetMapping("/cardOption")
 	public String cardOption() {
-	    return "cardapply/cardOption";
+		return "cardapply/cardOption";
 	}
 
 	@GetMapping("/nextPage")
 	public String nextPage() {
-	    return "cardapply/nextPage";
+		return "cardapply/nextPage";
 	}
 
-	
 	// 계좌관리
 	@GetMapping("/accounts")
-	public String accounts(@RequestParam(value="cardNo", required=false) Integer cardNo,
-	                       HttpSession session, Model model, RedirectAttributes rttr) {
-	    // 필요하면 model.addAttribute("cardNo", cardNo);
-	    Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
-	    if (memberNo == null) { model.addAttribute("msg", "로그인이 필요한 서비스입니다."); return "user/userLogin"; }
-	    return "cardapply/accounts";
-	}
-	
-	// 카드비밀번호
-	@GetMapping("/cardPassword")
-	public String cardPassword(@RequestParam(value="cardNo", required=false) Integer cardNo,
-            HttpSession session, Model model, RedirectAttributes rttr) {
-		 model.addAttribute("cardNo", cardNo == null ? "" : cardNo); // ✅ 추가
-Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
-if (memberNo == null) { model.addAttribute("msg", "로그인이 필요한 서비스입니다."); return "user/userLogin"; }
-		return "cardapply/cardPassword";
+	public String accounts(@RequestParam(value = "cardNo", required = false) Integer cardNo, HttpSession session,
+			Model model, RedirectAttributes rttr) {
+		// 필요하면 model.addAttribute("cardNo", cardNo);
+		Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
+		if (memberNo == null) {
+			model.addAttribute("msg", "로그인이 필요한 서비스입니다.");
+			return "user/userLogin";
+		}
+		return "cardapply/accounts";
 	}
 
+	// 카드비밀번호
+	@GetMapping("/cardPassword")
+	public String cardPassword(@RequestParam(value = "cardNo", required = false) Integer cardNo, HttpSession session,
+			Model model, RedirectAttributes rttr) {
+		model.addAttribute("cardNo", cardNo == null ? "" : cardNo); // ✅ 추가
+		Integer memberNo = (Integer) session.getAttribute("loginMemberNo");
+		if (memberNo == null) {
+			model.addAttribute("msg", "로그인이 필요한 서비스입니다.");
+			return "user/userLogin";
+		}
+		return "cardapply/cardPassword";
+	}
 
 }

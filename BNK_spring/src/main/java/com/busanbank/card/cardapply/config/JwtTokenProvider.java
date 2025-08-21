@@ -22,9 +22,10 @@ public class JwtTokenProvider {
     private final Key key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     private final long validityInMs = 3600000; // 1시간
 
-    /** 토큰 생성 (username, roles 포함) */
-    public String createToken(String username, List<String> roles) {
+    /** 토큰 생성 (username, name, roles 포함) */
+    public String createToken(String username, String name, List<String> roles) {
         Claims claims = Jwts.claims().setSubject(username);
+        claims.put("name", name);
         claims.put("roles", roles);
 
         Date now = new Date();
@@ -49,6 +50,21 @@ public class JwtTokenProvider {
                     .getSubject();
         } catch (Exception e) {
             System.err.println("[JWT] Failed to extract username: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /** 토큰에서 name 추출 */
+    public String getName(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .get("name", String.class); // payload에서 name 꺼내기
+        } catch (Exception e) {
+            System.err.println("[JWT] Failed to extract name: " + e.getMessage());
             return null;
         }
     }

@@ -2,14 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:bnkandroid/constants/api.dart';
 import 'app_shell.dart';
 import 'auth_state.dart';
+import 'package:bnkandroid/constants/faq_api.dart';
+import 'package:bnkandroid/constants/chat_api.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     await API.initBaseUrl();
+    // ✅ 스프링 FAQ 서버
+    FAQApi.useLan(ip: '192.168.0.5', port: 8090);
+    FAQApi.setPathPrefix('/api');
+
+    // ✅ 챗봇 서버(둘 중 하나)
+    ChatAPI.useFastAPI(ip: '192.168.0.5', port: 8000);
+    // ChatAPI.useSpringProxy(ip: '192.168.0.5', port: 8090);
   } catch (e, _) {
-    debugPrint('[API] initBaseUrl 실패: $e');
+    debugPrint('[API] init 실패: $e');
   }
 
   try {
@@ -21,6 +30,7 @@ Future<void> main() async {
 
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

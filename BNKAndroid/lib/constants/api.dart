@@ -10,13 +10,13 @@ class API {
   static String? baseUrl;
 
   // 사내/로컬 환경 기본값
-  static const String _fallbackHost = '192.168.100.106';
+  static const String _fallbackHost = '192.168.0.5';
   static const int _configPort = 8090; // 설정 서버
-  static const int _apiPort    = 8080; // 실제 스프링 API
+  static const int _apiPort    = 8090; // 실제 스프링 API
 
   /// 앱 시작 시 1회 호출
   static Future<void> initBaseUrl() async {
-    const fallbackIp = '192.168.0.5'; // 각자 로컬/사내망 IP면 여기만 개인별로 바꿔도 동작
+    const fallbackIp = '192.168.100.106'; // 각자 로컬/사내망 IP면 여기만 개인별로 바꿔도 동작
     try {
       final cfg = await http.get(
         Uri.parse('http://$_fallbackHost:$_configPort/api/config/base-url'),
@@ -152,11 +152,19 @@ class API {
   static String get termsAgree           => _j('/api/card/apply/terms-agree');    // POST
   static String get customerInfo         => _j('/api/card/apply/customer-info');  // GET ?cardNo=
 
+  // 페이지 0(약관)용 엔드포인트 모음 아래쪽에 추가
+  static String termsPdf(int pdfNo) => _j('/api/card/apply/pdf/$pdfNo');
+
+  // 페이지 8(카드비번)
+  static String pinSave(int cardNo) => _j('/card/apply/api/card-password/$cardNo/pin');
+
   // JWT
   static String get jwtLogin   => _j('/jwt/api/login');
   static String get jwtLogout  => _j('/jwt/api/logout');
   static String get jwtRefresh => _j('/jwt/api/refresh');
 }
+
+
 
 /// 통일된 예외 타입
 class ApiException implements Exception {

@@ -6,9 +6,17 @@ import 'ApplicationStep1Page.dart' show kPrimaryRed;
 import 'package:bnkandroid/user/service/card_apply_service.dart' as apply;
 import 'package:bnkandroid/postcode_search_page.dart';
 
+import 'ApplicationStep8CardPinPage.dart';
+
 class ApplicationStep7AddressPage extends StatefulWidget {
   final int applicationNo;
-  const ApplicationStep7AddressPage({super.key, required this.applicationNo});
+  final int cardNo; // ✅ 추가
+
+  const ApplicationStep7AddressPage({
+    super.key,
+    required this.applicationNo,
+    required this.cardNo, // ✅ 추가
+  });
 
   @override
   State<ApplicationStep7AddressPage> createState() => _ApplicationStep7AddressPageState();
@@ -140,7 +148,15 @@ class _ApplicationStep7AddressPageState extends State<ApplicationStep7AddressPag
           const SnackBar(content: Text('주소 저장 완료')),
         );
         // TODO: 다음 단계 이동
-        // Navigator.of(context).push(MaterialPageRoute(builder: (_) => NextPage(...)));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ApplicationStep8CardPinPage(
+              // 필요한 값만 넘긴다. 서버는 세션/JWT에서 memberNo를 알 수 있음
+              cardNo: widget.cardNo, // ✅ 8페이지에서 핀 저장 API에 필요
+            ),
+          ),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('주소 저장에 실패했습니다.')),
