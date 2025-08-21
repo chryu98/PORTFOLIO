@@ -290,424 +290,312 @@ tbody tr:hover { background: #fafafa; }
   </div>
 
 <script src="/js/adminHeader.js"></script>
-  <script>
-    const ctx = '<%= request.getContextPath() %>';
-    const API = ctx + '/admin/reco';
+<script>
+  const ctx = '<%= request.getContextPath() %>';
+  const API = ctx + '/admin/reco';
 
-    // 숫자/비율 포맷
-    const fmt = (n) => n == null ? '-' : Number(n).toLocaleString();
-    const pct = (n) => (n == null ? '-' : (Number(n) * 100).toFixed(1) + '%');
-    const cut10 = (s) => (s ? String(s).substring(0,10) : '');
+  const fmt = (n) => n == null ? '-' : Number(n).toLocaleString();
+  const pct = (n) => (n == null ? '-' : (Number(n) * 100).toFixed(1) + '%');
+  const cut10 = (s) => (s ? String(s).substring(0,10) : '');
 
-    // === 이미지/플레이스홀더 유틸 ===
-    const PH = "data:image/svg+xml;utf8,\
+  const PH = "data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' width='96' height='60'>\
 <rect width='100%' height='100%' fill='%23f2f2f2'/>\
 <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='12'>no image</text>\
 </svg>";
 
-    function isImageUrl(u){
-      if(!u) return false;
-      try{
-        const url = new URL(u, location.origin);
-        const path = url.pathname.toLowerCase();
-        if (/\.(png|jpe?g|webp|gif|bmp|svg)$/.test(path)) return true;
-        const fmtQ = url.searchParams.get('format') || url.searchParams.get('ext');
-        return !!(fmtQ && /png|jpe?g|webp|gif|bmp|svg/i.test(fmtQ));
-      }catch{ return false; }
+  function isImageUrl(u){
+    if(!u) return false;
+    try{
+      const url = new URL(u, location.origin);
+      const path = url.pathname.toLowerCase();
+      if (/\.(png|jpe?g|webp|gif|bmp|svg)$/.test(path)) return true;
+      const fmtQ = url.searchParams.get('format') || url.searchParams.get('ext');
+      return !!(fmtQ && /png|jpe?g|webp|gif|bmp|svg/i.test(fmtQ));
+    }catch{ return false; }
+  }
+  function normalizeUrl(u){
+    try{
+      if(!u) return u;
+      const url = new URL(u, location.origin);
+      if(location.protocol === 'https:' && url.protocol === 'http:'){ url.protocol = 'https:'; }
+      return url.toString();
+    }catch{ return u; }
+  }
+  function pickImageSrcFromRecord(r){
+    const first = r?.cardImageUrl; // 없어도 됨(없으면 fallback)
+    const fallback = isImageUrl(r?.cardProductUrl) ? r.cardProductUrl : null;
+    return normalizeUrl(first || fallback);
+  }
+  function imgTag(src, altText){
+    return src
+      ? `<img class="thumb" src="${src}" alt="${altText||''}" referrerpolicy="no-referrer" loading="lazy" decoding="async"
+               onerror="this.onerror=null; this.src='${PH}'">`
+      : `<div class="thumb" role="img" aria-label="no image"></div>`;
+  }
+  async function jfetch(url){
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if(!res.ok){
+      const text = await res.text().catch(()=> '');
+      throw new Error('HTTP '+res.status+' '+res.statusText+' :: '+text);
     }
-    function normalizeUrl(u){
-      try{
-        if(!u) return u;
-        const url = new URL(u, location.origin);
-        if(location.protocol === 'https:' && url.protocol === 'http:'){
-          url.protocol = 'https:';
-        }
-        return url.toString();
-      }catch{ return u; }
-    }
-    function pickImageSrcFromRecord(r){
-      const first = r?.cardImageUrl;
-      const fallback = isImageUrl(r?.cardProductUrl) ? r.cardProductUrl : null;
-      return normalizeUrl(first || fallback);
-    }
-    function imgTag(src, altText){
-      return src
-        ? `<img class="thumb" src="${src}" alt="${altText || ''}" referrerpolicy="no-referrer" loading="lazy"
-                 decoding="async" onerror="this.onerror=null; this.src='${PH}'">`
-        : `<div class="thumb" role="img" aria-label="no image"></div>`;
-    }
+    return res.json();
+  }
 
-    // 공통 fetch
-    async function jfetch(url){
-      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      if(!res.ok){
-        const text = await res.text().catch(()=> '');
-        throw new Error('HTTP '+res.status+' '+res.statusText+' :: '+text);
-      }
-      return res.json();
-    }
+  // KPI
+  async function loadKpi(){
+    try{
+      const days = document.getElementById('kpiDays').value || 30;
+      const data = await jfetch(`${API}/kpi?days=${days}`);
+      const kpi  = Array.isArray(data) && data.length ? data[0] : null;
+      const wrap = document.getElementById('kpiWrap');
+      const rng  = document.getElementById('kpiRange');
+      wrap.innerHTML = '';
+      if(!kpi){ wrap.innerHTML = '<div class="muted">데이터 없음</div>'; rng.textContent=''; return; }
+      rng.textContent = '기간: ' + cut10(kpi.fromDate) + ' ~ ' + cut10(kpi.toDate);
+      wrap.innerHTML =
+        `<div class="k"><div class="muted">VIEW</div><div style="font-size:20px;font-weight:700;">${fmt(kpi.views)}</div></div>`+
+        `<div class="k"><div class="muted">CLICK</div><div style="font-size:20px;font-weight:700;">${fmt(kpi.clicks)}</div></div>`+
+        `<div class="k"><div class="muted">APPLY</div><div style="font-size:20px;font-weight:700;">${fmt(kpi.applies)}</div></div>`+
+        `<div class="k"><div class="muted">클릭률</div><div style="font-size:20px;font-weight:700;">${pct(kpi.ctr)}</div></div>`+
+        `<div class="k"><div class="muted">전환율</div><div style="font-size:20px;font-weight:700;">${pct(kpi.cvr)}</div></div>`;
+    }catch(e){ alert('KPI 조회 실패: '+e.message); }
+  }
 
-    // KPI
-    async function loadKpi(){
-      try {
-        const days = document.getElementById('kpiDays').value || 30;
-        const data = await jfetch(`${API}/kpi?days=${days}`);
-        const kpi = Array.isArray(data) && data.length ? data[0] : null;
-
-        const wrap = document.getElementById('kpiWrap');
-        const rng  = document.getElementById('kpiRange');
-        wrap.innerHTML = '';
-        if(!kpi){
-          wrap.innerHTML = '<div class="muted">데이터 없음</div>';
-          rng.textContent = '';
-          return;
-        }
-        rng.textContent = '기간: ' + cut10(kpi.fromDate) + ' ~ ' + cut10(kpi.toDate);
-
-        wrap.innerHTML = ''
-          + `<div class="k"><div class="muted">VIEW</div><div style="font-size:20px;font-weight:700;">${fmt(kpi.views)}</div></div>`
-          + `<div class="k"><div class="muted">CLICK</div><div style="font-size:20px;font-weight:700;">${fmt(kpi.clicks)}</div></div>`
-          + `<div class="k"><div class="muted">APPLY</div><div style="font-size:20px;font-weight:700;">${fmt(kpi.applies)}</div></div>`
-          + `<div class="k"><div class="muted">클릭률</div><div style="font-size:20px;font-weight:700;">${pct(kpi.ctr)}</div></div>`
-          + `<div class="k"><div class="muted">전환율</div><div style="font-size:20px;font-weight:700;">${pct(kpi.cvr)}</div></div>`;
-      } catch (e){
-        alert('KPI 조회 실패: ' + e.message);
-      }
-    }
-
-    // 인기
-    async function loadPopular(){
-      try {
-        const days  = document.getElementById('popularDays').value || 30;
-        const limit = document.getElementById('popularLimit').value || 10;
-        const data  = await jfetch(`${API}/popular?days=${days}&limit=${limit}`);
-
-        const tb = document.getElementById('popularTbody');
-        tb.innerHTML = (data||[]).map(r => {
-          const src = pickImageSrcFromRecord(r);
-          const img = imgTag(src, r.cardName || '카드 이미지');
-
-          const name = r.cardName || '(이름없음)';
-          const num  = r.cardNo ? `#${r.cardNo}` : '';
-          const a1 = r.cardProductUrl ? `<a href="${r.cardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
-          const a2 = r.cardProductUrl ? `</a>` : '';
-
-          return `
-            <tr>
-              <td>
-                ${a1}
-                <div class="cardcell">
-                  ${img}
-                  <div>
-                    <div class="cardname">${name}</div>
-                    <div class="cardno">${num}</div>
-                  </div>
-                </div>
-                ${a2}
-              </td>
-              <td class="right">${fmt(r.views)}</td>
-              <td class="right">${fmt(r.clicks)}</td>
-              <td class="right">${fmt(r.applies)}</td>
-              <td class="right">${fmt(r.score)}</td>
-              <td class="right">${pct(r.ctr)}</td>
-              <td class="right">${pct(r.cvr)}</td>
-            </tr>
-          `;
-        }).join('') || `<tr><td colspan="7" class="muted">데이터 없음</td></tr>`;
-      } catch (e){
-        alert('인기 카드 조회 실패: ' + e.message);
-      }
-    }
-
-    // 유사
-    async function loadSimilar(){
-      try {
-        const key   = (document.getElementById('similarKey').value || '').trim();
-        const days  = document.getElementById('similarDays').value || 30;
-        const limit = document.getElementById('similarLimit').value || 10;
-        if(!key){ alert('기준 카드(번호 또는 이름)를 입력해주세요.'); return; }
-
-        const url = `${API}/similar/${encodeURIComponent(key)}?days=${days}&limit=${limit}`;
-        const data = await jfetch(url);
-
-        const tb = document.getElementById('similarTbody');
-        tb.innerHTML = (data||[]).map(r => {
-          const bImg = imgTag(pickImageSrcFromRecord(r), r.cardName || '기준 카드');
-          const bName = r.cardName || '(이름없음)';
-          const bNum  = r.cardNo ? `#${r.cardNo}` : '';
-          const b1 = r.cardProductUrl ? `<a href="${r.cardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
-          const b2 = r.cardProductUrl ? `</a>` : '';
-
-          const sImg = imgTag(pickImageSrcFromRecord({
-            cardImageUrl: r.otherCardImageUrl,
-            cardProductUrl: r.otherCardProductUrl
-          }), r.otherCardName || '유사 카드');
-          const sName = r.otherCardName || '(이름없음)';
-          const sNum  = r.otherCardNo ? `#${r.otherCardNo}` : '';
-          const s1 = r.otherCardProductUrl ? `<a href="${r.otherCardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
-          const s2 = r.otherCardProductUrl ? `</a>` : '';
-
-          return `
-            <tr>
-              <td>
-                ${b1}
-                <div class="cardcell">${bImg}<div><div class="cardname">${bName}</div><div class="cardno">${bNum}</div></div></div>
-                ${b2}
-              </td>
-              <td>
-                ${s1}
-                <div class="cardcell">${sImg}<div><div class="cardname">${sName}</div><div class="cardno">${sNum}</div></div></div>
-                ${s2}
-              </td>
-              <td class="right">${fmt(r.simScore)}</td>
-            </tr>
-          `;
-        }).join('') || `<tr><td colspan="3" class="muted">데이터 없음</td></tr>`;
-      } catch (e){
-        alert('유사 카드 조회 실패: ' + e.message);
-      }
-    }
-
-    // ====== 이름/번호 동시 입력 & 자동완성 ======
-    const isNum = (v) => /^\d+$/.test(String(v||'').trim());
-    function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
-
-    async function searchCards(q){
-      const res = await fetch(`${API}/search/cards?q=${encodeURIComponent(q)}`, {headers:{'Accept':'application/json'}});
-      return res.ok ? res.json() : [];
-    }
-    async function searchMembers(q){
-      const res = await fetch(`${API}/search/members?q=${encodeURIComponent(q)}`, {headers:{'Accept':'application/json'}});
-      return res.ok ? res.json() : [];
-    }
-    function fillDatalist(el, items, type){
-      el.innerHTML = items.map(it=>{
-        if(type==='card'){
-          const label = `${it.cardName||'(이름없음)'} #${it.cardNo}`;
-          return `<option value="${label}" data-id="${it.cardNo}"></option>`;
-        }else{
-          const label = `${it.memberName||'(이름없음)'} #${it.memberNo}`;
-          return `<option value="${label}" data-id="${it.memberNo}"></option>`;
-        }
-      }).join('');
-    }
-    function pickIdFromDatalist(inputEl, datalistEl){
-      const val = inputEl.value.trim();
-      const hash = /#(\d+)\s*$/.exec(val);
-      if(hash) return hash[1];
-      const opt = Array.from(datalistEl.options).find(o => o.value === val);
-      return opt ? opt.getAttribute('data-id') : null;
-    }
-    async function resolveCardNo(){
-      const input = document.getElementById('logCardKey');
-      const list  = document.getElementById('cardHints');
-      const raw   = (input.value||'').trim();
-      if(!raw) return null;
-      if(isNum(raw)) return raw;
-      const picked = pickIdFromDatalist(input, list);
-      if(picked) return picked;
-      const results = await searchCards(raw);
-      if(results.length === 1) return results[0].cardNo;
-      return null;
-    }
-    async function resolveMemberNo(){
-      const input = document.getElementById('logMemberKey');
-      const list  = document.getElementById('memberHints');
-      const raw   = (input.value||'').trim();
-      if(!raw) return null;
-      if(isNum(raw)) return raw;
-      const picked = pickIdFromDatalist(input, list);
-      if(picked) return picked;
-      const results = await searchMembers(raw);
-      if(results.length === 1) return results[0].memberNo;
-      return null;
-    }
-    function bindTypeahead(){
-      const $card   = document.getElementById('logCardKey');
-      const $cardL  = document.getElementById('cardHints');
-      const $member = document.getElementById('logMemberKey');
-      const $memL   = document.getElementById('memberHints');
-
-      $card.addEventListener('input', debounce(async (e)=>{
-        const q = e.target.value.trim();
-        if(!q || isNum(q)) { $cardL.innerHTML=''; return; }
-        const items = await searchCards(q);
-        fillDatalist($cardL, items, 'card');
-      }, 200));
-
-      $member.addEventListener('input', debounce(async (e)=>{
-        const q = e.target.value.trim();
-        if(!q || isNum(q)) { $memL.innerHTML=''; return; }
-        const items = await searchMembers(q);
-        fillDatalist($memL, items, 'member');
-      }, 200));
-    }
-
-    // ====== 로그 테이블용 메타(카드/회원) 캐시 & 하이드레이션 ======
-    const CardCache = new Map();   // cardNo -> {cardNo, cardName, cardImageUrl, cardProductUrl}
-    const MemberCache = new Map(); // memberNo -> {memberNo, memberName}
-
-    async function fetchCardMetaOne(id){
-      const url = `${API}/cards/${id}`; // 단건 폴백 엔드포인트(없으면 404→무시)
-      try{ const r = await jfetch(url); return r; }catch{ return null; }
-    }
-    async function fetchMemberMetaOne(id){
-      const url = `${API}/members/${id}`; // 단건 폴백 엔드포인트(없으면 404→무시)
-      try{ const r = await jfetch(url); return r; }catch{ return null; }
-    }
-
-    async function hydrateCardMeta(ids){
-      const need = ids.filter(id => id && !CardCache.has(id));
-      if(need.length === 0) return;
-
-      // 1) 배치 시도
-      try{
-        const q = need.join(',');
-        const arr = await jfetch(`${API}/cards/meta?ids=${encodeURIComponent(q)}`);
-        if(Array.isArray(arr)){
-          arr.forEach(x => { if(x?.cardNo) CardCache.set(String(x.cardNo), x); });
-        }
-      }catch{/* ignore */}
-
-      // 2) 폴백: 단건 조회
-      const still = need.filter(id => !CardCache.has(id));
-      await Promise.all(still.map(async id=>{
-        const meta = await fetchCardMetaOne(id);
-        if(meta?.cardNo) CardCache.set(String(meta.cardNo), meta);
-      }));
-    }
-
-    async function hydrateMemberMeta(ids){
-      const need = ids.filter(id => id && !MemberCache.has(id));
-      if(need.length === 0) return;
-
-      // 1) 배치 시도
-      try{
-        const q = need.join(',');
-        const arr = await jfetch(`${API}/members/meta?ids=${encodeURIComponent(q)}`);
-        if(Array.isArray(arr)){
-          arr.forEach(x => { if(x?.memberNo) MemberCache.set(String(x.memberNo), x); });
-        }
-      }catch{/* ignore */}
-
-      // 2) 폴백: 단건 조회
-      const still = need.filter(id => !MemberCache.has(id));
-      await Promise.all(still.map(async id=>{
-        const meta = await fetchMemberMetaOne(id);
-        if(meta?.memberNo) MemberCache.set(String(meta.memberNo), meta);
-      }));
-    }
-
-    function memberAvatarMarkup(name){
-      const initial = (name||'').trim()[0] || '?';
-      return `<div class="avatar" aria-hidden="true">${initial}</div>`;
-    }
-
-    function renderMemberCell(r){
-      const meta = MemberCache.get(String(r.memberNo)) || {};
-      const name = meta.memberName || '(이름없음)';
-      const no   = r.memberNo ? `#${r.memberNo}` : '';
-      return `
-        <div class="memberwrap">
-          ${memberAvatarMarkup(name)}
-          <div>
-            <div class="membername">${name}</div>
-            <div class="memberno">${no}</div>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderCardCell(r){
-      const meta = CardCache.get(String(r.cardNo)) || {};
-      const src  = pickImageSrcFromRecord(meta);
-      const img  = imgTag(src, meta.cardName || '카드');
-      const name = meta.cardName || '(이름없음)';
-      const no   = r.cardNo ? `#${r.cardNo}` : '';
-      const a1 = meta.cardProductUrl ? `<a href="${meta.cardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
-      const a2 = meta.cardProductUrl ? `</a>` : '';
-      return `
-        ${a1}
-        <div class="cardcell">
-          ${img}
-          <div>
-            <div class="cardname">${name}</div>
-            <div class="cardno">${no}</div>
-          </div>
-        </div>
-        ${a2}
-      `;
-    }
-
-    // ====== 로그 ======
-    let state = { page: 1, size: 20 };
-    async function loadLogs(opt){
-      try {
-        if(opt && opt.delta){
-          state.page = Math.max(1, state.page + opt.delta);
-          document.getElementById('logPage').value = state.page;
-        }else{
-          state.page = parseInt(document.getElementById('logPage').value || '1', 10);
-          state.size = parseInt(document.getElementById('logSize').value || '20', 10);
-        }
-
-        // 필터 파라미터
-        const type = document.getElementById('logType').value;
-        const from = document.getElementById('logFrom').value;
-        const to   = document.getElementById('logTo').value;
-
-        const memberNo = await resolveMemberNo();
-        const cardNo   = await resolveCardNo();
-
-        const p = new URLSearchParams();
-        if(memberNo) p.set('memberNo', memberNo);
-        if(cardNo)   p.set('cardNo', cardNo);
-        if(type)     p.set('type', type);
-        if(from)     p.set('from', from);
-        if(to)       p.set('to', to);
-        p.set('page', state.page);
-        p.set('size', state.size);
-
-        // 1) 로그 데이터 조회
-        const rows = await jfetch(`${API}/logs?` + p.toString());
-
-        // 2) 필요한 카드/회원 meta 미리 하이드레이트(캐시 채우기)
-        const cardIds   = [...new Set((rows||[]).map(r=> String(r.cardNo||'')).filter(Boolean))];
-        const memberIds = [...new Set((rows||[]).map(r=> String(r.memberNo||'')).filter(Boolean))];
-        await Promise.all([hydrateCardMeta(cardIds), hydrateMemberMeta(memberIds)]);
-
-        // 3) 렌더링(이미지/이름 포함)
-        const tb = document.getElementById('logsTbody');
-        tb.innerHTML = (rows||[]).map(r => `
+  // 인기
+  async function loadPopular(){
+    try{
+      const days  = document.getElementById('popularDays').value || 30;
+      const limit = document.getElementById('popularLimit').value || 10;
+      const data  = await jfetch(`${API}/popular?days=${days}&limit=${limit}`);
+      const tb = document.getElementById('popularTbody');
+      tb.innerHTML = (data||[]).map(r=>{
+        const src = pickImageSrcFromRecord(r);
+        const img = imgTag(src, r.cardName || '카드 이미지');
+        const name = r.cardName || '(이름없음)';
+        const num  = r.cardNo ? `#${r.cardNo}` : '';
+        const a1 = r.cardProductUrl ? `<a href="${r.cardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
+        const a2 = r.cardProductUrl ? `</a>` : '';
+        return `
           <tr>
-            <td>${r.logNo ?? ''}</td>
-            <td>${renderMemberCell(r)}</td>
-            <td>${renderCardCell(r)}</td>
-            <td>${r.behaviorType ?? ''}</td>
-            <td>${(r.behaviorTime||'').toString().replace('T',' ').substring(0,19)}</td>
-            <td>${r.deviceType ?? ''}</td>
-            <td>${r.ipAddress ?? ''}</td>
-            <td>${(r.userAgent||'').substring(0,120)}</td>
+            <td>
+              ${a1}
+              <div class="cardcell">
+                ${img}
+                <div>
+                  <div class="cardname">${name}</div>
+                  <div class="cardno">${num}</div>
+                </div>
+              </div>
+              ${a2}
+            </td>
+            <td class="right">${fmt(r.views)}</td>
+            <td class="right">${fmt(r.clicks)}</td>
+            <td class="right">${fmt(r.applies)}</td>
+            <td class="right">${fmt(r.score)}</td>
+            <td class="right">${pct(r.ctr)}</td>
+            <td class="right">${pct(r.cvr)}</td>
           </tr>
-        `).join('') || `<tr><td colspan="8" class="muted">데이터 없음</td></tr>`;
-      } catch (e){
-        alert('로그 조회 실패: ' + e.message);
+        `;
+      }).join('') || `<tr><td colspan="7" class="muted">데이터 없음</td></tr>`;
+    }catch(e){ alert('인기 카드 조회 실패: '+e.message); }
+  }
+
+  // 유사
+  async function loadSimilar(){
+    try{
+      const key   = (document.getElementById('similarKey').value || '').trim();
+      const days  = document.getElementById('similarDays').value || 30;
+      const limit = document.getElementById('similarLimit').value || 10;
+      if(!key){ alert('기준 카드(번호 또는 이름)를 입력해주세요.'); return; }
+      const data = await jfetch(`${API}/similar/${encodeURIComponent(key)}?days=${days}&limit=${limit}`);
+      const tb = document.getElementById('similarTbody');
+      tb.innerHTML = (data||[]).map(r=>{
+        const bImg  = imgTag(pickImageSrcFromRecord(r), r.cardName || '기준 카드');
+        const bName = r.cardName || '(이름없음)';
+        const bNum  = r.cardNo ? `#${r.cardNo}` : '';
+        const b1 = r.cardProductUrl ? `<a href="${r.cardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
+        const b2 = r.cardProductUrl ? `</a>` : '';
+
+        const sImg  = imgTag(pickImageSrcFromRecord({cardProductUrl:r.otherCardProductUrl}), r.otherCardName || '유사 카드');
+        const sName = r.otherCardName || '(이름없음)';
+        const sNum  = r.otherCardNo ? `#${r.otherCardNo}` : '';
+        const s1 = r.otherCardProductUrl ? `<a href="${r.otherCardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
+        const s2 = r.otherCardProductUrl ? `</a>` : '';
+
+        return `
+          <tr>
+            <td>
+              ${b1}
+              <div class="cardcell">${bImg}<div><div class="cardname">${bName}</div><div class="cardno">${bNum}</div></div></div>
+              ${b2}
+            </td>
+            <td>
+              ${s1}
+              <div class="cardcell">${sImg}<div><div class="cardname">${sName}</div><div class="cardno">${sNum}</div></div></div>
+              ${s2}
+            </td>
+            <td class="right">${fmt(r.simScore)}</td>
+          </tr>
+        `;
+      }).join('') || `<tr><td colspan="3" class="muted">데이터 없음</td></tr>`;
+    }catch(e){ alert('유사 카드 조회 실패: '+e.message); }
+  }
+
+  // ===== 자동완성(기존 유지) =====
+  const isNum = (v) => /^\d+$/.test(String(v||'').trim());
+  function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+
+  async function searchCards(q){
+    const res = await fetch(`${API}/search/cards?q=${encodeURIComponent(q)}`, {headers:{'Accept':'application/json'}});
+    return res.ok ? res.json() : [];
+  }
+  async function searchMembers(q){
+    const res = await fetch(`${API}/search/members?q=${encodeURIComponent(q)}`, {headers:{'Accept':'application/json'}});
+    return res.ok ? res.json() : [];
+  }
+  function fillDatalist(el, items, type){
+    el.innerHTML = items.map(it=>{
+      if(type==='card'){
+        const label = `${it.cardName||'(이름없음)'} #${it.cardNo}`;
+        return `<option value="${label}" data-id="${it.cardNo}"></option>`;
+      }else{
+        const label = `${it.memberName||'(이름없음)'} #${it.memberNo}`;
+        return `<option value="${label}" data-id="${it.memberNo}"></option>`;
       }
-    }
+    }).join('');
+  }
+  function pickIdFromDatalist(inputEl, datalistEl){
+    const val = inputEl.value.trim();
+    const hash = /#(\d+)\s*$/.exec(val);
+    if(hash) return hash[1];
+    const opt = Array.from(datalistEl.options).find(o => o.value === val);
+    return opt ? opt.getAttribute('data-id') : null;
+  }
+  async function resolveCardNo(){
+    const input = document.getElementById('logCardKey');
+    const list  = document.getElementById('cardHints');
+    const raw   = (input.value||'').trim();
+    if(!raw) return null;
+    if(isNum(raw)) return raw;
+    const picked = pickIdFromDatalist(input, list);
+    if(picked) return picked;
+    const results = await searchCards(raw);
+    if(results.length === 1) return results[0].cardNo;
+    return null;
+  }
+  async function resolveMemberNo(){
+    const input = document.getElementById('logMemberKey');
+    const list  = document.getElementById('memberHints');
+    const raw   = (input.value||'').trim();
+    if(!raw) return null;
+    if(isNum(raw)) return raw;
+    const picked = pickIdFromDatalist(input, list);
+    if(picked) return picked;
+    const results = await searchMembers(raw);
+    if(results.length === 1) return results[0].memberNo;
+    return null;
+  }
+  function bindTypeahead(){
+    const $card   = document.getElementById('logCardKey');
+    const $cardL  = document.getElementById('cardHints');
+    const $member = document.getElementById('logMemberKey');
+    const $memL   = document.getElementById('memberHints');
 
-    // 이벤트
-    document.getElementById('btnLoadKpi').addEventListener('click', loadKpi);
-    document.getElementById('btnLoadPopular').addEventListener('click', loadPopular);
-    document.getElementById('btnLoadSimilar').addEventListener('click', loadSimilar);
-    document.getElementById('btnLoadLogs').addEventListener('click', () => loadLogs());
-    document.getElementById('prevPage').addEventListener('click', () => loadLogs({delta:-1}));
-    document.getElementById('nextPage').addEventListener('click', () => loadLogs({delta:+1}));
+    $card.addEventListener('input', debounce(async (e)=>{
+      const q = e.target.value.trim();
+      if(!q || isNum(q)) { $cardL.innerHTML=''; return; }
+      const items = await searchCards(q);
+      fillDatalist($cardL, items, 'card');
+    }, 200));
 
-    // 초기 로드
-    bindTypeahead();
-    loadKpi();
-    loadPopular();
-  </script>
+    $member.addEventListener('input', debounce(async (e)=>{
+      const q = e.target.value.trim();
+      if(!q || isNum(q)) { $memL.innerHTML=''; return; }
+      const items = await searchMembers(q);
+      fillDatalist($memL, items, 'member');
+    }, 200));
+  }
+
+  // ===== 로그 =====
+  let state = { page: 1, size: 20 };
+  function memberCell(r){
+    const initial = (r.memberName||'?').trim()[0] || '?';
+    const no   = r.memberNo ? `#${r.memberNo}` : '';
+    const name = r.memberName || '(이름없음)';
+    return `
+      <div class="memberwrap">
+        <div class="avatar" aria-hidden="true">${initial}</div>
+        <div>
+          <div class="membername">${name}</div>
+          <div class="memberno">${no}</div>
+        </div>
+      </div>
+    `;
+  }
+  function cardCell(r){
+    const src  = pickImageSrcFromRecord(r);
+    const img  = imgTag(src, r.cardName || '카드');
+    const name = r.cardName || '(이름없음)';
+    const no   = r.cardNo ? `#${r.cardNo}` : '';
+    const a1 = r.cardProductUrl ? `<a href="${r.cardProductUrl}" target="_blank" style="text-decoration:none;color:inherit">` : '';
+    const a2 = r.cardProductUrl ? `</a>` : '';
+    return `${a1}<div class="cardcell">${img}<div><div class="cardname">${name}</div><div class="cardno">${no}</div></div></div>${a2}`;
+  }
+  async function loadLogs(opt){
+    try{
+      if(opt && opt.delta){
+        state.page = Math.max(1, state.page + opt.delta);
+        document.getElementById('logPage').value = state.page;
+      }else{
+        state.page = parseInt(document.getElementById('logPage').value || '1', 10);
+        state.size = parseInt(document.getElementById('logSize').value || '20', 10);
+      }
+      const type = document.getElementById('logType').value;
+      const from = document.getElementById('logFrom').value;
+      const to   = document.getElementById('logTo').value;
+
+      const memberNo = await resolveMemberNo();
+      const cardNo   = await resolveCardNo();
+
+      const p = new URLSearchParams();
+      if(memberNo) p.set('memberNo', memberNo);
+      if(cardNo)   p.set('cardNo', cardNo);
+      if(type)     p.set('type', type);
+      if(from)     p.set('from', from);
+      if(to)       p.set('to', to);
+      p.set('page', state.page);
+      p.set('size', state.size);
+
+      const rows = await jfetch(`${API}/logs?` + p.toString());
+      const tb = document.getElementById('logsTbody');
+      tb.innerHTML = (rows||[]).map(r => `
+        <tr>
+          <td>${r.logNo ?? ''}</td>
+          <td>${memberCell(r)}</td>
+          <td>${cardCell(r)}</td>
+          <td>${r.behaviorType ?? ''}</td>
+          <td>${(r.behaviorTime||'').toString().replace('T',' ').substring(0,19)}</td>
+          <td>${r.deviceType ?? ''}</td>
+          <td>${r.ipAddress ?? ''}</td>
+          <td>${(r.userAgent||'').substring(0,120)}</td>
+        </tr>
+      `).join('') || `<tr><td colspan="8" class="muted">데이터 없음</td></tr>`;
+    }catch(e){ alert('로그 조회 실패: '+e.message); }
+  }
+
+  document.getElementById('btnLoadKpi').addEventListener('click', loadKpi);
+  document.getElementById('btnLoadPopular').addEventListener('click', loadPopular);
+  document.getElementById('btnLoadSimilar').addEventListener('click', loadSimilar);
+  document.getElementById('btnLoadLogs').addEventListener('click', () => loadLogs());
+  document.getElementById('prevPage').addEventListener('click', () => loadLogs({delta:-1}));
+  document.getElementById('nextPage').addEventListener('click', () => loadLogs({delta:+1}));
+
+  bindTypeahead();
+  loadKpi();
+  loadPopular();
+  loadLogs(); // ★ 첫 페이지 자동 로딩
+</script>
+
 </body>
 </html>
