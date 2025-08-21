@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.busanbank.card.cardapply.config.JwtTokenProvider;
+import com.busanbank.card.user.dao.IUserDao;
+import com.busanbank.card.user.dto.UserDto;
 
 import lombok.Data;
 
@@ -27,6 +29,9 @@ public class AuthController {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
+    @Autowired
+    private IUserDao userDao;
+    
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
         Authentication auth = authenticationManager.authenticate(
@@ -37,7 +42,10 @@ public class AuthController {
             .map(r -> r.getAuthority())
             .collect(Collectors.toList());
 
-        String token = jwtTokenProvider.createToken(loginRequest.getUsername(), roles);
+        UserDto user = userDao.findByUsername(loginRequest.getUsername());
+        String name = user.getName();
+        
+        String token = jwtTokenProvider.createToken(loginRequest.getUsername(), user.getName(), roles);
 
         return ResponseEntity.ok(new JwtResponse(token));
     }

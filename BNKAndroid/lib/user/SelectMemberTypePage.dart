@@ -67,11 +67,11 @@ class _SelectMemberTypePageState extends State<SelectMemberTypePage> {
       child: OutlinedButton(
         onPressed: _loading ? null : () => _selectRole(role),
         style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 50),
+          padding: const EdgeInsets.symmetric(vertical: 30),
           minimumSize: const Size.fromHeight(80),
           side: BorderSide(color: selected ? kPrimaryRed : Colors.grey),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(30),
           ),
           backgroundColor: selected ? kPrimaryRed.withOpacity(0.1) : Colors.white,
         ),
@@ -108,14 +108,14 @@ class _SelectMemberTypePageState extends State<SelectMemberTypePage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Text(
-                  "회원가입",
+                  "회원 유형을 선택해 주세요",
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 6),
-                const Text(
-                  "회원 유형을 선택해 주세요",
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
+                // const SizedBox(height: 6),
+                // const Text(
+                //   "회원 유형을 선택해 주세요",
+                //   style: TextStyle(fontSize: 14, color: Colors.grey),
+                // ),
                 const SizedBox(height: 20),
                 _buildRoleButton("일반회원(개인)", "ROLE_PERSON"),
                 _buildRoleButton("개인사업자", "ROLE_OWNER"),

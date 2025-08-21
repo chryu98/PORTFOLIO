@@ -233,14 +233,14 @@ class _TermsAgreePageState extends State<TermsAgreePage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Text(
-                  "회원가입",
+                  "약관에 동의해주세요",
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 6),
-                const Text(
-                  "약관에 동의해주세요",
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
+                // const SizedBox(height: 6),
+                // const Text(
+                //   "약관에 동의해주세요",
+                //   style: TextStyle(fontSize: 14, color: Colors.grey),
+                // ),
                 const SizedBox(height: 20),
                 CheckboxListTile(
                   value: allChecked,

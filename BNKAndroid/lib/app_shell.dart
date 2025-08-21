@@ -10,6 +10,7 @@ import 'package:bnkandroid/ui/toss_nav_bar.dart';
 
 import 'auth_state.dart';
 import 'idle/inactivity_service.dart';
+import 'package:bnkandroid/user/MyPage.dart';
 
 const kPrimaryRed = Color(0xffB91111);
 
@@ -237,7 +238,7 @@ class _MyRoot extends StatelessWidget {
             ),
           );
         }
-        return const _Stub(title: '마이페이지(로그인 완료)');
+        return const MyPage();
       },
     );
   }

@@ -64,10 +64,12 @@ public class UserRestController {
 	                            .map(auth -> auth.getAuthority())
 	                            .collect(Collectors.toList());
 
-	        String token = jwtTokenProvider.createToken(username, roles);
 			
 	        UserDto user = userDao.findByUsername(username); // userDao에서 사용자 정보 가져오기
 	        int memberNo = user.getMemberNo();
+	        String name = user.getName();
+	        
+	        String token = jwtTokenProvider.createToken(username, name, roles);
 	        
 			response.put("success", true);
 			response.put("message", "로그인 성공");
