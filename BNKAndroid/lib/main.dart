@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:bnkandroid/constants/api.dart';
 import 'SignPage.dart';
@@ -8,8 +7,6 @@ import 'package:bnkandroid/constants/faq_api.dart';
 import 'package:bnkandroid/constants/chat_api.dart';
 import 'package:bnkandroid/user/CustomCardEditorPage.dart';
 import 'package:bnkandroid/user/MainPage.dart';
-
-
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,9 +75,16 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
+
+      // 앱이 처음 뜰 때 보여줄 화면
       home: const AppShell(),
 
-      // ✅ 여기 추가: /sign 라우트 핸들링
+      // ✅ 메인으로 점프하기 위한 네임드 라우트 등록
+      routes: {
+        '/home': (_) => const AppShell(),
+      },
+
+      // ✅ /sign 라우트 핸들링(기존 그대로)
       onGenerateRoute: (settings) {
         if (settings.name == '/sign') {
           final args = settings.arguments as Map<String, dynamic>?;
@@ -90,11 +94,8 @@ class MyApp extends StatelessWidget {
             settings: settings,
           );
         }
-        return null; // 다른 라우트는 기본 처리
+        return null;
       },
-
-      // 선택: 알 수 없는 라우트 안전망
-      // onUnknownRoute: (_) => MaterialPageRoute(builder: (_) => const AppShell()),
     );
   }
 }
