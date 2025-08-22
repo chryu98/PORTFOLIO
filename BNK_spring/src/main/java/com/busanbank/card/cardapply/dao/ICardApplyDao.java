@@ -1,17 +1,12 @@
+// src/main/java/com/busanbank/card/cardapply/dao/ICardApplyDao.java
 package com.busanbank.card.cardapply.dao;
 
-import java.sql.Blob;
 import java.util.List;
 
 import org.apache.ibatis.annotations.*;
 
-import com.busanbank.card.cardapply.dto.AddressDto;
-import com.busanbank.card.cardapply.dto.ApplicationPersonTempDto;
-import com.busanbank.card.cardapply.dto.CardApplicationTempDto;
-import com.busanbank.card.cardapply.dto.CardOptionDto;
-import com.busanbank.card.cardapply.dto.ContactInfoDto;
-import com.busanbank.card.cardapply.dto.JobInfoDto;
-import com.busanbank.card.cardapply.dto.PdfFilesDto;
+import com.busanbank.card.cardapply.dto.*;
+import com.busanbank.card.card.mybatis.BlobToBytesTypeHandler; // TypeHandler
 
 @Mapper
 public interface ICardApplyDao {
@@ -59,9 +54,9 @@ public interface ICardApplyDao {
 
   // 목록(메타만: pdf_data 제외)
   @Select("""
-      SELECT cf.pdf_no   AS pdfNo,
-             cf.pdf_name AS pdfName,
-             ct.is_required AS isRequired
+      SELECT cf.pdf_no        AS pdfNo,
+             cf.pdf_name      AS pdfName,
+             ct.is_required   AS isRequired
         FROM card_terms ct
         JOIN pdf_files cf ON ct.pdf_no = cf.pdf_no
        WHERE ct.card_no = #{cardNo}
@@ -69,7 +64,7 @@ public interface ICardApplyDao {
   """)
   List<PdfFilesDto> getTermsByCardNo(@Param("cardNo") long cardNo);
 
-  // 단건(필요시만 사용) : pdf_data 포함 (DTO에 byte[] pdfData)
+  // 단건(필요시만 사용) : pdf_data 포함 → TypeHandler로 BLOB→byte[]
   @Select("""
       SELECT pdf_no   AS pdfNo,
              pdf_name AS pdfName,
@@ -77,16 +72,23 @@ public interface ICardApplyDao {
         FROM pdf_files
        WHERE pdf_no = #{pdfNo}
   """)
+  @Results(id="PdfWithDataMap", value = {
+      @Result(column="pdfNo",    property="pdfNo"),
+      @Result(column="pdfName",  property="pdfName"),
+      @Result(column="pdfData",  property="pdfData", typeHandler = BlobToBytesTypeHandler.class)
+  })
   PdfFilesDto getPdfByNo(@Param("pdfNo") long pdfNo);
 
-  // ★ 스트리밍용 (컨트롤러 /pdf/{pdfNo} 에서 이 메서드만 사용)
+  // ★ 스트리밍용: pdf_data만 딱 한 컬럼 (가장 빠름)
   @Select("""
-      SELECT pdf_data
+      SELECT pdf_data AS data
         FROM pdf_files
        WHERE pdf_no = #{pdfNo}
   """)
-  @ResultType(java.sql.Blob.class)
-  Blob getPdfBlobByNo(@Param("pdfNo") long pdfNo);
+  @Results(value = {
+      @Result(column="data", property="data", typeHandler = BlobToBytesTypeHandler.class)
+  })
+  PdfBytesRow getPdfRawRowByNo(@Param("pdfNo") long pdfNo);
 
   /* -------------------- 동의/주소/옵션 -------------------- */
 
