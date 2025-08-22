@@ -22,9 +22,10 @@ public class JwtTokenProvider {
     private final Key key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     private final long validityInMs = 3600000; // 1시간
 
-    /** 토큰 생성 (username, name, roles 포함) */
-    public String createToken(String username, String name, List<String> roles) {
+    /** 토큰 생성 (username, memberNo, name, roles 포함) */
+    public String createToken(String username, int memberNo, String name, List<String> roles) {
         Claims claims = Jwts.claims().setSubject(username);
+        claims.put("memberNo", memberNo);
         claims.put("name", name);
         claims.put("roles", roles);
 

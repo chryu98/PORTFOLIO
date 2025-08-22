@@ -41,3 +41,23 @@
 2025-08-21 14:47:41,791 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
 2025-08-21 14:48:02,572 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
 2025-08-21 14:48:11,292 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-21 16:04:46,529 INFO feedback.analyze: feedback_no=1 rating=5 text_len=17
+2025-08-21 16:04:48,359 WARNING OpenAI analyze failed → fallback to rule-based: Error code: 401 - {'error': {'message': 'Incorrect API key provided: BO1N5lhn****************************************************************************************ctUA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+2025-08-21 16:07:38,498 INFO feedback.analyze: feedback_no=1 rating=5 text_len=17
+2025-08-21 16:07:38,904 WARNING OpenAI analyze failed → fallback to rule-based: Error code: 401 - {'error': {'message': 'Incorrect API key provided: BO1N5lhn****************************************************************************************ctUA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+2025-08-21 16:08:05,149 INFO feedback.analyze: feedback_no=1 rating=5 text_len=17
+2025-08-21 16:08:06,998 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
+2025-08-21 19:11:09,833 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-21 19:11:19,858 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-21 19:45:27,060 INFO feedback.analyze: feedback_no=1 rating=5 text_len=7
+2025-08-21 19:45:31,338 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
+2025-08-21 20:36:46,415 INFO feedback.analyze: feedback_no=2 rating=1 text_len=13
+2025-08-21 20:36:48,663 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
+2025-08-21 20:37:57,859 INFO feedback.analyze: feedback_no=3 rating=5 text_len=11
+2025-08-21 20:38:00,515 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
+2025-08-21 20:38:49,501 INFO feedback.analyze: feedback_no=4 rating=1 text_len=15
+2025-08-21 20:38:51,925 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
+2025-08-21 20:45:45,302 INFO feedback.analyze: feedback_no=5 rating=5 text_len=28
+2025-08-21 20:45:47,033 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
+2025-08-21 20:47:32,907 INFO feedback.analyze: feedback_no=6 rating=5 text_len=43
+2025-08-21 20:47:35,259 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)

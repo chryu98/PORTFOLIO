@@ -1,549 +1,741 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ page contentType="text/html; charset=UTF-8" isELIgnored="true"%>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<title>가입자/판매 리포트</title>
-
-<!-- 라이브러리 -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<title>관리자 리포트 (가입자/상품)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 
 <style>
-/* ===== 기본 ===== */
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  background: #fff;
-  color: #111827;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+:root{
+  --bg:#f5f7fb; --fg:#0f172a; --muted:#667085; --line:#e5e7eb; --accent:#0ea5e9; --card:#fff;
+  --good:#16a34a; --warn:#f59e0b; --bad:#ef4444; --radius:14px; --shadow:0 6px 20px rgba(2,6,23,.06);
+  --container:1200px; --pad:20px; --sidenav-w:260px; --sidenav-gap:24px;
 }
-
-/* ===== 페이지 컨테이너 ===== */
-.container {
-  width: min(1000px, 95vw);
-  margin: 0 auto;
-  padding: 20px;
-}
-
-/* ===== 제목 ===== */
-h1 {
-  margin: 20px auto 16px;
-  font-size: 24px;
-  font-weight: 700;
-  text-align: center;  /* 가운데 정렬 */
-}
-
-/* ===== 툴바 ===== */
-.toolbar {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 16px 0;
-}
-input[type=date], button {
-  padding: 8px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #fff;
-  color: #111827;
-  font-size: 14px;
-}
-button {
-  cursor: pointer;
-}
-.btn-primary {
-  background: #2563eb;
-  color: #fff;
-  border-color: #2563eb;
-}
-.actions { display: flex; gap: 8px; flex-wrap: wrap; }
-
-/* ===== KPI 박스 ===== */
-.kpi {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-  text-align: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,.05);
-}
-.kpi .muted { font-size: 13px; color: #6b7280; margin-bottom: 4px; }
-.kpi .value { font-size: 22px; font-weight: 700; }
-.kpi .delta { font-size: 12px; color: #6b7280; margin-top: 4px; }
-.kpi .delta.up { color: #16a34a; }
-.kpi .delta.down { color: #dc2626; }
-
-/* ===== 카드 공통 ===== */
-.card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  padding: 16px;
-  margin-top: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,.05);
-}
-.card h2 {
-  font-size: 16px;
-  margin: 0 0 10px;
-}
-
-/* ===== 그리드 레이아웃 ===== */
-.grid { display: grid; gap: 16px; }
-.grid-2 { grid-template-columns: 1fr 1fr; }
-.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
-@media (max-width: 900px) {
-  .grid-2, .grid-3 { grid-template-columns: 1fr; }
-}
-
-/* ===== 표 ===== */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  overflow: hidden;
-}
-th, td {
-  padding: 10px 14px;
-  border-bottom: 1px solid #f1f5f9;
-  text-align: left;
-  font-size: 14px;
-}
-th {
-  background: #f9fafb;
-  font-weight: 600;
-  color: #374151;
-}
-
-/* ===== 보조 텍스트 ===== */
-.muted {
-  font-size: 12px;
-  color: #6b7280;
-  text-align: center;
-  margin-top: 6px;
-}
-
+.page-offset .container{max-width:var(--container);margin:0 auto;padding:0 var(--pad);}
+*{box-sizing:border-box} html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
+@media (min-width:1025px){.page-offset{padding-left:calc(var(--sidenav-w)+var(--sidenav-gap));}}
+@media (max-width:768px){.page-offset{padding-left:0;}}
+h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.controls{margin:10px auto 8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:linear-gradient(180deg,#fff,#fbfcff);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow);}
+label{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+input[type="date"]{height:36px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+button{height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background .15s ease;box-shadow:var(--shadow);}
+button:hover{transform:translateY(-1px)} button:active{transform:translateY(0)}
+button.primary{background:linear-gradient(180deg,#20b0f3,#0ea5e9);color:#fff;border-color:#0ea5e9;box-shadow:0 10px 24px rgba(14,165,233,.28);}
+.app-main{padding:18px 0 24px;} .section{margin-top:18px;} .section h2{margin:0 0 10px 0;font-size:18px;letter-spacing:-.01em;}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);}
+.kpi{text-align:center}.kpi .label{color:var(--muted);font-size:12px}.kpi .value{font-size:24px;font-weight:800;margin-top:4px}
+.muted{color:var(--muted);font-size:12px}.status{min-height:18px}.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.right{margin-left:auto}
+.spark{width:100%;height:72px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);display:block;}
+.table-wrap{border:1px solid var(--line);border-radius:var(--radius);overflow:auto;background:#fff;box-shadow:var(--shadow);}
+table.table{width:100%;border-collapse:separate;border-spacing:0;min-width:560px}
+table.table th,table.table td{padding:12px 14px;font-size:13px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:center;vertical-align:middle;}
+table.table thead th{background:#f5f7fb;color:#1f2937;position:sticky;top:0;z-index:0;font-weight:700;}
+table.table tbody tr:nth-child(odd){background:#fbfdff} table.table tbody tr:hover{background:#eef7ff}
+table.table th.left,table.table td.left{text-align:left}
+.table td.num{font-variant-numeric:tabular-nums;font-weight:700}
+.table-wrap>table.table thead th:first-child{border-top-left-radius:var(--radius)}
+.table-wrap>table.table thead th:last-child{border-top-right-radius:var(--radius)}
+.table-wrap::-webkit-scrollbar{height:10px;width:10px}.table-wrap::-webkit-scrollbar-thumb{background:#cfe1f7;border-radius:999px}.table-wrap::-webkit-scrollbar-track{background:#f5f7fb}
+.cell-card{display:flex;align-items:center;gap:10px}
+.card-thumb{width:48px;height:30px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:8px;flex:0 0 auto;}
+.card-thumb.placeholder{background:linear-gradient(135deg,#f3f4f6,#e5e7eb);display:flex;align-items:center;justify-content:center;font-size:10px;color:#94a3b8;}
+.card-meta{display:flex;flex-direction:column;line-height:1.2}.card-name{font-weight:700;font-size:13px}.card-no{font-size:12px}
+.preview-backdrop{position:fixed;inset:0;background:rgba(2,6,23,.42);display:none;align-items:center;justify-content:center;z-index:9999;}
+.preview-modal{background:#fff;width:min(1100px,96vw);height:min(80vh,900px);border-radius:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden;}
+.preview-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);}
+.preview-title{font-weight:800;font-size:14px}.preview-body{flex:1;overflow:auto;background:#f8fafc;}
+.preview-body iframe{width:100%;height:100%;border:0;background:#fff;}
+.preview-body .inner{padding:16px}.preview-close{margin-left:auto;height:30px;padding:0 12px;border-radius:8px;}
+@media (max-width:768px){:root{--container:100%} h1{font-size:20px} .kpi .value{font-size:20px} input[type="date"]{width:140px}}
 </style>
 
+<link rel="stylesheet" href="<%=request.getContextPath()%>/css/adminstyle.css">
 
-
-<link rel="stylesheet" href="/css/adminstyle.css">
+<!-- PDF 라이브러리 (글꼴 없이 이미지 방식으로 생성) -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
+<!-- ExcelJS (스타일 가능) -->
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer></script>
 </head>
 <body>
-<jsp:include page="../fragments/header.jsp"></jsp:include>
+  <!-- 상단 공용 헤더 -->
+  <jsp:include page="../fragments/header.jsp"></jsp:include>
 
-  <div class="container">
-    <h1>가입자/판매 리포트</h1>
-    <div class="toolbar">
-      <span>기간</span>
-      <input type="date" id="from">
-      <input type="date" id="to">
-      <button class="btn btn-primary" id="btnFetch">조회</button>
-      <span style="flex:1;"></span>
-      <div class="actions">
-        <button class="btn" id="btnPdfPreview">PDF 미리보기</button>
-        <button class="btn" id="btnPdfDownload">PDF 다운로드</button>
-        <button class="btn" id="btnXlsxPreview">Excel 미리보기</button>
-        <button class="btn" id="btnXlsxDownload">Excel 다운로드</button>
+  <!-- 미리보기 모달 -->
+  <div class="preview-backdrop" id="previewWrap" aria-hidden="true">
+    <div class="preview-modal" role="dialog" aria-modal="true" aria-label="파일 미리보기">
+      <div class="preview-head">
+        <div class="preview-title" id="previewTitle">미리보기</div>
+        <button class="preview-close" id="btnPreviewClose">닫기</button>
+      </div>
+      <div class="preview-body" id="previewBody"></div>
+    </div>
+  </div>
+
+  <div class="page-offset">
+    <div class="container">
+      <h1>관리자 리포트</h1>
+
+      <div class="controls">
+        <label>시작일 <input id="start" type="date"></label>
+        <label>종료일 <input id="end" type="date"></label>
+        <button id="btnLoad" class="primary">조회</button>
+
+        <!-- 전체 내보내기 버튼 -->
+        <div class="right actions" style="margin-left:auto">
+          <button id="btnPreviewAllPdf">전체 PDF 미리보기</button>
+          <button id="btnDownloadAllPdf" class="primary">전체 PDF 다운로드</button>
+          <button id="btnPreviewAllXlsx">전체 엑셀 미리보기</button>
+          <button id="btnDownloadAllXlsx" class="primary">전체 엑셀 다운로드</button>
+        </div>
+
+        <div class="status muted" id="status"></div>
+      </div>
+
+      <div class="app-main" role="main">
+        <div class="section">
+          <h2>요약 KPI</h2>
+          <div class="kpis" id="kpis"></div>
+          <div class="muted">※ 조회 기간은 최대 31일까지 지원합니다.</div>
+        </div>
+
+        <div class="section">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <h2 style="margin:0">가입자 현황 (인구통계)</h2>
+          </div>
+          <div class="card" style="margin-top:8px">
+            <div class="muted">신규 신청 (나이대 × 성별)</div>
+            <div id="tblDemoStarts" style="margin-top:6px"></div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="muted">발급 완료 (나이대 × 성별)</div>
+            <div id="tblDemoIssued" style="margin-top:6px"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>일별 추이</h2>
+          <div class="card">
+            <div class="muted">신규 신청 (일별)</div>
+            <svg id="sparkNew" class="spark" viewBox="0 0 500 70" preserveAspectRatio="none"></svg>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="muted">발급 완료 (일별)</div>
+            <svg id="sparkIssued" class="spark" viewBox="0 0 500 70" preserveAspectRatio="none"></svg>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>상품판매 현황</h2>
+          <div id="tblProducts" style="margin-top:8px"></div>
+        </div>
+
+        <div class="section">
+          <h2>세부 분해</h2>
+          <h3 class="muted" style="margin-top:8px">신용/체크별</h3>
+          <div id="tblCreditKind"></div>
+        </div>
       </div>
     </div>
-    <div class="muted">* 보고 범위: [from, to] 날짜의 신청/판매 데이터 (판매=ISSUED)</div>
   </div>
 
-<div class="container" id="reportRoot">
+  <script src="<%=request.getContextPath()%>/js/adminHeader.js"></script>
+  <script>
+  // ================= 공통/유틸 =================
+  const CTX  = '<%=request.getContextPath()%>';
+  const BASE = CTX + '/admin/api/review-report';
 
-  <!-- 1) KPI -->
-  <div class="grid grid-3">
-    <div class="kpi">
-      <div>
-        <div class="muted">신규 신청</div>
-        <div class="value" id="kpiApplies">-</div>
-      </div>
-    </div>
-    <div class="kpi">
-      <div>
-        <div class="muted">승인</div>
-        <div class="value" id="kpiApproved">-</div>
-      </div>
-    </div>
-    <div class="kpi">
-      <div>
-        <div class="muted">판매(발급완료)</div>
-        <div class="value" id="kpiIssued">-</div>
-        <div class="delta" id="kpiIssuedDelta">-</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 2) 판매 추세 -->
-  <div class="card" style="margin-top:16px">
-    <h2>판매 추세</h2>
-    <canvas id="trendChart" height="120"></canvas>
-  </div>
-
-  <!-- 3) 상품별 판매 Top-N -->
-  <div class="card" style="margin-top:16px">
-    <h2>상품별 판매 Top-10</h2>
-    <canvas id="productChart" height="200"></canvas>
-  </div>
-
-  <!-- 4) 신청→발급 퍼널 -->
-  <div class="card" style="margin-top:16px">
-    <h2>신청→발급 퍼널</h2>
-    <canvas id="funnelChart" height="140"></canvas>
-  </div>
-
-  <!-- 5) 가입자 현황 -->
-  <div class="grid grid-2" style="margin-top:16px">
-    <div class="card">
-      <h2>성별 비율 (판매 기준)</h2>
-      <canvas id="genderChart" height="220"></canvas>
-    </div>
-    <div class="card">
-      <h2>연령대 비율 (판매 기준 / 100%)</h2>
-      <canvas id="ageChart" height="220"></canvas>
-    </div>
-  </div>
-
-  <!-- 원천 표 (상품 요약) -->
-  <div class="card" style="margin-top:16px">
-    <h2>원천 데이터 (상품 요약)</h2>
-    <table id="tbl">
-      <thead>
-        <tr>
-          <th>카드번호</th>
-          <th>카드명</th>
-          <th>신청</th>
-          <th>승인</th>
-          <th>발급완료(판매)</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-</div>
-
-<script src="/js/adminHeader.js"></script>
-<script>
-  /* ===== 공통 유틸 ===== */
-  function apiBase() {
-    var path = window.location.pathname;
-    var i = path.indexOf('/admin/');
-    var prefix = i >= 0 ? path.slice(0, i) : '';
-    var s = prefix + '/admin/report';
-    return s.replace(/\/{2,}/g, '/');
+  async function jget(url){
+    const r = await fetch(url, {headers:{'Accept':'application/json'}});
+    if(!r.ok) throw new Error('HTTP '+r.status+' '+url);
+    return r.json();
   }
-  function qs(id){ return document.getElementById(id); }
-  function setDefaultDates() {
-    var to = new Date();
-    var from = new Date(); from.setDate(to.getDate() - 7);
-    function fmt(d){ return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
-    qs('from').value = fmt(from);
-    qs('to').value   = fmt(to);
+  function fmt(n){ if(n===null||n===undefined) return '-'; if(typeof n==='number') return n.toLocaleString(); return String(n); }
+  function setStatus(msg){ document.getElementById('status').textContent = msg || ''; }
+  function downloadBlob(filename, blob){
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
   }
-  function qp() {
-    return '?from=' + encodeURIComponent(qs('from').value) + '&to=' + encodeURIComponent(qs('to').value);
+  function openIframePreview(title, blob){
+    const url = URL.createObjectURL(blob);
+    const wrap = document.getElementById('previewWrap'); const body = document.getElementById('previewBody'); const titleEl = document.getElementById('previewTitle');
+    body.innerHTML = '<iframe src="'+url+'"></iframe>'; titleEl.textContent = title || '미리보기'; wrap.style.display = 'flex'; wrap.dataset.url = url;
   }
-  function getJSON(url) {
-    return fetch(url, { headers: { 'Accept': 'application/json' }})
-      .then(function(res){ if(!res.ok) throw new Error('요청 실패: ' + res.status + ' ' + url); return res.json(); });
+  function openHTMLPreview(title, html){
+    const wrap = document.getElementById('previewWrap'); const body = document.getElementById('previewBody'); const titleEl = document.getElementById('previewTitle');
+    body.innerHTML = '<div class="inner">'+html+'</div>'; titleEl.textContent = title || '미리보기'; wrap.style.display = 'flex'; wrap.dataset.url = '';
   }
-  function sum(a){ return a.reduce(function(x,y){ return x+y; }, 0); }
+  function closePreview(){
+    const wrap = document.getElementById('previewWrap'); const url = wrap.dataset.url;
+    if(url) URL.revokeObjectURL(url); document.getElementById('previewBody').innerHTML = ''; wrap.style.display='none'; wrap.dataset.url='';
+  }
 
-  /* ===== 상태 ===== */
-  var trendChart, productChart, funnelChart, genderChart, ageChart;
-  var cachedProducts = [];
-  var cachedDemos = [];
-  var cachedTrend = [];
-  var cachedFunnel = {};
-  var cachedOverview = {};
+  // 컨텍스트 경로 + 이미지 URL 보정
+  function resolveImg(u){
+    if(!u) return '';
+    if (u.startsWith('data:')) return u;
+    if (/^https?:\/\//i.test(u)) return u; // 절대 URL
+    if (u.startsWith('/')) return u;       // 서버 루트 기준
+    return (CTX + '/' + u).replace(/\/+/g,'/'); // 상대경로 → 절대경로
+  }
+  // 외부 이미지는 서버 프록시로
+  function toProxied(url){
+    if(!url) return '';
+    if (url.startsWith('data:')) return url;
+    if (/^https?:\/\//i.test(url)) {
+      return (CTX + '/admin/proxy-img?url=' + encodeURIComponent(url));
+    }
+    if (url.startsWith('/')) return url;
+    return (CTX + '/' + url).replace(/\/+/g,'/');
+  }
 
-  /* ===== KPI 표시 ===== */
-  function setKpi(ov){
-    cachedOverview = ov || {};
-    qs('kpiApplies').textContent  = (ov && ov.applies != null) ? ov.applies : '-';
-    qs('kpiApproved').textContent = (ov && ov.approved != null) ? ov.approved : '-';
-    qs('kpiIssued').textContent   = (ov && ov.issued != null) ? ov.issued : '-';
+  // 다양한 키에서 이미지 추출
+  function pickCardImg(r){
+    const cand = r.cardImg || r.imageUrl || r.imgUrl || r.img || r.card_image || r.cardImgUrl;
+    return resolveImg(cand);
+  }
 
-    var el = qs('kpiIssuedDelta');
-    if (ov && ov.wowIssuedDeltaPct != null) {
-      var sign = ov.wowIssuedDeltaPct >= 0 ? '▲ ' : '▼ ';
-      el.textContent = '전주 대비 ' + sign + Math.abs(ov.wowIssuedDeltaPct) + '%';
-      el.className = 'delta ' + (ov.wowIssuedDeltaPct >= 0 ? 'up' : 'down');
-    } else {
-      el.textContent = '전주 대비 데이터 없음';
-      el.className = 'delta';
+  // ===== jsPDF 로딩 대기 =====
+  async function ensureJsPDFReady(maxWaitMs = 5000) {
+    const start = performance.now();
+    while (performance.now() - start < maxWaitMs) {
+      if (window.jspdf && window.jspdf.jsPDF) return true;
+      await new Promise(r => setTimeout(r, 50));
+    }
+    throw new Error('jsPDF가 아직 로드되지 않았습니다.');
+  }
+
+  // ================= 날짜 표준화(YYYY-MM-DD) =================
+  function normDate(s){
+    if(!s) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const d = new Date(s);
+    if (isNaN(d)) return String(s);
+    const p = n => String(n).padStart(2,'0');
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+  }
+
+  // ================= 데이터/표 렌더 =================
+  function toKoGender(v){ const s=String(v||'').trim().toUpperCase(); if(s==='M')return'남자'; if(s==='F')return'여자'; return'미상'; }
+  function toKoCredit(v){ const s=String(v||'').trim().toUpperCase(); if(s==='Y')return'신용카드'; if(s==='N')return'체크카드'; return'기타'; }
+
+  function renderTable(elId, headers, rows){
+    const el = document.getElementById(elId);
+    if(!rows || rows.length===0){ el.innerHTML = `<div class="muted">데이터 없음</div>`; return; }
+    const thead = `<thead><tr>${headers.map(h=>`<th class="${h.align||'center'}">${h.label}</th>`).join('')}</tr></thead>`;
+    const tbody = `<tbody>${
+      rows.map(r=>`<tr>${
+        headers.map(h=>{
+          const align = h.align||'center';
+          if(typeof h.render==='function') return `<td class="${align}">${h.render(r)}</td>`;
+          const isNum = typeof r[h.key] === 'number';
+          return `<td class="${align}${isNum?' num':''}">${fmt(r[h.key])}</td>`;
+        }).join('')
+      }</tr>`).join('')
+    }</tbody>`;
+    el.innerHTML = `<div class="table-wrap"><table class="table">${thead}${tbody}</table></div>`;
+  }
+
+  // === 스파크라인 ===
+  function renderSpark(svgId, series){
+    const svg = document.getElementById(svgId);
+    const w=500,h=70,pad=6;
+    svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+    svg.innerHTML='';
+    const ns='http://www.w3.org/2000/svg';
+
+    if(!series || series.length===0){
+      svg.innerHTML = `<text x="8" y="40" font-size="12" fill="#9ca3af">데이터 없음</text>`;
+      return;
+    }
+
+    const ys = series.map(d=>d.cnt||0);
+    const max = Math.max(...ys,1);
+    const dx = (w-2*pad)/Math.max(series.length-1,1);
+    const toX = i => pad + i*dx;
+    const toY = v => h - pad - (v/max)*(h-2*pad);
+
+    const pts = series.map((d,i)=>`${toX(i)},${toY(d.cnt||0)}`).join(' ');
+    const area = `M ${toX(0)} ${h-pad} L ${pts.replace(/ /g,' L ')} L ${toX(series.length-1)} ${h-pad} Z`;
+
+    const g = document.createElementNS(ns,'g');
+
+    const pathArea = document.createElementNS(ns,'path');
+    pathArea.setAttribute('d', area);
+    pathArea.setAttribute('fill', '#e0f2fe');
+
+    const line = document.createElementNS(ns,'polyline');
+    line.setAttribute('points', pts);
+    line.setAttribute('fill','none');
+    line.setAttribute('stroke', '#0ea5e9');
+    line.setAttribute('stroke-width','2');
+
+    g.appendChild(pathArea);
+    g.appendChild(line);
+
+    // 날짜 라벨
+    const first = series[0]?.date || '';
+    const last  = series[series.length-1]?.date || '';
+    const mid   = series[Math.floor(series.length/2)]?.date || '';
+    const labelY = h - 2;
+
+    if (first){
+      const t1 = document.createElementNS(ns,'text');
+      t1.setAttribute('x', pad);
+      t1.setAttribute('y', labelY);
+      t1.setAttribute('font-size','10');
+      t1.setAttribute('fill','#64748b');
+      t1.setAttribute('text-anchor','start');
+      t1.textContent = first;
+      g.appendChild(t1);
+    }
+    if (mid && series.length > 2){
+      const t2 = document.createElementNS(ns,'text');
+      t2.setAttribute('x', w/2);
+      t2.setAttribute('y', labelY);
+      t2.setAttribute('font-size','10');
+      t2.setAttribute('fill','#94a3b8');
+      t2.setAttribute('text-anchor','middle');
+      t2.textContent = mid;
+      g.appendChild(t2);
+    }
+    if (last){
+      const t3 = document.createElementNS(ns,'text');
+      t3.setAttribute('x', w - pad);
+      t3.setAttribute('y', labelY);
+      t3.setAttribute('font-size','10');
+      t3.setAttribute('fill','#64748b');
+      t3.setAttribute('text-anchor','end');
+      t3.textContent = last;
+      g.appendChild(t3);
+    }
+
+    svg.appendChild(g);
+  }
+
+  // ================= 전역 캐시 =================
+  let cacheKpi=null, cacheProducts=[], cacheCredit=[], cacheTrends=null;
+  let cacheDemoStarts=[], cacheDemoIssued=[];
+  let cacheProductsEnriched=[];
+
+  // ================= 데이터 로드 =================
+  async function loadAll(){
+    try{
+      setStatus('불러오는 중...');
+      const start = document.getElementById('start').value;
+      const end   = document.getElementById('end').value;
+      const q = `startDt=${start}&endDt=${end}`;
+
+      const [kpi, trends, products, breakdowns, demog] = await Promise.all([
+        jget(`${BASE}/kpi?${q}`),
+        jget(`${BASE}/trends?${q}`),
+        jget(`${BASE}/products?${q}`),
+        jget(`${BASE}/breakdowns?${q}`),
+        jget(`${BASE}/demography?${q}`)
+      ]);
+
+      trends.newApps  = (trends?.newApps  || []).map(d => ({...d, date: normDate(d.date)}));
+      trends.issued   = (trends?.issued   || []).map(d => ({...d, date: normDate(d.date)}));
+
+      cacheKpi = kpi;
+      cacheTrends = trends;
+      cacheProducts = products || [];
+      cacheCredit = (breakdowns && breakdowns.creditKind) || [];
+      cacheDemoStarts = (demog && demog.starts) || [];
+      cacheDemoIssued = (demog && demog.issued) || [];
+
+      cacheProductsEnriched = cacheProducts.map(p => ({
+        ...p,
+        cardName: p.cardName || `#${p.cardNo}`,
+        cardImg:  pickCardImg(p)
+      }));
+
+      const demoStartsKo = cacheDemoStarts.map(r => ({...r, gender: toKoGender(r.gender)}));
+      const demoIssuedKo = cacheDemoIssued.map(r => ({...r, gender: toKoGender(r.gender)}));
+
+      renderKpis(kpi);
+      renderSpark('sparkNew',   trends.newApps || []);
+      renderSpark('sparkIssued',trends.issued  || []);
+
+      renderTable('tblDemoStarts', [
+        {key:'ageBand', label:'나이대', align:'left'},
+        {key:'gender',  label:'성별',   align:'left'},
+        {key:'cnt',     label:'건수',   align:'right'}
+      ], demoStartsKo);
+
+      renderTable('tblDemoIssued', [
+        {key:'ageBand', label:'나이대', align:'left'},
+        {key:'gender',  label:'성별',   align:'left'},
+        {key:'cnt',     label:'건수',   align:'right'}
+      ], demoIssuedKo);
+
+      renderTable('tblProducts', [
+        {
+          key:'cardNo', label:'카드', align:'left',
+          render:(r)=>{
+            const nm = r.cardName || `#${r.cardNo}`;
+            const src = r.cardImg;
+            const imgTag = src
+              ? `<img class="card-thumb" loading="lazy"
+                       src="${src}"
+                       alt="${nm}"
+                       referrerpolicy="no-referrer"
+                       onerror="this.outerHTML='<div class=&quot;card-thumb placeholder&quot;>NO IMG</div>'">`
+              : `<div class="card-thumb placeholder">NO IMG</div>`;
+            return `
+              <div class="cell-card">
+                ${imgTag}
+                <div class="card-meta">
+                  <div class="card-name">${nm}</div>
+                  <div class="card-no muted">#${r.cardNo}</div>
+                </div>
+              </div>`;
+          }
+        },
+        {key:'starts', label:'신청', align:'right'},
+        {key:'issued', label:'발급', align:'right'},
+        {key:'conversionPct', label:'전환율(%)', align:'right'}
+      ], cacheProductsEnriched);
+
+      renderTable('tblCreditKind', [
+        {label:'카드 유형', align:'left', render:(r)=>toKoCredit(r.isCreditCard)},
+        {key:'starts', label:'신청', align:'right'},
+        {key:'issued', label:'발급', align:'right'},
+        {key:'conversionPct', label:'전환율(%)', align:'right'}
+      ], cacheCredit);
+
+      setStatus('완료');
+    }catch(e){
+      console.error(e); setStatus(''); alert('로딩 오류: '+e.message);
     }
   }
 
-  /* ===== 차트: UX 최적화 프리셋 ===== */
-  function asLineAreaConfig(labels, values, label){
-    return {
-      type: 'line',
-      data: { labels: labels, datasets: [{ label: label, data: values, fill: true, tension: 0.3 }] },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false }, tooltip: { enabled: true } },
-        scales: { y: { beginAtZero: true } }
-      }
-    };
-  }
-  function asHBarConfig(labels, values, label){
-    return {
-      type: 'bar',
-      data: { labels: labels, datasets: [{ label: label, data: values }] },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        plugins: { legend: { display: false }, tooltip:{ enabled: true } },
-        scales: { x: { beginAtZero: true }, y: { ticks:{ autoSkip:false, maxRotation:0, minRotation:0 } } }
-      }
-    };
-  }
-  function asDonutConfig(labels, values, label){
-    return {
-      type: 'doughnut',
-      data: { labels: labels, datasets: [{ label: label, data: values }] },
-      options: { responsive: true, plugins: { legend: { position:'bottom' } } }
-    };
-  }
-  function asStacked100HBarConfig(labels, datasets){
-    // datasets = [{label, data:[%...]}], 모든 합=100 가정
-    return {
-      type: 'bar',
-      data: { labels: labels, datasets: datasets.map(function(d){ return { label:d.label, data:d.data, stack:'stack' }; }) },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        plugins: { legend: { position:'bottom' }, tooltip:{ callbacks:{ label:function(ctx){ return ctx.dataset.label + ': ' + ctx.raw + '%'; } } } },
-        scales: { x: { stacked:true, min:0, max:100, ticks:{ callback:function(v){ return v + '%'; } } }, y: { stacked:true } }
-      }
-    };
+  function renderKpis(k){
+    const el = document.getElementById('kpis');
+    const convColor = (k.cohortConversionPct >= 50) ? 'var(--good)' : (k.cohortConversionPct >= 20) ? 'var(--warn)' : 'var(--bad)';
+    el.innerHTML = `
+      <div class="card kpi"><div class="label">신규 신청</div><div class="value">${fmt(k.newApps)}</div></div>
+      <div class="card kpi"><div class="label">발급 완료</div><div class="value">${fmt(k.issuedApps)}</div></div>
+      <div class="card kpi"><div class="label">현재 진행중</div><div class="value">${fmt(k.inProgress)}</div></div>
+      <div class="card kpi"><div class="label">코호트 전환율</div><div class="value" style="color:${convColor}">${fmt(k.cohortConversionPct)}%</div></div>
+      <div class="card kpi"><div class="label">평균 발급일</div><div class="value">${fmt(k.avgIssueDays)}일</div></div>`;
   }
 
-  /* ===== 차트 그리기 ===== */
-  function drawTrend(points){
-    cachedTrend = points || [];
-    var labels = cachedTrend.map(function(p){ return p.date; });
-    var data   = cachedTrend.map(function(p){ return p.count || 0; });
-    if (trendChart) trendChart.destroy();
-    trendChart = new Chart(qs('trendChart'), asLineAreaConfig(labels, data, '일별 판매'));
-  }
+  // ================== 내보내기용 데이터 정리 ==================
+  function periodLabel(){ return `${document.getElementById('start').value} ~ ${document.getElementById('end').value}`; }
+  function generatedAt(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
 
-  function drawProductChart(rows){
-    cachedProducts = rows || [];
-    var labels = cachedProducts.map(function(r){ return r.cardName || ('카드#' + r.cardNo); });
-    var data   = cachedProducts.map(function(r){ return r.issuedCount || 0; });
-    if (productChart) productChart.destroy();
-    productChart = new Chart(qs('productChart'), asHBarConfig(labels, data, '판매량(발급완료)'));
-  }
-
-  function drawFunnel(f){
-    cachedFunnel = f || {};
-    var labels = ['DRAFT','KYC_PASSED','ACCOUNT_CONFIRMED','OPTIONS_SET','ISSUED','CANCELLED'];
-    var vals = [
-      f && f.draft || 0, f && f.kycPassed || 0, f && f.accountConfirmed || 0,
-      f && f.optionsSet || 0, f && f.issued || 0, f && f.cancelled || 0
+  function rowsKpi(){
+    if(!cacheKpi) return [];
+    return [
+      {지표:'신규 신청', 값: cacheKpi.newApps ?? 0},
+      {지표:'발급 완료', 값: cacheKpi.issuedApps ?? 0},
+      {지표:'현재 진행중', 값: cacheKpi.inProgress ?? 0},
+      {지표:'코호트 전환율(%)', 값: cacheKpi.cohortConversionPct ?? 0},
+      {지표:'평균 발급일(일)', 값: cacheKpi.avgIssueDays ?? 0},
     ];
-    if (funnelChart) funnelChart.destroy();
-    funnelChart = new Chart(qs('funnelChart'), asHBarConfig(labels, vals, '건수'));
+  }
+  function rowsDemographyStarts(){
+    return (cacheDemoStarts||[]).map(r=>({나이대:r.ageBand, 성별:toKoGender(r.gender), 건수:r.cnt||0}));
+  }
+  function rowsDemographyIssued(){
+    return (cacheDemoIssued||[]).map(r=>({나이대:r.ageBand, 성별:toKoGender(r.gender), 건수:r.cnt||0}));
+  }
+  function rowsTrendsDaily(){
+    const mapByDate = {};
+    (cacheTrends?.newApps||[]).forEach(d=>{ const dd=normDate(d.date); mapByDate[dd]=mapByDate[dd]||{날짜:dd, 신규:0, 발급:0}; mapByDate[dd].신규=(d.cnt||0); });
+    (cacheTrends?.issued ||[]).forEach(d=>{ const dd=normDate(d.date); mapByDate[dd]=mapByDate[dd]||{날짜:dd, 신규:0, 발급:0}; mapByDate[dd].발급=(d.cnt||0); });
+    return Object.values(mapByDate).sort((a,b)=>a.날짜.localeCompare(b.날짜));
+  }
+  function rowsProducts(){
+    const src = (cacheProductsEnriched.length?cacheProductsEnriched:cacheProducts) || [];
+    return src.map(r=>({카드번호:r.cardNo, 카드명:(r.cardName||`#${r.cardNo}`), 신청:r.starts||0, 발급:r.issued||0, '전환율(%)':r.conversionPct||0, _이미지:r.cardImg||''}));
+  }
+  function rowsCreditKind(){
+    return (cacheCredit||[]).map(r=>({유형:toKoCredit(r.isCreditCard), 신청:r.starts||0, 발급:r.issued||0, '전환율(%)':r.conversionPct||0}));
   }
 
-  function drawGender(demos){
-    cachedDemos = demos || [];
-    var totalMale   = sum(cachedDemos.map(function(d){ return d.maleCount || 0; }));
-    var totalFemale = sum(cachedDemos.map(function(d){ return d.femaleCount || 0; }));
-    if (genderChart) genderChart.destroy();
-    genderChart = new Chart(qs('genderChart'), asDonutConfig(['남성','여성'], [totalMale, totalFemale], '성별 비율'));
+  // ================== PDF 생성 (html2canvas → 이미지 분할) ==================
+  async function inlineAllImages(root){
+    const imgs = Array.from(root.querySelectorAll('img'));
+    await Promise.all(imgs.map(async img=>{
+      const src = img.getAttribute('src');
+      if(!src || src.startsWith('data:')) return;
+      try{
+        const res = await fetch(src, {mode:'cors', credentials:'omit'});
+        if(!res.ok) throw new Error('image fetch '+res.status);
+        const blob = await res.blob();
+        const dataUrl = await new Promise(r=>{
+          const fr = new FileReader();
+          fr.onload = ()=>r(fr.result);
+          fr.readAsDataURL(blob);
+        });
+        img.setAttribute('src', dataUrl);
+      }catch(e){
+        img.outerHTML = '<div style="width:48px;height:30px;border:1px solid #e5e7eb;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#94a3b8">NO IMG</div>';
+      }
+    }));
   }
 
-  function drawAge(demos){
-    var a10 = sum(demos.map(function(d){ return d.age10s || 0; }));
-    var a20 = sum(demos.map(function(d){ return d.age20s || 0; }));
-    var a30 = sum(demos.map(function(d){ return d.age30s || 0; }));
-    var a40 = sum(demos.map(function(d){ return d.age40s || 0; }));
-    var a50 = sum(demos.map(function(d){ return d.age50s || 0; }));
-    var a60 = sum(demos.map(function(d){ return d.age60s || 0; }));
+  async function buildAllPDFBlob(){
+    await ensureJsPDFReady();
+    const { jsPDF } = window.jspdf;
 
-    var tot = a10+a20+a30+a40+a50+a60;
-    function pct(v){ return tot ? Math.round(v*1000/tot)/10 : 0; }
-    var labels = ['연령 분포'];
-    var datasets = [
-      { label:'10대', data:[pct(a10)] },
-      { label:'20대', data:[pct(a20)] },
-      { label:'30대', data:[pct(a30)] },
-      { label:'40대', data:[pct(a40)] },
-      { label:'50대', data:[pct(a50)] },
-      { label:'60대+',data:[pct(a60)] }
-    ];
+    const html = buildAllPreviewHTML();
 
-    if (ageChart) ageChart.destroy();
-    ageChart = new Chart(qs('ageChart'), asStacked100HBarConfig(labels, datasets));
-  }
+    const temp = document.createElement('div');
+    temp.id = 'pdfTemp';
+    temp.style.position = 'fixed';
+    temp.style.left = '-10000px';
+    temp.style.top = '0';
+    temp.style.width = '794px';
+    temp.style.background = '#ffffff';
 
-  function fillTable(rows){
-    var tb = qs('tbl').querySelector('tbody');
-    tb.innerHTML = '';
-    rows.forEach(function(r){
-      tb.innerHTML += ''
-        + '<tr>'
-        +   '<td>' + (r.cardNo!=null ? r.cardNo : '') + '</td>'
-        +   '<td>' + (r.cardName || '') + '</td>'
-        +   '<td>' + (r.applyCount || 0) + '</td>'
-        +   '<td>' + (r.approvedCount || 0) + '</td>'
-        +   '<td>' + (r.issuedCount || 0) + '</td>'
-        + '</tr>';
+    const style = `
+      #pdfTemp .table-wrap{overflow:visible;border:0;box-shadow:none;}
+      #pdfTemp .card{box-shadow:none;border:1px solid #e5e7eb;border-radius:0;}
+      #pdfTemp .kpi.card{border:1px solid #e5e7eb}
+      #pdfTemp .muted{color:#334155}
+      #pdfTemp table{border-collapse:collapse !important; width:100%;}
+      #pdfTemp thead th{position:static !important; background:#f5f7fb !important;}
+      #pdfTemp th,#pdfTemp td{border:1px solid #e5e7eb !important;}
+      #pdfTemp .export-section{margin: 14px 0;}
+      #pdfTemp h3{margin:16px 0 8px 0;}
+      #pdfTemp .export-keep{page-break-inside: avoid;}
+      /* PDF는 고정 크기 */
+      #pdfTemp td img{display:block; width:60px; height:36px; object-fit:contain; border:1px solid #e5e7eb; border-radius:6px;}
+    `;
+    temp.innerHTML = `<style>${style}</style>${html}`;
+    document.body.appendChild(temp);
+
+    temp.querySelectorAll('img').forEach(img => {
+      const s = img.getAttribute('src') || '';
+      if (!s.startsWith('data:')) img.setAttribute('src', toProxied(s));
     });
-  }
 
-  /* ===== 데이터 로딩 ===== */
-  function fetchOverview(){         return getJSON(apiBase() + '/overview'         + qp()); }
-  function fetchTrendData(){        return getJSON(apiBase() + '/sales-trend'      + qp()); }
-  function fetchSalesByProduct(){   return getJSON(apiBase() + '/sales-by-product' + qp() + '&top=10'); }
-  function fetchFunnel(){           return getJSON(apiBase() + '/funnel'           + qp()); }
-  function fetchDemographics(){     return getJSON(apiBase() + '/demographics'     + qp()); }
+    await inlineAllImages(temp);
 
-  function refresh(){
-    return Promise.all([
-      fetchOverview().then(setKpi),
-      fetchTrendData().then(drawTrend),
-      fetchSalesByProduct().then(function(rows){ drawProductChart(rows); fillTable(rows); }),
-      fetchFunnel().then(drawFunnel),
-      fetchDemographics().then(function(d){ drawGender(d); drawAge(d); })
-    ]);
-  }
+    const canvas = await html2canvas(temp, { scale: 2, useCORS: true, backgroundColor:'#ffffff' });
 
-  /* ===== PDF 생성 (전체 리포트 형식) ===== */
-  async function makePdfBlob(){
-    var node = document.getElementById('reportRoot');
-    var { jsPDF } = window.jspdf;
-    var pdf = new jsPDF('p', 'mm', 'a4');
+    const pdf = new jsPDF('p','pt','a4');
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 20;
+    const imgW = pageW - margin*2;
+    const pxPerPage = Math.floor((pageH - margin*2) * canvas.width / imgW);
+    const pageCanvas = document.createElement('canvas');
+    const ctx = pageCanvas.getContext('2d');
 
-    // 고해상도 캡처 후 페이지 분할
-    var canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff' });
-    var imgData = canvas.toDataURL('image/png');
+    let y = 0;
+    while (y < canvas.height) {
+      const sliceH = Math.min(pxPerPage, canvas.height - y);
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceH;
+      ctx.clearRect(0,0,pageCanvas.width,pageCanvas.height);
+      ctx.drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
 
-    var pageW = 210, pageH = 297, margin = 10;
-    var imgW = pageW - margin*2;
-    var imgH = canvas.height * imgW / canvas.width;
+      const imgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+      const imgH = sliceH * imgW / canvas.width;
 
-    if (imgH <= pageH - margin*2) {
-      pdf.addImage(imgData, 'PNG', margin, margin, imgW, imgH);
-    } else {
-      // 세로로 나눠서 여러 페이지에 출력
-      var pxPerMm = canvas.width / imgW;
-      var sliceHpx = Math.floor((pageH - margin*2) * pxPerMm);
-      var y = 0;
-      while (y < canvas.height) {
-        var slice = document.createElement('canvas');
-        slice.width = canvas.width;
-        slice.height = Math.min(sliceHpx, canvas.height - y);
-        var ctx = slice.getContext('2d');
-        ctx.drawImage(canvas, 0, y, canvas.width, slice.height, 0, 0, canvas.width, slice.height);
-        var part = slice.toDataURL('image/png');
-        pdf.addImage(part, 'PNG', margin, margin, imgW, slice.height * (imgW/canvas.width));
-        y += slice.height;
-        if (y < canvas.height) pdf.addPage();
-      }
+      pdf.addImage(imgData, 'JPEG', margin, margin, imgW, imgH);
+      y += sliceH;
+      if (y < canvas.height) pdf.addPage();
     }
+
+    document.body.removeChild(temp);
     return pdf.output('blob');
   }
-  function openBlobInNewTab(blob){ var url = URL.createObjectURL(blob); var w = window.open(url, '_blank'); if (w) w.onload = function(){ URL.revokeObjectURL(url); }; }
-  async function pdfPreview(){ var b = await makePdfBlob(); openBlobInNewTab(b); }
-  async function pdfDownload(){
-    var b = await makePdfBlob();
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(b);
-    a.download = '리포트_' + qs('from').value + '_' + qs('to').value + '.pdf';
-    a.click();
-    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+
+  // ================== 엑셀 생성 (ExcelJS) ==================
+  async function buildAllXlsxBlob(){
+    if(!window.ExcelJS){ alert('엑셀 라이브러리가 아직 로드되지 않았습니다.'); throw new Error('ExcelJS not ready'); }
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Admin';
+    wb.created = new Date();
+
+    const addSheet = (name, rows, headerOrder) => {
+      const ws = wb.addWorksheet(name, {properties:{defaultRowHeight:18}});
+      const headers = headerOrder || (rows[0] ? Object.keys(rows[0]) : []);
+      ws.columns = headers.map(h => ({ header: h, key: h, width: Math.max(10, String(h).length + 2) }));
+      rows.forEach(r => ws.addRow(headers.map(h => r[h])));
+      ws.getRow(1).eachCell(c=>{
+        c.font = { bold:true };
+        c.alignment = { vertical:'middle', horizontal:'center' };
+        c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF5F7FB'} };
+        c.border = { top:{style:'thin',color:{argb:'FFE5E7EB'}}, left:{style:'thin',color:{argb:'FFE5E7EB'}}, bottom:{style:'thin',color:{argb:'FFE5E7EB'}}, right:{style:'thin',color:{argb:'FFE5E7EB'}} };
+      });
+      for(let r=2; r<=ws.rowCount; r++){
+        ws.getRow(r).eachCell((c, idx)=>{
+          const isNum = typeof c.value === 'number';
+          c.alignment = { vertical:'middle', horizontal: isNum ? 'right' : (idx===1 ? 'center' : 'left') };
+          c.border = { top:{style:'thin',color:{argb:'FFE5E7EB'}}, left:{style:'thin',color:{argb:'FFE5E7EB'}}, bottom:{style:'thin',color:{argb:'FFE5E7EB'}}, right:{style:'thin',color:{argb:'FFE5E7EB'}} };
+        });
+        if (r % 2 === 0) {
+          ws.getRow(r).eachCell(c=>{
+            c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFFBFDFF'} };
+          });
+        }
+      }
+      ws.columns.forEach(col => { col.width = Math.max(col.width, 12); });
+      return ws;
+    };
+
+    addSheet('KPI', rowsKpi(), ['지표','값']);
+    addSheet('Demography_New', rowsDemographyStarts(), ['나이대','성별','건수']);
+    addSheet('Demography_Issued', rowsDemographyIssued(), ['나이대','성별','건수']);
+    addSheet('Trends_Daily', rowsTrendsDaily(), ['날짜','신규','발급']);
+
+    // 엑셀 파일 자체에는 이미지를 넣지 않음(표만)
+    addSheet('Products', rowsProducts().map(({_이미지, ...rest})=>rest), ['카드번호','카드명','신청','발급','전환율(%)']);
+    addSheet('CreditKind', rowsCreditKind(), ['유형','신청','발급','전환율(%)']);
+
+    const meta = wb.addWorksheet('Meta');
+    meta.columns = [{header:'항목', key:'항목', width:10},{header:'값', key:'값', width:30}];
+    meta.addRow({항목:'기간', 값:periodLabel()});
+    meta.addRow({항목:'생성', 값:generatedAt()});
+    meta.getRow(1).eachCell(c=>{ c.font={bold:true}; c.alignment={horizontal:'center'}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF5F7FB'}}; });
+
+    const buffer = await wb.xlsx.writeBuffer();
+    return new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   }
 
-  /* ===== Excel 생성 (섹션별 시트) ===== */
-  function toAOA_KPI(ov){
-    return [
-      ['지표','값'],
-      ['신규 신청', ov && ov.applies || 0],
-      ['승인',      ov && ov.approved || 0],
-      ['판매(발급완료)', ov && ov.issued || 0],
-      ['전주 대비(판매, %)', ov && (ov.wowIssuedDeltaPct!=null ? ov.wowIssuedDeltaPct + '%' : '-') ]
-    ];
+  // ================== 미리보기(HTML) ==================
+  function buildAllPreviewHTML(){
+    const styleCell = 'padding:8px 10px;'; // 보더는 PDF 전용 스타일에서 통일
+    const headCell  = styleCell + 'text-align:center;font-weight:700;background:#f5f7fb;';
+    const td = (val, align) => `<td style="${styleCell}text-align:${align||'left'};">${val}</td>`;
+    const th = (val) => `<th style="${headCell}">${val}</th>`;
+
+    // 미리보기 전용 스타일: 60×36 고정
+    const previewCSS = `
+      <style>
+        .preview-export td .card-img{
+          display:block; width:60px; height:36px;
+          object-fit:contain; border:1px solid #e5e7eb; border-radius:6px;
+        }
+        .preview-export td .noimg{
+          width:60px; height:36px;
+          border:1px solid #e5e7eb; border-radius:6px;
+          display:flex; align-items:center; justify-content:center;
+          font-size:10px; color:#94a3b8;
+        }
+      </style>
+    `;
+
+    const buildTable = (title, head, rows, renderRow) => {
+      const thead = `<tr>${head.map(th).join('')}</tr>`;
+      const tbody = rows.map(r => renderRow ? renderRow(r) : (
+        `<tr>${
+          head.map(h=>{
+            const v = r[h];
+            const align = (typeof v === 'number') ? 'right' : 'left';
+            return td(fmt(v), align);
+          }).join('')
+        }</tr>`
+      )).join('');
+      return `
+        <div class="export-section export-keep">
+          <h3>${title}</h3>
+          <div style="color:#667085;font-size:12px;margin:-4px 0 8px 0">기간: ${periodLabel()} · 생성: ${generatedAt()}</div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>${thead}</thead><tbody>${tbody}</tbody>
+            </table>
+          </div>
+        </div>`;
+    };
+
+    const productsRows = rowsProducts();
+    const productsTable = buildTable(
+      '상품판매 현황',
+      ['이미지','카드번호','카드명','신청','발급','전환율(%)'],
+      productsRows,
+      (r)=>{
+        const img = r._이미지
+          ? `<img class="card-img" src="${toProxied(r._이미지)}" alt="${r.카드명}">`
+          : `<div class="noimg">NO IMG</div>`;
+        return `<tr>
+          ${td(img)}
+          ${td('#'+r.카드번호)}
+          ${td(r.카드명)}
+          ${td(fmt(r.신청),'right')}
+          ${td(fmt(r.발급),'right')}
+          ${td(fmt(r['전환율(%)']),'right')}
+        </tr>`;
+      }
+    );
+
+    return (
+      previewCSS + `<div class="preview-export">` +
+      buildTable('요약 KPI', ['지표','값'], rowsKpi()) +
+      buildTable('가입자 현황 — 신규 신청', ['나이대','성별','건수'], rowsDemographyStarts()) +
+      buildTable('가입자 현황 — 발급 완료', ['나이대','성별','건수'], rowsDemographyIssued()) +
+      buildTable('일별 추이', ['날짜','신규','발급'], rowsTrendsDaily()) +
+      productsTable +
+      buildTable('세부 분해 — 신용/체크별', ['유형','신청','발급','전환율(%)'], rowsCreditKind()) +
+      `</div>`
+    );
   }
-  function toAOA_Trend(points){
-    var rows = [['날짜','판매']];
-    (points||[]).forEach(function(p){ rows.push([p.date, p.count||0]); });
-    return rows;
-  }
-  function toAOA_Products(rows){
-    var out = [['카드번호','카드명','신청','승인','발급완료']];
-    (rows||[]).forEach(function(r){
-      out.push([r.cardNo, r.cardName, r.applyCount||0, r.approvedCount||0, r.issuedCount||0]);
-    });
-    return out;
-  }
-  function toAOA_Funnel(f){
-    return [
-      ['단계','건수'],
-      ['DRAFT',             f && f.draft || 0],
-      ['KYC_PASSED',        f && f.kycPassed || 0],
-      ['ACCOUNT_CONFIRMED', f && f.accountConfirmed || 0],
-      ['OPTIONS_SET',       f && f.optionsSet || 0],
-      ['ISSUED',            f && f.issued || 0],
-      ['CANCELLED',         f && f.cancelled || 0]
-    ];
-  }
-  function toAOA_Demos(d){
-    var rows = [['카드번호','카드명','판매','남','여','10대','20대','30대','40대','50대','60대+']];
-    (d||[]).forEach(function(x){
-      rows.push([
-        x.cardNo, x.cardName, x.salesCount||0,
-        x.maleCount||0, x.femaleCount||0,
-        x.age10s||0, x.age20s||0, x.age30s||0, x.age40s||0, x.age50s||0, x.age60s||0
-      ]);
-    });
-    return rows;
-  }
-  function buildWorkbook(){
-    var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAOA_KPI(cachedOverview)), 'KPI');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAOA_Trend(cachedTrend)), '판매추세');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAOA_Products(cachedProducts)), '상품별판매');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAOA_Funnel(cachedFunnel)), '퍼널');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAOA_Demos(cachedDemos)), '가입자현황');
-    return wb;
-  }
-  function xlsxPreview(){
-    var wb = buildWorkbook();
-    var html = '';
-    function sect(name){
-      html += '<h3>' + name + '</h3>' + XLSX.utils.sheet_to_html(wb.Sheets[name]) + '<hr/>';
+
+  // ================== 이벤트 ==================
+  document.addEventListener('click', async (e)=>{
+    if(e.target.id==='btnLoad'){ loadAll(); }
+
+    if(e.target.id==='btnPreviewClose' || e.target.id==='previewWrap'){ closePreview(); }
+
+    if(e.target.id==='btnPreviewAllPdf'){
+      try{
+        const blob = await buildAllPDFBlob();
+        openIframePreview('전체 PDF 미리보기', blob);
+      }catch(err){
+        console.error(err);
+        alert('PDF 미리보기 생성 실패:\n' + (err && err.message ? err.message : err));
+      }
     }
-    sect('KPI'); sect('판매추세'); sect('상품별판매'); sect('퍼널'); sect('가입자현황');
-    var w = window.open('', '_blank');
-    w.document.write('<html><head><meta charset="utf-8"><title>Excel 미리보기</title></head><body style="font-family:system-ui,Arial;">' + html + '</body></html>');
-    w.document.close();
-  }
-  function xlsxDownload(){
-    var wb = buildWorkbook();
-    XLSX.writeFile(wb, '리포트_' + qs('from').value + '_' + qs('to').value + '.xlsx');
-  }
+    if(e.target.id==='btnDownloadAllPdf'){
+      try{
+        const blob = await buildAllPDFBlob();
+        downloadBlob(`report_${periodLabel().replace(/\s+/g,'')}.pdf`, blob);
+      }catch(err){
+        console.error(err);
+        alert('PDF 다운로드 생성 실패:\n' + (err && err.message ? err.message : err));
+      }
+    }
+    if(e.target.id==='btnPreviewAllXlsx'){
+      try{
+        const html = buildAllPreviewHTML();
+        openHTMLPreview('전체 엑셀 미리보기', html);
+      }catch(err){
+        console.error(err);
+        alert('엑셀 미리보기 실패:\n' + (err && err.message ? err.message : err));
+      }
+    }
+    if(e.target.id==='btnDownloadAllXlsx'){
+      try{
+        const blob = await buildAllXlsxBlob();
+        downloadBlob(`report_${periodLabel().replace(/\s+/g,'')}.xlsx`, blob);
+      }catch(err){
+        console.error(err);
+        alert('엑셀 다운로드 실패:\n' + (err && err.message ? err.message : err));
+      }
+    }
+  });
 
-  /* ===== 초기화 ===== */
-  setDefaultDates();
-  qs('btnFetch').addEventListener('click', function(){ refresh().catch(console.error); });
-  qs('btnPdfPreview').addEventListener('click', function(){ pdfPreview().catch(console.error); });
-  qs('btnPdfDownload').addEventListener('click', function(){ pdfDownload().catch(console.error); });
-  qs('btnXlsxPreview').addEventListener('click', function(){ xlsxPreview(); });
-  qs('btnXlsxDownload').addEventListener('click', function(){ xlsxDownload(); });
+  (function init(){
+    const end = new Date(); const start = new Date(); start.setDate(end.getDate()-6);
+    const toIso = d => new Date(d.getTime()-(d.getTimezoneOffset()*60000)).toISOString().slice(0,10);
+    document.getElementById('start').value = toIso(start);
+    document.getElementById('end').value   = toIso(end);
 
-  // 첫 로드
-  refresh().catch(console.error);
-</script>
+    document.getElementById('btnLoad').addEventListener('click', loadAll);
+    document.getElementById('previewWrap').addEventListener('click', (evt)=>{ if(evt.target.id==='previewWrap') closePreview(); });
+
+    loadAll();
+  })();
+  </script>
 </body>
 </html>

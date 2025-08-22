@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:bnkandroid/user/CardListPage.dart';
 import 'package:bnkandroid/user/LoginPage.dart';
 import 'package:bnkandroid/faq/faq.dart';
+import 'package:bnkandroid/benefits_home_page.dart';
 
 // 커스텀 애니메이티드 하단바 (토스 스타일)
 import 'package:bnkandroid/ui/toss_nav_bar.dart';
@@ -12,6 +13,9 @@ import 'package:bnkandroid/ui/toss_nav_bar.dart';
 import 'auth_state.dart';
 import 'idle/inactivity_service.dart';
 import 'package:bnkandroid/user/MyPage.dart';
+
+// 👉 메인(혜택) 페이지 import
+import 'benefits_home_page.dart'; // CHANGED
 
 const kPrimaryRed = Color(0xffB91111);
 
@@ -25,7 +29,8 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  int _index = 0;
+  // 👉 앱 시작 시 혜택 탭이 첫 화면이 되도록
+  int _index = AppTab.benefits.index; // CHANGED
 
   // ✅ 페이지 전환 애니메이션용 컨트롤러
   late final PageController _pageCtl;
@@ -37,6 +42,9 @@ class _AppShellState extends State<AppShell> {
     AppTab.support: GlobalKey<NavigatorState>(),
     AppTab.my: GlobalKey<NavigatorState>(),
   };
+
+  // 👉 뒤로가기 시 돌아갈 “홈 탭”을 혜택으로 지정
+  final int _homeIndex = AppTab.benefits.index; // CHANGED
 
   @override
   void initState() {
@@ -102,10 +110,9 @@ class _AppShellState extends State<AppShell> {
       case AppTab.cards:
         return const _KeepAlive(child: CardListPage());
       case AppTab.benefits:
-        return const _KeepAlive(child: CustomCardEditorPage());
-
+      // 👉 혜택 탭 = 메인 화면
+        return const _KeepAlive(child: BenefitsHomePage()); // ✅
       case AppTab.support:
-      // ✅ 여기!
         return const _KeepAlive(child: FaqPage());
       case AppTab.my:
         return const _KeepAlive(child: _MyRoot());
@@ -118,18 +125,18 @@ class _AppShellState extends State<AppShell> {
 
     return WillPopScope(
       onWillPop: () async {
-        // 현재 탭에서 뒤로 갈 수 있으면 pop, 아니면 첫 탭으로
+        // 현재 탭에서 뒤로 갈 수 있으면 pop, 아니면 홈(혜택) 탭으로
         final nav = _navKeys[tabs[_index]]!.currentState!;
         if (nav.canPop()) {
           nav.pop();
           InactivityService.instance.ping();
           return false;
         }
-        if (_index != 0) {
-          // 첫 탭으로 부드럽게 이동
-          setState(() => _index = 0);
+        if (_index != _homeIndex) { // CHANGED
+          // 홈(혜택) 탭으로 부드럽게 이동
+          setState(() => _index = _homeIndex); // CHANGED
           await _pageCtl.animateToPage(
-            0,
+            _homeIndex, // CHANGED
             duration: const Duration(milliseconds: 280),
             curve: Curves.easeInOutCubicEmphasized,
           );
@@ -143,7 +150,7 @@ class _AppShellState extends State<AppShell> {
           // ✅ PageView로 전환(슬라이드)
           body: PageView(
             controller: _pageCtl,
-            physics: const BouncingScrollPhysics(), // iOS 느낌; 원하면 NeverScrollableScrollPhysics()로 스와이프 비활성화
+            physics: const BouncingScrollPhysics(),
             onPageChanged: (i) {
               // 스와이프로 탭 변경 시에도 상태/바텀바 동기화
               setState(() => _index = i);
@@ -164,13 +171,13 @@ class _AppShellState extends State<AppShell> {
                 .toList(),
           ),
 
-          // 하단바(토스 스타일) — 인디케이터 애니메이션만 담당
+          // 하단바(토스 스타일)
           bottomNavigationBar: TossNavBar(
             index: _index,
             onTap: (i) => _selectTab(i),
             items: const [
               TossNavItem(Icons.credit_card, '카드'),
-              TossNavItem(Icons.local_offer_outlined, '혜택'),
+              TossNavItem(Icons.local_offer_outlined, '메인'), // 메인 탭
               TossNavItem(Icons.headset_mic_outlined, '문의'),
               TossNavItem(Icons.person_outline, '마이'),
             ],
@@ -246,7 +253,7 @@ class _MyRoot extends StatelessWidget {
   }
 }
 
-/// 임시 스텁 페이지
+/// 임시 스텁 페이지 (미사용)
 class _Stub extends StatelessWidget {
   final String title;
   const _Stub({required this.title});

@@ -11,7 +11,9 @@ import 'package:bnkandroid/user/loginpage.dart';
 import 'package:bnkandroid/chat/live_chat_modal.dart';
 
 class ChatbotModal extends StatefulWidget {
-  const ChatbotModal({super.key});
+  final BuildContext hostContext;
+  const ChatbotModal({super.key, required this.hostContext});
+
   @override
   State<ChatbotModal> createState() => _ChatbotModalState();
 }
@@ -118,10 +120,12 @@ class _ChatbotModalState extends State<ChatbotModal> {
     if (!mounted) return;
     Navigator.of(context).pop(); // 챗봇 모달 닫기
     showDialog(
-      context: context,
+      context: widget.hostContext,
       barrierDismissible: false,
+      useRootNavigator: false,                        // ← 중요!
       builder: (_) => LiveChatModal(roomId: rid),
     );
+
   }
 
   Future<int?> _openRoomOnServer() async {
@@ -144,7 +148,10 @@ class _ChatbotModalState extends State<ChatbotModal> {
       );
       if (goLogin == true && mounted) {
         Navigator.of(context).pop();
-        await LoginPage.goLoginThen(context, (_) => const _OpenLiveChatAfterLogin());
+        await LoginPage.goLoginThen(
+          widget.hostContext,
+              (_) => _OpenLiveChatAfterLogin(hostContext: widget.hostContext),
+        );
       }
       return null;
     }
@@ -527,7 +534,8 @@ class _ChatbotModalState extends State<ChatbotModal> {
 
 /// 로그인 후 자동으로 상담방을 열고 LiveChat 모달을 띄워주는 헬퍼 화면
 class _OpenLiveChatAfterLogin extends StatefulWidget {
-  const _OpenLiveChatAfterLogin();
+  final BuildContext hostContext; // ← 추가
+  const _OpenLiveChatAfterLogin({required this.hostContext});
   @override
   State<_OpenLiveChatAfterLogin> createState() => _OpenLiveChatAfterLoginState();
 }
@@ -576,11 +584,16 @@ class _OpenLiveChatAfterLoginState extends State<_OpenLiveChatAfterLogin> {
 
       if (rid != null && mounted) {
         Navigator.of(context).pop();
-        showDialog(context: context, barrierDismissible: false, builder: (_) => LiveChatModal(roomId: rid!));
+        showDialog(
+          context: widget.hostContext,
+          barrierDismissible: false,
+          useRootNavigator: false, // ← 중요!
+          builder: (_) => LiveChatModal(roomId: rid!),
+        );
       } else {
         if (mounted) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(widget.hostContext).showSnackBar(
             const SnackBar(content: Text('상담방 생성에 실패했습니다. (경로/권한 확인 필요)')),
           );
         }

@@ -8,6 +8,12 @@ import '../constants/chat_api.dart';
 import '../user/cardListPage.dart';
 import '../chat/widgets/chatbot_modal.dart';
 import '../constants/api.dart';  // 카드 API
+import '../feedback/feedback_sheet.dart';
+
+// ===== FEEDBACK INJECT START =====
+const bool kFeedbackOnFaqEnabled = true;   // <- 나중에 false로 끄면 끝
+const int  kFeedbackFaqCardNo    = 999000; // FAQ용 더미 카드번호(백엔드 NOT NULL 회피)
+// ===== FEEDBACK INJECT END =====
 
 class FaqPage extends StatefulWidget {
   const FaqPage({super.key});
@@ -16,12 +22,18 @@ class FaqPage extends StatefulWidget {
 }
 
 class _FaqPageState extends State<FaqPage> {
-  // ── BNK 부산은행 톤
-  static const _bnkRed = Color(0xFFD6001C);      // BNK 레드 (브랜드 메인)
-  static const _bnkRedDark = Color(0xFFA80016);  // 딥 레드 (그라데이션 하단)
-  static const _ink = Color(0xFF222222);
+  // ── BNK 부산은행 톤 (신한/농협의 화이트 + 은은한 회색, 강조는 BNK Red)
+  static const _bnkRed = Color(0xFFD6001C);
+  static const _bnkRedDark = Color(0xFFA80016);
+  static const _ink = Color(0xFF1C1C1F);
+  static const _muted = Color(0xFF6C727F);
   static const _bg = Color(0xFFF5F6F8);
+  static const _card = Colors.white;
+  static const _line = Color(0xFFE9EDF3);
   static const int _pageSize = 20;
+
+  // FEEDBACK
+  bool _feedbackShownOnce = false;
 
   final _scroll = ScrollController();
   final _queryCtrl = TextEditingController();
@@ -37,7 +49,7 @@ class _FaqPageState extends State<FaqPage> {
 
   Timer? _debounce;
 
-  // ── Tip Bubble(“궁금한 점…”)
+  // Tip Bubble(“궁금한 점…”)
   Timer? _tipTicker;
   bool _showTip = false;
   static const _tipInterval = Duration(seconds: 5);
@@ -48,6 +60,20 @@ class _FaqPageState extends State<FaqPage> {
     super.initState();
     _goTo(0);
     _startTipTicker();
+
+    // ===== FEEDBACK INJECT START =====
+    if (kFeedbackOnFaqEnabled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _feedbackShownOnce) return;
+        _feedbackShownOnce = true;
+        showFeedbackSheet(
+          context,
+          cardNo: kFeedbackFaqCardNo,
+          userNo: null,
+        );
+      });
+    }
+    // ===== FEEDBACK INJECT END =====
   }
 
   @override
@@ -99,10 +125,10 @@ class _FaqPageState extends State<FaqPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 상단 AppBar를 피해서 챗봇 버튼을 띄우기 위한 안전 오프셋
     final safeTop = MediaQuery.of(context).padding.top;
-    final chatTopOffset = safeTop + kToolbarHeight + 8; // AppBar 아래 살짝 띄움
+    final chatTopOffset = safeTop + kToolbarHeight + 8;
 
+    // 상단 앱바를 “투명 + 그라데이션 헤더”로 겹치게 연출
     return WillPopScope(
       onWillPop: () async {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => CardListPage()));
@@ -112,35 +138,64 @@ class _FaqPageState extends State<FaqPage> {
         backgroundColor: _bg,
         appBar: AppBar(
           title: const Text(
-            'FAQ',
+            '고객센터',
             style: TextStyle(
               fontWeight: FontWeight.w800,
               letterSpacing: 0.2,
-              color: _ink,
+              color: Colors.white,
             ),
           ),
           centerTitle: true,
           elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: _ink,
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
               Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => CardListPage()));
             },
           ),
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment( -0.9, -1.0),
+                end: Alignment( 0.9,  1.0),
+                colors: [_bnkRed, _bnkRedDark],
+              ),
+            ),
+          ),
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Container(height: 1, color: Colors.black.withOpacity(0.06)),
+            preferredSize: const Size.fromHeight(60),
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: _bg,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+              ),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: Row(
+                children: [
+                  const Icon(Icons.headset_mic_outlined, color: _bnkRed, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '자주 묻는 질문과 챗봇을 통해 빠르게 해결하세요.',
+                      style: TextStyle(color: _muted, fontSize: 13, height: 1.2),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
 
-        // FAB를 상단-우측에 "화면 위로" 띄우기 위해 Stack 오버레이 사용
         body: Stack(
           clipBehavior: Clip.none,
           children: [
             RefreshIndicator(
               onRefresh: _onRefresh,
+              color: _bnkRed,
               child: CustomScrollView(
                 controller: _scroll,
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -160,14 +215,13 @@ class _FaqPageState extends State<FaqPage> {
               ),
             ),
 
-            // 오른쪽 위로 띄운 챗봇 FAB + Tip 말풍선
+            // 오른쪽 위 “상단 고정” 챗봇 FAB + Tip
             Positioned(
               top: chatTopOffset,
               right: 12,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  // Tip 말풍선 (5초마다 2.5초 표시)
                   AnimatedSlide(
                     duration: const Duration(milliseconds: 260),
                     curve: Curves.easeOut,
@@ -190,7 +244,7 @@ class _FaqPageState extends State<FaqPage> {
                       showDialog(
                         context: context,
                         barrierDismissible: true,
-                        builder: (_) => const ChatbotModal(),
+                        builder: (_) => ChatbotModal(hostContext: context),
                       );
                     },
                   ),
@@ -203,66 +257,89 @@ class _FaqPageState extends State<FaqPage> {
     );
   }
 
+  // ───────────────── UI Blocks ─────────────────
+
   Widget _searchAndCategory() => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          controller: _queryCtrl,
-          textInputAction: TextInputAction.search,
-          onChanged: (_) {
-            _debounce?.cancel();
-            _debounce = Timer(const Duration(milliseconds: 400), () => _goTo(0));
-          },
-          onSubmitted: (_) {
-            _debounce?.cancel();
-            FocusScope.of(context).unfocus();
-            _goTo(0);
-          },
-          decoration: InputDecoration(
-            hintText: '검색어를 입력하세요',
-            prefixIcon: const Icon(Icons.search),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.black.withOpacity(0.06)),
-            ),
-            focusedBorder: const OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(14)),
-              borderSide: BorderSide(color: _bnkRed, width: 1.2),
-            ),
+        // 검색 상자: 신한/농협 톤의 플랫 화이트 + 얇은 라인
+        Container(
+          decoration: BoxDecoration(
+            color: _card,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _line),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 12),
+              const Icon(Icons.search, color: _muted),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _queryCtrl,
+                  textInputAction: TextInputAction.search,
+                  onChanged: (_) {
+                    _debounce?.cancel();
+                    _debounce = Timer(const Duration(milliseconds: 400), () => _goTo(0));
+                  },
+                  onSubmitted: (_) {
+                    _debounce?.cancel();
+                    FocusScope.of(context).unfocus();
+                    _goTo(0);
+                  },
+                  decoration: const InputDecoration(
+                    hintText: '검색어를 입력하세요',
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+              if (_queryCtrl.text.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20, color: _muted),
+                  onPressed: () {
+                    _queryCtrl.clear();
+                    _goTo(0);
+                    setState(() {}); // clear 아이콘 즉시 갱신
+                  },
+                  tooltip: '지우기',
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          children: ['전체', '카드'].map((c) {
-            final selected = _selectedCat == c;
-            return ChoiceChip(
-              label: Text(
-                c,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : _ink,
+
+        // 카테고리: 더 플랫하고 또렷한 세그먼트 느낌의 ChoiceChip
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: ['전체', '카드'].map((c) {
+              final selected = _selectedCat == c;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(
+                    c,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: selected ? Colors.white : _ink,
+                    ),
+                  ),
+                  selected: selected,
+                  backgroundColor: Colors.white,
+                  selectedColor: _bnkRed,
+                  side: BorderSide(color: selected ? _bnkRed : _line, width: 1),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  onSelected: (v) {
+                    if (!v) return;
+                    setState(() => _selectedCat = c);
+                    _goTo(0);
+                  },
                 ),
-              ),
-              selected: selected,
-              backgroundColor: Colors.white,
-              selectedColor: _bnkRed,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: selected ? _bnkRed : Colors.black.withOpacity(0.12)),
-              ),
-              onSelected: (v) {
-                if (!v) return;
-                setState(() => _selectedCat = c);
-                _goTo(0);
-              },
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
         const SizedBox(height: 4),
       ],
@@ -273,12 +350,20 @@ class _FaqPageState extends State<FaqPage> {
     padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
     child: Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFE4E6)),
+      ),
       child: Row(children: [
         const Icon(Icons.error_outline, color: _bnkRed),
         const SizedBox(width: 8),
-        Expanded(child: Text(_err)),
-        TextButton(onPressed: () => _goTo(_page), child: const Text('다시 시도')),
+        Expanded(child: Text(_err, style: TextStyle(color: _ink))),
+        TextButton(
+          onPressed: () => _goTo(_page),
+          style: TextButton.styleFrom(foregroundColor: _bnkRed, textStyle: const TextStyle(fontWeight: FontWeight.w700)),
+          child: const Text('다시 시도'),
+        ),
       ]),
     ),
   );
@@ -287,61 +372,93 @@ class _FaqPageState extends State<FaqPage> {
     padding: const EdgeInsets.fromLTRB(16, 40, 16, 0),
     child: Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _line),
+      ),
       child: Column(children: const [
         Icon(Icons.help_outline, size: 40, color: Colors.grey),
         SizedBox(height: 12),
-        Text('검색 결과가 없습니다.'),
+        Text('검색 결과가 없습니다.', style: TextStyle(fontWeight: FontWeight.w700)),
         SizedBox(height: 6),
         Text('카테고리/키워드를 바꿔 다시 시도해 주세요.', style: TextStyle(color: Colors.grey)),
       ]),
     ),
   );
 
-  Widget _faqTile(FaqModel m) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-    child: Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 6))],
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          leading: _badge(m.category),
-          title: Text(
-            m.faqQuestion,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              color: _ink,
-              letterSpacing: 0.1,
+  Widget _faqTile(FaqModel m) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _line),
+        ),
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            // 상단 카테고리 칼라바
+            leading: _catStripe(m.category),
+            title: Text(
+              m.faqQuestion,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: _ink,
+                letterSpacing: 0.1,
+              ),
             ),
+            subtitle: (m.regDate != null)
+                ? Text('업데이트 ${_fmt(m.regDate!)}', style: const TextStyle(color: _muted, fontSize: 12))
+                : null,
+            trailing: const Icon(Icons.keyboard_arrow_down_rounded, color: _muted),
+            iconColor: _bnkRed,
+            collapsedIconColor: _muted,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            backgroundColor: _card,
+            collapsedBackgroundColor: _card,
+            children: [
+              // 답변 본문(가독성 높게 행간)
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFDFDFE),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _line),
+                ),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                child: SelectableText(
+                  m.faqAnswer,
+                  style: const TextStyle(height: 1.56, fontSize: 15, color: _ink),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
           ),
-          subtitle: (m.regDate != null)
-              ? Text('업데이트 ${_fmt(m.regDate!)}', style: TextStyle(color: Colors.grey[600], fontSize: 12))
-              : null,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: SelectableText(m.faqAnswer, style: const TextStyle(height: 1.5)),
-            ),
-            const SizedBox(height: 6),
-          ],
         ),
       ),
-    ),
-  );
+    );
+  }
 
-  Widget _badge(String cat) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFEEF0),
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: _bnkRed.withOpacity(0.2)),
-    ),
-    child: Text(cat, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _ink)),
-  );
+  Widget _catStripe(String cat) {
+    // 카테고리별 색을 아주 은은하게
+    final Color stripe = switch (cat) {
+      '카드' => _bnkRed,
+      _ => const Color(0xFF2F6BFF), // 기본(신한톤 블루의 미묘한 인용)
+    };
+    return Container(
+      width: 8,
+      height: 28,
+      decoration: BoxDecoration(
+        color: stripe.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
 
   Widget _pager() {
     final start = _page * _pageSize + (_items.isEmpty ? 0 : 1);
@@ -351,15 +468,18 @@ class _FaqPageState extends State<FaqPage> {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 6))],
+          color: _card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _line),
         ),
         child: Row(
           children: [
             _pillButton(icon: Icons.chevron_left, label: '이전 20개', enabled: !_loading && _page > 0, onTap: () => _goTo(_page - 1)),
             const Spacer(),
-            Text((_items.isEmpty && !_loading) ? '항목 없음' : '항목 $start–$end',
-                style: const TextStyle(fontWeight: FontWeight.w700, color: _ink)),
+            Text(
+              (_items.isEmpty && !_loading) ? '항목 없음' : '항목 $start–$end',
+              style: const TextStyle(fontWeight: FontWeight.w700, color: _ink),
+            ),
             const Spacer(),
             _pillButton(icon: Icons.chevron_right, label: '다음 20개', primary: true, enabled: !_loading && !_last, onTap: () => _goTo(_page + 1)),
           ],
@@ -375,9 +495,9 @@ class _FaqPageState extends State<FaqPage> {
     required VoidCallback onTap,
     bool primary = false,
   }) {
-    final bg = primary ? _bnkRed : Colors.white;
+    final bg = primary ? _bnkRed : _card;
     final fg = primary ? Colors.white : _ink;
-    final side = primary ? BorderSide.none : BorderSide(color: Colors.black.withOpacity(0.15));
+    final side = primary ? BorderSide.none : const BorderSide(color: _line);
     return SizedBox(
       height: 44,
       child: OutlinedButton.icon(
@@ -391,6 +511,7 @@ class _FaqPageState extends State<FaqPage> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
           padding: const EdgeInsets.symmetric(horizontal: 14),
           elevation: 0,
+          disabledForegroundColor: _muted.withOpacity(0.5),
         ),
       ),
     );
@@ -401,7 +522,7 @@ class _FaqPageState extends State<FaqPage> {
 }
 
 /// ─────────────────────────────────────────────────────────────────
-/// 아주 깔끔한 BNK 톤 챗봇 FAB (상단 고정용 원형)
+/// BNK 톤 챗봇 FAB (상단 고정 원형) — 디자인만 정리
 class _ChatFab extends StatelessWidget {
   final VoidCallback onTap;
   final bool compact; // true: 원형(상단용), false: 라벨 포함 캡슐
@@ -410,7 +531,6 @@ class _ChatFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (compact) {
-      // 상단 고정에 어울리는 “미니멀 원형” : 그림자 최소화, 경계만 살짝
       return Semantics(
         button: true,
         label: '챗봇 열기',
@@ -426,14 +546,6 @@ class _ChatFab extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: [_FaqPageState._bnkRed, _FaqPageState._bnkRedDark],
               ),
-              boxShadow: const [
-                // 과한 그림자 제거하고, 미세한 깊이감만
-                BoxShadow(
-                  color: Color(0x22000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 3),
-                ),
-              ],
               border: Border.all(color: Colors.white.withOpacity(0.22), width: 1),
             ),
             child: InkWell(
@@ -442,7 +554,6 @@ class _ChatFab extends StatelessWidget {
               splashColor: Colors.white.withOpacity(0.14),
               highlightColor: Colors.white.withOpacity(0.08),
               child: const Center(
-                // 미니멀 로봇 아이콘 (알록달록/그림자 X)
                 child: Icon(Icons.smart_toy_outlined, color: Colors.white, size: 26),
               ),
             ),
@@ -465,9 +576,6 @@ class _ChatFab extends StatelessWidget {
               colors: [_FaqPageState._bnkRed, _FaqPageState._bnkRedDark],
             ),
             borderRadius: BorderRadius.circular(28),
-            boxShadow: const [
-              BoxShadow(color: Color(0x22000000), blurRadius: 10, offset: Offset(0, 4)),
-            ],
             border: Border.all(color: Colors.white.withOpacity(0.10), width: 1),
           ),
           child: InkWell(
@@ -509,12 +617,9 @@ class _IconCap extends StatelessWidget {
     return Container(
       width: 44,
       height: 44,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
         shape: BoxShape.circle,
-        boxShadow: const [
-          BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 3)),
-        ],
       ),
       child: const Icon(Icons.smart_toy_outlined, color: _FaqPageState._bnkRed, size: 24),
     );
@@ -545,16 +650,12 @@ class _TipBubble extends StatelessWidget {
             color: bg,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: border),
-            boxShadow: const [
-              BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 3)),
-            ],
           ),
           child: Text(
             text,
             style: TextStyle(color: fg, fontWeight: FontWeight.w600),
           ),
         ),
-        // 꼬리(오른쪽 아래)
         Positioned(
           right: 10,
           bottom: -6,
@@ -577,4 +678,3 @@ class _TipBubble extends StatelessWidget {
     );
   }
 }
-

@@ -44,7 +44,7 @@ public class RestLoginSuccessHandler implements AuthenticationSuccessHandler {
         var roles = authentication.getAuthorities().stream()
                      .map(auth -> auth.getAuthority())
                      .toList();
-        String token = jwtTokenProvider.createToken(userDetails.getUsername(), user.getName(), roles);
+        String token = jwtTokenProvider.createToken(userDetails.getUsername(), user.getMemberNo(), user.getName(), roles);
         
         //JSON 응답 (토큰 포함)
         response.setStatus(HttpServletResponse.SC_OK);

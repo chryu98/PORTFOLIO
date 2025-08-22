@@ -6,7 +6,7 @@
   <resultMap id="CardInsightMap" type="com.busanbank.card.admin.dto.CardInsightDto">
     <result column="card_no"                  property="cardNo"/>
     <result column="card_name"                property="cardName"/>
-    <result column="card_image_url"           property="cardImageUrl"/>
+    <!-- card_image_url 매핑 제거 -->
     <result column="card_product_url"         property="cardProductUrl"/>
 
     <result column="views"                    property="views"/>
@@ -30,112 +30,113 @@
     <result column="user_agent"               property="userAgent"/>
     <result column="ip_address"               property="ipAddress"/>
 
+    <!-- ★ 추가 -->
+    <result column="member_name"              property="memberName"/>
+
     <result column="metric_type"              property="metricType"/>
     <result column="from_date"                property="fromDate"/>
     <result column="to_date"                  property="toDate"/>
   </resultMap>
 
-  <!-- 1) 인기 카드: CARD 조인, CLOB -> VARCHAR2 변환 -->
-<select id="selectPopular" resultMap="CardInsightMap">
-  <![CDATA[
-  WITH agg AS (
-    SELECT l.card_no,
-           SUM(CASE WHEN l.behavior_type='VIEW'  THEN 1 ELSE 0 END) AS views,
-           SUM(CASE WHEN l.behavior_type='CLICK' THEN 1 ELSE 0 END) AS clicks,
-           SUM(CASE WHEN l.behavior_type LIKE 'APPLY%' THEN 1 ELSE 0 END) AS applies,
-           SUM(CASE WHEN l.behavior_type='VIEW'  THEN 1
-                    WHEN l.behavior_type='CLICK' THEN 4
-                    WHEN l.behavior_type LIKE 'APPLY%' THEN 12
-                    ELSE 0 END) AS score,
-           CASE WHEN SUM(CASE WHEN l.behavior_type='VIEW' THEN 1 ELSE 0 END)=0 THEN NULL
-                ELSE 1.0 * SUM(CASE WHEN l.behavior_type='CLICK' THEN 1 ELSE 0 END)
-                         / SUM(CASE WHEN l.behavior_type='VIEW'  THEN 1 ELSE 0 END)
-           END AS ctr,
-           CASE WHEN SUM(CASE WHEN l.behavior_type='VIEW' THEN 1 ELSE 0 END)=0 THEN NULL
-                ELSE 1.0 * SUM(CASE WHEN l.behavior_type LIKE 'APPLY%' THEN 1 ELSE 0 END)
-                         / SUM(CASE WHEN l.behavior_type='VIEW'  THEN 1 ELSE 0 END)
-           END AS cvr
-    FROM CARD_BEHAVIOR_LOG l
-    WHERE l.behavior_time >= (SYSDATE - #{days})
-      AND NVL(l.member_no,0) != 0
-    GROUP BY l.card_no
-  )
-  SELECT *
-  FROM (
-    SELECT
-      a.card_no AS card_no,
-      c.card_name AS card_name,
-      -- CLOB -> VARCHAR2 (프론트/ResultMap 맞추려면 별칭을 card_product_url 로!)
-      DBMS_LOB.SUBSTR(c.card_url, 4000, 1) AS card_product_url,
-      a.views, a.clicks, a.applies, a.score, a.ctr, a.cvr,
-      'POPULARITY' AS metric_type,
-      NULL AS other_card_no, NULL AS other_card_name, NULL AS other_card_image_url, NULL AS other_card_product_url, NULL AS sim_score,
-      NULL AS log_no, NULL AS member_no, NULL AS behavior_type, NULL AS behavior_time,
-      NULL AS device_type, NULL AS user_agent, NULL AS ip_address,
-      NULL AS from_date, NULL AS to_date
-    FROM agg a
-    LEFT JOIN CARD c ON c.card_no = a.card_no
-    ORDER BY a.score DESC
-  )
-  WHERE ROWNUM <= #{limit}
-  ]]>
-</select>
+  <!-- (변경 없음) 인기 -->
+  <select id="selectPopular" resultMap="CardInsightMap">
+    <![CDATA[
+    WITH agg AS (
+      SELECT l.card_no,
+             SUM(CASE WHEN l.behavior_type='VIEW'  THEN 1 ELSE 0 END) AS views,
+             SUM(CASE WHEN l.behavior_type='CLICK' THEN 1 ELSE 0 END) AS clicks,
+             SUM(CASE WHEN l.behavior_type LIKE 'APPLY%' THEN 1 ELSE 0 END) AS applies,
+             SUM(CASE WHEN l.behavior_type='VIEW'  THEN 1
+                      WHEN l.behavior_type='CLICK' THEN 4
+                      WHEN l.behavior_type LIKE 'APPLY%' THEN 12
+                      ELSE 0 END) AS score,
+             CASE WHEN SUM(CASE WHEN l.behavior_type='VIEW' THEN 1 ELSE 0 END)=0 THEN NULL
+                  ELSE 1.0 * SUM(CASE WHEN l.behavior_type='CLICK' THEN 1 ELSE 0 END)
+                           / SUM(CASE WHEN l.behavior_type='VIEW'  THEN 1 ELSE 0 END)
+             END AS ctr,
+             CASE WHEN SUM(CASE WHEN l.behavior_type='VIEW' THEN 1 ELSE 0 END)=0 THEN NULL
+                  ELSE 1.0 * SUM(CASE WHEN l.behavior_type LIKE 'APPLY%' THEN 1 ELSE 0 END)
+                           / SUM(CASE WHEN l.behavior_type='VIEW'  THEN 1 ELSE 0 END)
+             END AS cvr
+      FROM CARD_BEHAVIOR_LOG l
+      WHERE l.behavior_time >= (SYSDATE - #{days})
+        AND NVL(l.member_no,0) != 0
+      GROUP BY l.card_no
+    )
+    SELECT *
+    FROM (
+      SELECT
+        a.card_no AS card_no,
+        c.card_name AS card_name,
+        DBMS_LOB.SUBSTR(c.card_url, 4000, 1) AS card_product_url,
+        a.views, a.clicks, a.applies, a.score, a.ctr, a.cvr,
+        'POPULARITY' AS metric_type,
+        NULL AS other_card_no, NULL AS other_card_name, NULL AS other_card_image_url, NULL AS other_card_product_url, NULL AS sim_score,
+        NULL AS log_no, NULL AS member_no, NULL AS behavior_type, NULL AS behavior_time,
+        NULL AS device_type, NULL AS user_agent, NULL AS ip_address,
+        NULL AS member_name,
+        NULL AS from_date, NULL AS to_date
+      FROM agg a
+      LEFT JOIN CARD c ON c.card_no = a.card_no
+      ORDER BY a.score DESC
+    )
+    WHERE ROWNUM <= #{limit}
+    ]]>
+  </select>
 
+  <!-- (변경 없음) 유사 -->
+  <select id="selectSimilar" resultMap="CardInsightMap">
+    <![CDATA[
+    WITH base AS (
+      SELECT DISTINCT member_no
+      FROM CARD_BEHAVIOR_LOG
+      WHERE card_no = #{cardNo}
+        AND behavior_time >= (SYSDATE - #{days})
+        AND NVL(member_no,0) != 0
+    ),
+    pairs AS (
+      SELECT l2.card_no AS other_card_no,
+             SUM(CASE 
+                   WHEN l2.behavior_type='VIEW'  THEN 1
+                   WHEN l2.behavior_type='CLICK' THEN 4
+                   WHEN l2.behavior_type LIKE 'APPLY%' THEN 12
+                   ELSE 0 
+                 END) AS sim_score
+      FROM CARD_BEHAVIOR_LOG l2
+      JOIN base b ON b.member_no = l2.member_no
+      WHERE l2.behavior_time >= (SYSDATE - #{days})
+        AND l2.card_no != #{cardNo}
+      GROUP BY l2.card_no
+    )
+    SELECT *
+    FROM (
+      SELECT
+        #{cardNo} AS card_no,
+        c.card_name AS card_name,
+        DBMS_LOB.SUBSTR(c.card_url, 4000, 1) AS card_product_url,
+        p.other_card_no,
+        o.card_name AS other_card_name,
+        DBMS_LOB.SUBSTR(o.card_url, 4000, 1) AS other_card_product_url,
+        p.sim_score,
+        'SIMILARITY' AS metric_type,
+        NULL AS views, NULL AS clicks, NULL AS applies, NULL AS score, NULL AS ctr, NULL AS cvr,
+        NULL AS log_no, NULL AS member_no, NULL AS behavior_type, NULL AS behavior_time,
+        NULL AS device_type, NULL AS user_agent, NULL AS ip_address,
+        NULL AS member_name,
+        NULL AS from_date, NULL AS to_date
+      FROM pairs p
+      JOIN CARD o ON o.card_no = p.other_card_no
+      JOIN CARD c ON c.card_no = #{cardNo}
+      ORDER BY p.sim_score DESC
+    )
+    WHERE ROWNUM <= #{limit}
+    ]]>
+  </select>
 
-
-  <!-- 2) 유사 카드: pairs + CARD 조인, CLOB -> VARCHAR2 -->
-<select id="selectSimilar" resultMap="CardInsightMap">
-  <![CDATA[
-  WITH base AS (
-    SELECT DISTINCT member_no
-    FROM CARD_BEHAVIOR_LOG
-    WHERE card_no = #{cardNo}
-      AND behavior_time >= (SYSDATE - #{days})
-      AND NVL(member_no,0) != 0
-  ),
-  pairs AS (
-    SELECT l2.card_no AS other_card_no,
-           SUM(CASE 
-                 WHEN l2.behavior_type='VIEW'  THEN 1
-                 WHEN l2.behavior_type='CLICK' THEN 4
-                 WHEN l2.behavior_type LIKE 'APPLY%' THEN 12
-                 ELSE 0 
-               END) AS sim_score
-    FROM CARD_BEHAVIOR_LOG l2
-    JOIN base b ON b.member_no = l2.member_no
-    WHERE l2.behavior_time >= (SYSDATE - #{days})
-      AND l2.card_no != #{cardNo}
-    GROUP BY l2.card_no
-  )
-  SELECT *
-  FROM (
-    SELECT
-      #{cardNo} AS card_no,
-      c.card_name AS card_name,
-      DBMS_LOB.SUBSTR(c.card_url, 4000, 1) AS card_product_url,
-      p.other_card_no,
-      o.card_name AS other_card_name,
-      DBMS_LOB.SUBSTR(o.card_url, 4000, 1) AS other_card_product_url,
-      p.sim_score,
-      'SIMILARITY' AS metric_type,
-      NULL AS views, NULL AS clicks, NULL AS applies, NULL AS score, NULL AS ctr, NULL AS cvr,
-      NULL AS log_no, NULL AS member_no, NULL AS behavior_type, NULL AS behavior_time,
-      NULL AS device_type, NULL AS user_agent, NULL AS ip_address,
-      NULL AS from_date, NULL AS to_date
-    FROM pairs p
-    JOIN CARD o ON o.card_no = p.other_card_no
-    JOIN CARD c ON c.card_no = #{cardNo}
-    ORDER BY p.sim_score DESC
-  )
-  WHERE ROWNUM <= #{limit}
-  ]]>
-</select>
-
-
-  <!-- 3) KPI: 변경 없음 -->
+  <!-- KPI (변경 없음) -->
   <select id="selectKpi" resultMap="CardInsightMap">
     SELECT
-      NULL AS card_no, NULL AS card_name, NULL AS card_image_url, NULL AS card_product_url,
+      NULL AS card_no, NULL AS card_name, NULL AS card_product_url,
       SUM(CASE WHEN behavior_type='VIEW'  THEN 1 ELSE 0 END) AS views,
       SUM(CASE WHEN behavior_type='CLICK' THEN 1 ELSE 0 END) AS clicks,
       SUM(CASE WHEN behavior_type LIKE 'APPLY%' THEN 1 ELSE 0 END) AS applies,
@@ -152,22 +153,27 @@
       NULL AS other_card_no, NULL AS other_card_name, NULL AS other_card_image_url, NULL AS other_card_product_url, NULL AS sim_score,
       NULL AS log_no, NULL AS member_no, NULL AS behavior_type, NULL AS behavior_time,
       NULL AS device_type, NULL AS user_agent, NULL AS ip_address,
+      NULL AS member_name,
       (SYSDATE - #{days}) AS from_date, SYSDATE AS to_date
     FROM CARD_BEHAVIOR_LOG
     WHERE behavior_time >= (SYSDATE - #{days})
       AND NVL(member_no,0) != 0
   </select>
 
-  <!-- 4) 로그: 변경 없음 -->
+  <!-- ★ 로그: CARD/MEMBER JOIN해서 이름/URL 같이 내려줌 -->
   <select id="selectLogs" resultMap="CardInsightMap">
     SELECT
       l.log_no, l.member_no, l.card_no, l.behavior_type, l.behavior_time,
       l.device_type, l.user_agent, l.ip_address,
-      NULL AS card_name, NULL AS card_image_url, NULL AS card_product_url,
+      c.card_name,
+      DBMS_LOB.SUBSTR(c.card_url, 4000, 1) AS card_product_url,
+      m.name AS member_name,
       NULL AS views, NULL AS clicks, NULL AS applies, NULL AS score,
       NULL AS ctr, NULL AS cvr, NULL AS other_card_no, NULL AS other_card_name, NULL AS other_card_image_url, NULL AS other_card_product_url, NULL AS sim_score,
       'LOG' AS metric_type, NULL AS from_date, NULL AS to_date
     FROM CARD_BEHAVIOR_LOG l
+    LEFT JOIN CARD c   ON c.card_no   = l.card_no
+    LEFT JOIN MEMBER m ON m.member_no = l.member_no
     WHERE 1=1
       <if test="memberNo != null"> AND l.member_no = #{memberNo} </if>
       <if test="cardNo != null">   AND l.card_no   = #{cardNo}   </if>
@@ -178,32 +184,70 @@
     OFFSET #{offset} ROWS FETCH NEXT #{pageSize} ROWS ONLY
   </select>
 
-
-<select id="findTopCardNoByName" parameterType="map" resultType="long">
-  <![CDATA[
-  WITH score AS (
-    SELECT l.card_no,
-           SUM(CASE
-                 WHEN l.behavior_type='VIEW'  THEN 1
-                 WHEN l.behavior_type='CLICK' THEN 4
-                 WHEN l.behavior_type LIKE 'APPLY%' THEN 12
-                 ELSE 0
-               END) AS s
-    FROM CARD_BEHAVIOR_LOG l
-    WHERE l.behavior_time >= (SYSDATE - NVL(#{days}, 90))
-      AND NVL(l.member_no,0) != 0
-    GROUP BY l.card_no
-  )
-  SELECT card_no FROM (
-    SELECT c.card_no,
-           NVL(sc.s, 0) AS score
+  <!-- ★ 자동완성: 카드 -->
+  <select id="searchCards" resultMap="CardInsightMap">
+    SELECT
+      c.card_no, c.card_name,
+      DBMS_LOB.SUBSTR(c.card_url, 4000, 1) AS card_product_url,
+      NULL AS views, NULL AS clicks, NULL AS applies, NULL AS score, NULL AS ctr, NULL AS cvr,
+      NULL AS other_card_no, NULL AS other_card_name, NULL AS other_card_image_url, NULL AS other_card_product_url, NULL AS sim_score,
+      NULL AS log_no, NULL AS member_no, NULL AS behavior_type, NULL AS behavior_time,
+      NULL AS device_type, NULL AS user_agent, NULL AS ip_address,
+      NULL AS member_name,
+      NULL AS metric_type, NULL AS from_date, NULL AS to_date
     FROM CARD c
-    LEFT JOIN score sc ON sc.card_no = c.card_no
-    WHERE c.card_name LIKE '%' || #{name} || '%'
-      /* 필요시 상태 필터: AND c.is_active = 'Y' */
-    ORDER BY NVL(sc.s,0) DESC, c.card_no ASC
-  )
-  WHERE ROWNUM = 1
-  ]]>
-</select>
+    WHERE 1=1
+      <if test="q != null and q != ''">
+        AND (c.card_name LIKE '%' || #{q} || '%' OR TO_CHAR(c.card_no) = #{q})
+      </if>
+    ORDER BY NVL(c.view_count,0) DESC NULLS LAST, c.card_no
+    FETCH FIRST 10 ROWS ONLY
+  </select>
+
+  <!-- ★ 자동완성: 회원 -->
+  <select id="searchMembers" resultMap="CardInsightMap">
+    SELECT
+      NULL AS card_name, NULL AS card_product_url,
+      NULL AS views, NULL AS clicks, NULL AS applies, NULL AS score, NULL AS ctr, NULL AS cvr,
+      NULL AS other_card_no, NULL AS other_card_name, NULL AS other_card_image_url, NULL AS other_card_product_url, NULL AS sim_score,
+      NULL AS behavior_type, NULL AS behavior_time,
+      NULL AS device_type, NULL AS user_agent, NULL AS ip_address,
+      'LOOKUP' AS metric_type, NULL AS from_date, NULL AS to_date,
+      m.member_no, m.name AS member_name,
+      NULL AS card_no, NULL AS log_no
+    FROM MEMBER m
+    WHERE 1=1
+      <if test="q != null and q != ''">
+        AND (m.name LIKE '%' || #{q} || '%' OR TO_CHAR(m.member_no) = #{q})
+      </if>
+    ORDER BY m.member_no
+    FETCH FIRST 10 ROWS ONLY
+  </select>
+
+  <!-- (기존) 이름으로 카드 찾기 -->
+  <select id="findTopCardNoByName" parameterType="map" resultType="long">
+    <![CDATA[
+    WITH score AS (
+      SELECT l.card_no,
+             SUM(CASE
+                   WHEN l.behavior_type='VIEW'  THEN 1
+                   WHEN l.behavior_type='CLICK' THEN 4
+                   WHEN l.behavior_type LIKE 'APPLY%' THEN 12
+                   ELSE 0
+                 END) AS s
+      FROM CARD_BEHAVIOR_LOG l
+      WHERE l.behavior_time >= (SYSDATE - NVL(#{days}, 90))
+        AND NVL(l.member_no,0) != 0
+      GROUP BY l.card_no
+    )
+    SELECT card_no FROM (
+      SELECT c.card_no, NVL(sc.s, 0) AS score
+      FROM CARD c
+      LEFT JOIN score sc ON sc.card_no = c.card_no
+      WHERE c.card_name LIKE '%' || #{name} || '%'
+      ORDER BY NVL(sc.s,0) DESC, c.card_no ASC
+    )
+    WHERE ROWNUM = 1
+    ]]>
+  </select>
 </mapper>

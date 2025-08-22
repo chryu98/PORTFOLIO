@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'EditProfilePage.dart';
 
 const kPrimaryRed = Color(0xffB91111);
 const kBorderGray = Color(0xFFE6E8EE);
@@ -62,7 +63,12 @@ class _MyPageState extends State<MyPage> {
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EditProfilePage()),
+                      );
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: kText,

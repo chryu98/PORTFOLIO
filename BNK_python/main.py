@@ -1,13 +1,14 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+from dotenv import load_dotenv
+from feedback_analyze import router as feedback_router
 import os, logging
 from logging.handlers import RotatingFileHandler
-from pydantic import BaseModel
 from typing import List, Optional
 import pandas as pd
 import shutil
-from dotenv import load_dotenv
-
 
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -147,3 +148,4 @@ async def ocr_id(idImage: UploadFile = File(...)):
         return {"status": "ERROR", "reason": str(e)}
 
 
+app.include_router(feedback_router)  

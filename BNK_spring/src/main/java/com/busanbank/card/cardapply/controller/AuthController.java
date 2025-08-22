@@ -45,7 +45,7 @@ public class AuthController {
         UserDto user = userDao.findByUsername(loginRequest.getUsername());
         String name = user.getName();
         
-        String token = jwtTokenProvider.createToken(loginRequest.getUsername(), user.getName(), roles);
+        String token = jwtTokenProvider.createToken(loginRequest.getUsername(), user.getMemberNo(), user.getName(), roles);
 
         return ResponseEntity.ok(new JwtResponse(token));
     }
