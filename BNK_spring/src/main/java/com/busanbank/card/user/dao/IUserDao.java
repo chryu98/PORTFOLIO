@@ -9,6 +9,7 @@ import org.apache.ibatis.annotations.Update;
 
 import com.busanbank.card.card.dto.CardDto;
 import com.busanbank.card.cardapply.dto.AddressDto;
+import com.busanbank.card.user.dto.PushMemberDto;
 import com.busanbank.card.user.dto.TermDto;
 import com.busanbank.card.user.dto.TermsAgreementDto;
 import com.busanbank.card.user.dto.UserDto;
@@ -40,7 +41,7 @@ public interface IUserDao {
                zip_code = #{zipCode},
                address1 = #{address1},
                address2 = #{address2}
-         WHERE username = #{username}
+         WHERE member_no = #{memberNo}
     """)
     int updateMember(UserDto user);
     
@@ -59,5 +60,15 @@ public interface IUserDao {
     @Select("SELECT card_url, card_name FROM card WHERE card_no IN (1, 2, 3)")
     List<CardDto> findMyCard();
     
+    @Update("""
+            UPDATE push_member
+               SET push_yn = #{pushYn},
+                   agreed_at = SYSDATE
+             WHERE member_no = #{memberNo}
+        """)
+        int updatePushMember(PushMemberDto pushMember);
+    
+    @Select("SELECT push_yn FROM push_member WHERE member_no = #{memberNo}")
+    char findPushYn(int memberNo);
     
 }

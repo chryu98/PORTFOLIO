@@ -114,7 +114,10 @@ class _UserRegistFormPageState extends State<UserRegistFormPage> {
       "rrnBack": rrnBackController.text.trim(),
       "zipCode": zipCodeController.text.trim(),
       "address1": address1Controller.text.trim(),
-      "extraAddress": extraAddressController.text.trim(),
+      // 여기서 괄호를 포함해서 보냄
+      "extraAddress": extraAddressController.text.trim().isNotEmpty
+          ? " (${extraAddressController.text.trim()})"
+          : "",
       "address2": address2Controller.text.trim(),
       "role": widget.role,
     };
