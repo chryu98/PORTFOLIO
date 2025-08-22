@@ -203,7 +203,7 @@ class _GuidedCameraPageState extends State<GuidedCameraPage> {
 
                 // 셔터
                 Positioned(
-                  bottom: 24,
+                  bottom: 24 + MediaQuery.of(context).padding.bottom,
                   left: 0,
                   right: 0,
                   child: Center(
