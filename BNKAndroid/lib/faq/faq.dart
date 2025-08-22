@@ -1,7 +1,7 @@
 // lib/faq/faq.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ← FAB 위치 저장
+import 'package:shared_preferences/shared_preferences.dart'; // 위치 저장
 import 'service/FaqService.dart';
 import 'model/FaqModel.dart';
 import '../constants/faq_api.dart';
@@ -12,7 +12,7 @@ import '../constants/api.dart';  // 카드 API
 import '../feedback/feedback_sheet.dart';
 
 // ===== FEEDBACK INJECT START =====
-const bool kFeedbackOnFaqEnabled = true;   // <- 나중에 false로 끄면 끝
+const bool kFeedbackOnFaqEnabled = false;   // <- 나중에 false로 끄면 끝
 const int  kFeedbackFaqCardNo    = 999000; // FAQ용 더미 카드번호(백엔드 NOT NULL 회피)
 // ===== FEEDBACK INJECT END =====
 
@@ -53,53 +53,88 @@ class _FaqPageState extends State<FaqPage> {
 
   Timer? _debounce;
 
-  // Tip Bubble
-  Timer? _tipTicker;
+  // Tip Bubble — 주기적으로 보여줌
   bool _showTip = false;
-  static const _tipInterval = Duration(seconds: 5);
-  static const _tipVisibleFor = Duration(milliseconds: 2500);
+  static const _tipVisibleFor = Duration(milliseconds: 2400);
+  static const _tipInterval = Duration(seconds: 6);
+  Timer? _tipTicker;
 
-  // ── Draggable Chat FAB 상태
+  // ── Draggable Chat FAB 상태 (비율 저장)
   static const double _fabSize = 56;
   static const double _edgeMargin = 8;
-  static const String _prefChatX = 'faq_chat_x';
-  static const String _prefChatY = 'faq_chat_y';
+  static const String _prefChatXPct = 'faq_chat_x_pct';
+  static const String _prefChatYPct = 'faq_chat_y_pct';
+  // (구버전 호환: 절대좌표 키)
+  static const String _prefChatXAbs = 'faq_chat_x';
+  static const String _prefChatYAbs = 'faq_chat_y';
 
-  Offset? _chatPos;                 // FAB 현재 위치 (Stack 기준)
+  // 현재 위치(픽셀)와 저장용 비율
+  Offset? _chatPos;          // Stack 좌표계
+  double? _chatXPct;         // 0.0 ~ 1.0
+  double? _chatYPct;
   Offset _chatPosStart = Offset.zero;
   bool _dragging = false;
 
-  Future<void> _loadChatPos() async {
+  Future<void> _loadChatPref() async {
     final sp = await SharedPreferences.getInstance();
-    final x = sp.getDouble(_prefChatX);
-    final y = sp.getDouble(_prefChatY);
-    if (x != null && y != null) {
-      setState(() => _chatPos = Offset(x, y));
+    _chatXPct = sp.getDouble(_prefChatXPct);
+    _chatYPct = sp.getDouble(_prefChatYPct);
+
+    // 구버전 절대좌표가 있으면 1회 마이그레이션 (LayoutBuilder에서 비율로 환산)
+    if (_chatXPct == null || _chatYPct == null) {
+      final xAbs = sp.getDouble(_prefChatXAbs);
+      final yAbs = sp.getDouble(_prefChatYAbs);
+      if (xAbs != null && yAbs != null) {
+        // 일단 임시로 pos만 들고 있다가 builder에서 화면크기로 비율 변환
+        _chatPos = Offset(xAbs, yAbs);
+      }
     }
   }
 
-  Future<void> _saveChatPos() async {
+  Future<void> _saveChatPref(Size stackSize) async {
     if (_chatPos == null) return;
     final sp = await SharedPreferences.getInstance();
-    await sp.setDouble(_prefChatX, _chatPos!.dx);
-    await sp.setDouble(_prefChatY, _chatPos!.dy);
+    _chatXPct = (_chatPos!.dx / stackSize.width).clamp(0.0, 1.0);
+    _chatYPct = (_chatPos!.dy / stackSize.height).clamp(0.0, 1.0);
+    await sp.setDouble(_prefChatXPct, _chatXPct!);
+    await sp.setDouble(_prefChatYPct, _chatYPct!);
   }
 
-  Offset _clampChatPos(Offset p, Size screen) {
-    final maxX = screen.width  - _fabSize - _edgeMargin;
-    final maxY = screen.height - _fabSize - _edgeMargin;
+  Offset _clampToStack(Offset p, Size stack) {
+    final maxX = stack.width  - _fabSize - _edgeMargin;
+    final maxY = stack.height - _fabSize - _edgeMargin;
     return Offset(
       p.dx.clamp(_edgeMargin, maxX),
       p.dy.clamp(_edgeMargin, maxY),
     );
   }
 
+  void _startTipTicker() {
+    _tipTicker?.cancel();
+    // 첫 진입 0.8초 후 1회, 이후 주기적으로 반복
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      setState(() => _showTip = true);
+      Future.delayed(_tipVisibleFor, () {
+        if (!mounted) return;
+        setState(() => _showTip = false);
+        // 이후 주기 반복
+        _tipTicker = Timer.periodic(_tipInterval, (_) {
+          if (!mounted) return;
+          setState(() => _showTip = true);
+          Future.delayed(_tipVisibleFor, () {
+            if (mounted) setState(() => _showTip = false);
+          });
+        });
+      });
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _goTo(0);
-    _startTipTicker();
-    _loadChatPos(); // ← FAB 저장된 위치 복구
+    _loadChatPref().then((_) => _startTipTicker());
 
     // ===== FEEDBACK INJECT START =====
     if (kFeedbackOnFaqEnabled) {
@@ -123,17 +158,6 @@ class _FaqPageState extends State<FaqPage> {
     _scroll.dispose();
     _queryCtrl.dispose();
     super.dispose();
-  }
-
-  void _startTipTicker() {
-    _tipTicker?.cancel();
-    _tipTicker = Timer.periodic(_tipInterval, (_) {
-      if (!mounted) return;
-      setState(() => _showTip = true);
-      Future.delayed(_tipVisibleFor, () {
-        if (mounted) setState(() => _showTip = false);
-      });
-    });
   }
 
   String _effectiveQuery() {
@@ -163,7 +187,7 @@ class _FaqPageState extends State<FaqPage> {
 
   Future<void> _onRefresh() async => _goTo(0);
 
-  // 뒤로가기 처리 공통 함수(현재는 사용 안 하지만 필요시 호출)
+  // (옵션) 뒤로가기 처리
   Future<void> _handleBackPressed() async {
     final didPop = await Navigator.of(context).maybePop();
     if (!didPop && kBackFallbackToCardList) {
@@ -176,12 +200,10 @@ class _FaqPageState extends State<FaqPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screen = MediaQuery.of(context).size;
-
     return WillPopScope(
       onWillPop: () async {
         if (Navigator.of(context).canPop()) {
-          return true; // 기본 동작(이전 화면으로)
+          return true;
         }
         if (kBackFallbackToCardList) {
           Navigator.of(context).pushReplacement(
@@ -189,12 +211,12 @@ class _FaqPageState extends State<FaqPage> {
           );
           return false;
         }
-        return true; // 최상단이면 앱/셸 기본 동작(종료/탭 복귀 등)
+        return true;
       },
       child: Scaffold(
         backgroundColor: _bg,
         appBar: AppBar(
-          automaticallyImplyLeading: false, // ← 왼쪽 위 뒤로가기 제거
+          automaticallyImplyLeading: false, // 뒤로가기 제거
           title: const Text(
             '고객센터',
             style: TextStyle(
@@ -242,92 +264,130 @@ class _FaqPageState extends State<FaqPage> {
           ),
         ),
 
-        body: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            RefreshIndicator(
-              onRefresh: _onRefresh,
-              color: _bnkRed,
-              child: CustomScrollView(
-                controller: _scroll,
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  SliverToBoxAdapter(child: _searchAndCategory()),
-                  if (_err.isNotEmpty) SliverToBoxAdapter(child: _errorCard()),
-                  if (_items.isEmpty && _err.isEmpty && !_loading)
-                    SliverToBoxAdapter(child: _emptyCard()),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                          (context, i) => _faqTile(_items[i]),
-                      childCount: _items.length,
-                    ),
+        body: LayoutBuilder(
+          builder: (context, cs) {
+            final stackSize = Size(cs.maxWidth, cs.maxHeight);
+
+
+            final defaultPos = _clampToStack(
+              Offset(stackSize.width - _fabSize - 16, stackSize.height - _fabSize - 24),
+              stackSize,
+            );
+
+            // 위치 결정 우선순위: 저장된 비율 → 구버전 절대값 → 기본
+            Offset pos;
+            if (_chatXPct != null && _chatYPct != null) {
+              pos = _clampToStack(
+                Offset(_chatXPct! * stackSize.width, _chatYPct! * stackSize.height),
+                stackSize,
+              );
+            } else if (_chatPos != null) {
+              pos = _clampToStack(_chatPos!, stackSize);
+              // 마이그레이션: 비율로 저장해 두기
+              _chatXPct = pos.dx / stackSize.width;
+              _chatYPct = pos.dy / stackSize.height;
+            } else {
+              pos = defaultPos;
+            }
+            _chatPos = pos; // 렌더 기준 최신값 유지
+
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                RefreshIndicator(
+                  onRefresh: _onRefresh,
+                  color: _bnkRed,
+                  child: CustomScrollView(
+                    controller: _scroll,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverToBoxAdapter(child: _searchAndCategory()),
+                      if (_err.isNotEmpty) SliverToBoxAdapter(child: _errorCard()),
+                      if (_items.isEmpty && _err.isEmpty && !_loading)
+                        SliverToBoxAdapter(child: _emptyCard()),
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                              (context, i) => _faqTile(_items[i]),
+                          childCount: _items.length,
+                        ),
+                      ),
+                      SliverToBoxAdapter(child: _pager()),
+                    ],
                   ),
-                  SliverToBoxAdapter(child: _pager()),
-                ],
-              ),
-            ),
+                ),
 
-            // ── 길게 눌러 이동 가능한 챗봇 FAB + Tip
-            Builder(
-              builder: (context) {
-                // 초기 기본 위치(우상단 12px)
-                final defaultPos = Offset(screen.width - _fabSize - 12, 12);
-                final pos = _chatPos ?? defaultPos;
-
-                return Positioned(
+                // ── 길게 눌러 이동 가능한 챗봇 FAB + Tip (FAB 기준 앵커, 말풍선은 포인터 무시)
+                Positioned(
                   left: pos.dx,
                   top: pos.dy,
-                  child: GestureDetector(
-                    onLongPressStart: (_) {
-                      setState(() {
-                        _dragging = true;
-                        _chatPosStart = pos;
-                      });
-                    },
-                    onLongPressMoveUpdate: (d) {
-                      final next = _clampChatPos(_chatPosStart + d.offsetFromOrigin, screen);
-                      setState(() => _chatPos = next);
-                    },
-                    onLongPressEnd: (_) async {
-                      setState(() => _dragging = false);
-                      await _saveChatPos();
-                    },
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                  child: SizedBox(
+                    width: _fabSize,
+                    height: _fabSize,
+                    child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                        AnimatedSlide(
-                          duration: const Duration(milliseconds: 260),
-                          curve: Curves.easeOut,
-                          offset: (_showTip && !_dragging) ? Offset.zero : const Offset(0.05, 0),
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 220),
-                            opacity: (_showTip && !_dragging) ? 1 : 0,
-                            child: _TipBubble(
-                              text: '길게 눌러 이동할 수 있어요',
-                              bg: Colors.white,
-                              fg: _ink,
-                              border: Colors.black12,
+                        // 말풍선: FAB의 우상단에 떠 있게. 포인터 무시해서 드래그는 FAB만.
+                        Positioned(
+                          right: 0,
+                          top: -56, // 간격 조정 가능: -52 ~ -64 등
+                          child: IgnorePointer(
+                            ignoring: true,
+                            child: AnimatedSlide(
+                              duration: const Duration(milliseconds: 260),
+                              curve: Curves.easeOut,
+                              offset: _showTip ? Offset.zero : const Offset(0.05, 0),
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 220),
+                                opacity: _showTip ? 1 : 0,
+                                child: _TipBubble(
+                                  text: '무엇이 도움이 필요하세요?\n길게 누르면 원하는 위치로 이동합니다.',
+                                  bg: Colors.white,
+                                  fg: _ink,
+                                  border: Colors.black12,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        _ChatFab(
-                          compact: true,
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              barrierDismissible: true,
-                              builder: (_) => ChatbotModal(hostContext: context),
-                            );
+
+                        // FAB (드래그 핸들)
+                        GestureDetector(
+                          onLongPressStart: (_) {
+                            setState(() {
+                              _dragging = true;
+                              _chatPosStart = pos;
+                            });
                           },
+                          onLongPressMoveUpdate: (d) {
+                            final next = _clampToStack(_chatPosStart + d.offsetFromOrigin, stackSize);
+                            setState(() {
+                              _chatPos = next;
+                              _chatXPct = next.dx / stackSize.width;
+                              _chatYPct = next.dy / stackSize.height;
+                            });
+                          },
+                          onLongPressEnd: (_) async {
+                            setState(() => _dragging = false);
+                            await _saveChatPref(stackSize);
+                          },
+                          child: _ChatFab(
+                            compact: true,
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                barrierDismissible: true,
+                                builder: (_) => ChatbotModal(hostContext: context),
+                              );
+                            },
+                          ),
                         ),
                       ],
                     ),
                   ),
-                );
-              },
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -729,7 +789,7 @@ class _TipBubble extends StatelessWidget {
           ),
           child: Text(
             text,
-            style: TextStyle(color: fg, fontWeight: FontWeight.w600),
+            style: TextStyle(color: fg, fontWeight: FontWeight.w600, height: 1.25),
           ),
         ),
         Positioned(

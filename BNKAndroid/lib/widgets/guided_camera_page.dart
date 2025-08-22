@@ -112,6 +112,22 @@ class _GuidedCameraPageState extends State<GuidedCameraPage> {
     Navigator.pop(context, File(x.path));
   }
 
+  /// ▶︎ 하드웨어/제스처 뒤로가기를 허용하고, 나가기 전에 토치가 켜져 있으면 끕니다.
+  Future<bool> _onWillPop() async {
+    try {
+      if (_controller != null &&
+          _controller!.value.isInitialized &&
+          _controller!.description.lensDirection == CameraLensDirection.back &&
+          _torch) {
+        await _controller!.setFlashMode(FlashMode.off);
+        _torch = false;
+      }
+    } catch (_) {
+      // 무시: 일부 단말에서 초기화 중 종료 시 에러 발생 가능
+    }
+    return true; // ← 시스템 뒤로가기 허용
+  }
+
   /// 실제 센서 비율에 맞춘 프리뷰 + 화면 채우기
   Widget _previewCovered() {
     if (_controller == null || !_controller!.value.isInitialized) {
@@ -145,10 +161,19 @@ class _GuidedCameraPageState extends State<GuidedCameraPage> {
     final isBack = _controller?.description.lensDirection == CameraLensDirection.back;
 
     return WillPopScope(
-      onWillPop: () async => false,
+      onWillPop: _onWillPop, // ← 하드웨어 뒤로가기 허용
       child: Scaffold(
         appBar: AppBar(
+          // 상단 버튼도 필요하면 유지, 원치 않으면 다음 두 줄 삭제 가능
           automaticallyImplyLeading: false,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () async {
+              final allow = await _onWillPop();
+              if (!mounted) return;
+              if (allow) Navigator.of(context).maybePop();
+            },
+          ),
           title: Text(widget.mode == GuidedMode.idCard ? '신분증 촬영' : '얼굴 촬영'),
           toolbarHeight: 44,
           actions: [

@@ -176,8 +176,8 @@ class _AppShellState extends State<AppShell> {
             index: _index,
             onTap: (i) => _selectTab(i),
             items: const [
-              TossNavItem(Icons.credit_card, '카드'),
               TossNavItem(Icons.local_offer_outlined, '메인'), // 메인 탭
+              TossNavItem(Icons.credit_card, '카드'),
               TossNavItem(Icons.headset_mic_outlined, '문의'),
               TossNavItem(Icons.person_outline, '마이'),
             ],

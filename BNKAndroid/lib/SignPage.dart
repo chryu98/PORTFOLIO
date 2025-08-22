@@ -1,11 +1,14 @@
 // lib/sign/sign_page.dart
 import 'dart:typed_data';
-import 'dart:ui' as ui; // PNG 변환용
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-import 'package:bnkandroid/constants/api.dart' as API;         // ApiException 캐치용
-import 'package:bnkandroid/user/service/SignService.dart';     // 서버 연동
+import 'package:bnkandroid/constants/api.dart' as API;
+import 'package:bnkandroid/user/service/SignService.dart';
+
+// 축하 페이지
+import 'sign_congrats_page.dart';
 
 class SignPage extends StatefulWidget {
   final int applicationNo;
@@ -16,14 +19,14 @@ class SignPage extends StatefulWidget {
 }
 
 class _SignPageState extends State<SignPage> {
-  // ── 서명 그리기 상태 ─────────────────────────────────────────────
-  final GlobalKey _paintKey = GlobalKey();                // PNG 추출용
-  final List<List<Offset>> _strokes = <List<Offset>>[];   // 완료된 스트로크
-  List<Offset> _current = <Offset>[];                     // 진행중인 스트로크
+  // ── Drawing state ─────────────────────────────────────────────
+  final GlobalKey _paintKey = GlobalKey();
+  final List<List<Offset>> _strokes = <List<Offset>>[];
+  List<Offset> _current = <Offset>[];
 
   bool get _isEmpty => _strokes.isEmpty && _current.isEmpty;
 
-  // ── 서버 상태 ──────────────────────────────────────────────────
+  // ── Server state ──────────────────────────────────────────────
   bool _loading = true;
   bool _saving = false;
   SignInfo? _info;
@@ -35,7 +38,6 @@ class _SignPageState extends State<SignPage> {
     _load();
   }
 
-  // ── 서버 데이터 로딩 ───────────────────────────────────────────
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
@@ -57,13 +59,39 @@ class _SignPageState extends State<SignPage> {
     }
   }
 
-  // ── 제스처 핸들러 (그리기) ─────────────────────────────────────
+  // ── Gesture handlers (with point densification) ──────────────
   void _onPanStart(DragStartDetails d) {
     setState(() => _current = <Offset>[d.localPosition]);
   }
 
   void _onPanUpdate(DragUpdateDetails d) {
-    setState(() => _current.add(d.localPosition));
+    final p = d.localPosition;
+    setState(() {
+      if (_current.isEmpty) {
+        _current = <Offset>[p];
+      } else {
+        // 샘플링 밀도 보강: 이전 점과 거리가 너무 짧으면 건너뛰고,
+        // 길면 중간보간 점까지 넣어 끊김을 줄임
+        final last = _current.last;
+        final dist = (last - p).distance;
+
+        // 아주 짧은 미세 이동은 무시 (노이즈 제거)
+        if (dist < 0.7) return;
+
+        // 거리가 멀면 중간 보간점 추가
+        final steps = (dist / 2.0).floor(); // 2px 당 한 점
+        if (steps > 1) {
+          for (int i = 1; i < steps; i++) {
+            final t = i / steps;
+            _current.add(Offset(
+              last.dx + (p.dx - last.dx) * t,
+              last.dy + (p.dy - last.dy) * t,
+            ));
+          }
+        }
+        _current.add(p);
+      }
+    });
   }
 
   void _onPanEnd(DragEndDetails d) {
@@ -76,8 +104,10 @@ class _SignPageState extends State<SignPage> {
   void _undo() {
     setState(() {
       if (_current.isNotEmpty) {
+        // 진행 중인 획은 취소
         _current = <Offset>[];
       } else if (_strokes.isNotEmpty) {
+        // 완료된 마지막 한 획만 되돌리기
         _strokes.removeLast();
       }
     });
@@ -90,7 +120,7 @@ class _SignPageState extends State<SignPage> {
     });
   }
 
-  // ── PNG 추출 ───────────────────────────────────────────────────
+  // ── Export PNG ────────────────────────────────────────────────
   Future<Uint8List> _exportPngBytes() async {
     final boundary = _paintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
     if (boundary == null) {
@@ -102,7 +132,7 @@ class _SignPageState extends State<SignPage> {
     return bd.buffer.asUint8List();
   }
 
-  // ── 제출 ───────────────────────────────────────────────────────
+  // ── Submit ───────────────────────────────────────────────────
   Future<void> _submit() async {
     if (_isEmpty) {
       _toast('서명을 먼저 입력해 주세요.');
@@ -121,12 +151,17 @@ class _SignPageState extends State<SignPage> {
       if (!mounted) return;
 
       if (ok) {
-        // 안전하게 확정까지
         await SignService.confirmDone(widget.applicationNo);
-        _toast('전자서명이 완료되었습니다.');
-
-        // 메인으로 복귀 (앱 라우트명에 맞게 바꾸세요)
-        Navigator.of(context).pushNamedAndRemoveUntil('/home', (r) => false);
+        // 성공 → 축하 페이지로 전환
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => SignCongratsPage(
+              applicationNo: widget.applicationNo,
+              onDone: () => Navigator.of(context)
+                  .pushNamedAndRemoveUntil('/home', (r) => false),
+            ),
+          ),
+        );
       } else {
         _toast('서명 업로드 실패');
       }
@@ -145,7 +180,7 @@ class _SignPageState extends State<SignPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  // ── UI ─────────────────────────────────────────────────────────
+  // ── UI ────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -160,8 +195,10 @@ class _SignPageState extends State<SignPage> {
           children: [
             Text('신청번호: ${widget.applicationNo}', style: const TextStyle(fontSize: 14)),
             const SizedBox(height: 4),
-            Text('현재상태: ${_info?.status ?? '-'}',
-                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            Text(
+              '현재상태: ${_info?.status ?? '-'}',
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
+            ),
             const SizedBox(height: 12),
 
             if (_exists) ...[
@@ -179,7 +216,7 @@ class _SignPageState extends State<SignPage> {
               const SizedBox(height: 16),
             ],
 
-            // ── 서명 패드 (토스/카뱅 느낌, 깔끔한 카드) ────────────────
+            // ── Signature Pad (smoother) ─────────────────────────
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -208,11 +245,14 @@ class _SignPageState extends State<SignPage> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(10),
                           child: GestureDetector(
+                            behavior: HitTestBehavior.opaque, // 히트영역 보강
                             onPanStart: _onPanStart,
                             onPanUpdate: _onPanUpdate,
                             onPanEnd: _onPanEnd,
                             child: CustomPaint(
-                              painter: _SignaturePainter(
+                              isComplex: true,
+                              willChange: true,
+                              painter: _SmoothSignaturePainter(
                                 strokes: _strokes,
                                 current: _current,
                                 strokeWidth: 3.0,
@@ -228,7 +268,6 @@ class _SignPageState extends State<SignPage> {
 
                   const SizedBox(height: 12),
 
-                  // 액션 버튼들 (되돌리기 / 지우기)
                   Row(
                     children: [
                       Expanded(
@@ -255,7 +294,6 @@ class _SignPageState extends State<SignPage> {
         ),
       ),
 
-      // 제출 버튼
       bottomNavigationBar: SafeArea(
         top: false,
         child: Padding(
@@ -280,14 +318,14 @@ class _SignPageState extends State<SignPage> {
   }
 }
 
-// ── 서명 그리기용 Painter ─────────────────────────────────────────
-class _SignaturePainter extends CustomPainter {
+// ── Smoother Painter (Quadratic Bezier + Antialias) ─────────────
+class _SmoothSignaturePainter extends CustomPainter {
   final List<List<Offset>> strokes;
   final List<Offset> current;
   final double strokeWidth;
   final Color color;
 
-  _SignaturePainter({
+  _SmoothSignaturePainter({
     required this.strokes,
     required this.current,
     required this.strokeWidth,
@@ -300,27 +338,40 @@ class _SignaturePainter extends CustomPainter {
       ..color = color
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke
+      ..filterQuality = FilterQuality.high
+      ..isAntiAlias = true;
 
-    // 완료된 스트로크
-    for (final path in strokes) {
-      _drawPath(canvas, path, paint);
+    // 완료된 획
+    for (final pts in strokes) {
+      final path = _buildSmoothPath(pts);
+      if (path != null) canvas.drawPath(path, paint);
     }
-    // 진행 중 스트로크
-    _drawPath(canvas, current, paint);
+    // 진행 중인 획
+    final cur = _buildSmoothPath(current);
+    if (cur != null) canvas.drawPath(cur, paint);
   }
 
-  void _drawPath(Canvas canvas, List<Offset> points, Paint paint) {
-    if (points.length < 2) return;
-    final path = Path()..moveTo(points.first.dx, points.first.dy);
-    for (int i = 1; i < points.length; i++) {
-      path.lineTo(points[i].dx, points[i].dy);
+  Path? _buildSmoothPath(List<Offset> pts) {
+    if (pts.length < 2) return null;
+
+    final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+
+    // Quadratic Bezier 보간으로 매끈하게
+    for (int i = 1; i < pts.length - 1; i++) {
+      final p0 = pts[i];
+      final p1 = pts[i + 1];
+      final mid = Offset((p0.dx + p1.dx) / 2, (p0.dy + p1.dy) / 2);
+      path.quadraticBezierTo(p0.dx, p0.dy, mid.dx, mid.dy);
     }
-    canvas.drawPath(path, paint);
+    // 마지막 점까지 자연스럽게 이어주기
+    path.lineTo(pts.last.dx, pts.last.dy);
+    return path;
   }
 
   @override
-  bool shouldRepaint(covariant _SignaturePainter old) {
+  bool shouldRepaint(covariant _SmoothSignaturePainter old) {
     return old.strokes != strokes ||
         old.current != current ||
         old.strokeWidth != strokeWidth ||

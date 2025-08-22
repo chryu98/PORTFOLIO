@@ -32,16 +32,16 @@ public class CardFeedbackController {
         return ResponseEntity.ok(service.create(req));
     }
 
-    /** 관리자 대시보드 JSP */
+ // com/busanbank/card/feedback/controller/CardFeedbackController.java
     @GetMapping("/admin/feedback")
     public String dashboard(
             Model model,
-            @RequestParam(name = "top",      defaultValue = "10") int top,
-            @RequestParam(name = "days",     defaultValue = "30") int days,
-            @RequestParam(name = "minScore", required = false)    Double minScore
+            @RequestParam(name = "top",  defaultValue = "10") int top,
+            @RequestParam(name = "days", defaultValue = "30") int days,
+            @RequestParam(name = "minScore", required = false) Double minScore
     ) {
         var summary  = service.dashboard(top);
-        var insights = insightService.insights(days, top, minScore);
+        var insights = insightService.insights(days, top, minScore); // ✅ 폴백/완화 로직 포함
 
         model.addAttribute("summary", summary);
         model.addAttribute("insights", insights);
@@ -50,6 +50,7 @@ public class CardFeedbackController {
         model.addAttribute("minScore", minScore);
         return "admin/feedback/dashboard";
     }
+
 
     /** 요약 JSON */
     @GetMapping(value = "/admin/feedback/summary.json", produces = MediaType.APPLICATION_JSON_VALUE)

@@ -72,6 +72,39 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
   void _showSnack(String m) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
 
+  // 실패 모달(고정 문구, 관리자 느낌의 깔끔한 스타일)
+  Future<void> _showVerifyFailDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        title: Row(
+          children: [
+            Icon(Icons.error_outline, color: kPrimaryRed),
+            const SizedBox(width: 8),
+            const Text('인증 실패', style: TextStyle(fontWeight: FontWeight.w700)),
+          ],
+        ),
+        content: const Text('얼굴인증에 실패했습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: kPrimaryRed,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // --- 신분증 촬영 + OCR 자동 채움 ---
   Future<void> _captureId() async {
     if (kIsWeb) {
@@ -114,9 +147,9 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
           _tail   = masked ? '******' : (tail.isEmpty ? '******' : tail);
           _masked = masked || _tail == '******';
         });
-        _showSnack('OCR 자동 채움 완료');
+        _showSnack('자동 채움 완료');
       } else {
-        _showSnack('OCR 실패: ${data['reason'] ?? ''}');
+        _showSnack('인증 실패: ${data['reason'] ?? ''}');
       }
     } catch (e) {
       _showSnack('OCR 호출 오류: $e');
@@ -176,10 +209,10 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
       if (status == 'PASS') {
         _showSnack('본인인증 성공! 다음 단계로 이동합니다.');
         _goStep5();
-      } else if (status == 'ERROR') {
-        _showSnack('서버 오류: ${data['reason'] ?? ''}');
       } else {
-        _showSnack('인증 실패: ${data['reason'] ?? ''}');
+        // ✅ 실패 시에는 사유/수치 노출 금지, 모달만 표시
+        debugPrint('VERIFY FAIL (hidden to user): ${data['reason'] ?? data}');
+        await _showVerifyFailDialog();
       }
     } on DioException catch (e) {
       _showSnack('업로드 오류: ${e.message}');
@@ -263,6 +296,8 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: kPrimaryRed,
                           foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
                         ),
                         child: Text(_loading ? '전송 중...' : '인증 요청'),
                       ),
@@ -331,6 +366,9 @@ class _ThumbBox extends StatelessWidget {
             onPressed: onPick,
             icon: const Icon(Icons.camera_alt),
             label: Text('$title 촬영'),
+            style: OutlinedButton.styleFrom(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
           ),
         ),
       ],
@@ -422,11 +460,18 @@ class _ResultBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pretty = const JsonEncoder.withIndent('  ').convert(data);
     final status = (data['status'] ?? '').toString().toUpperCase();
-    final color = status == 'PASS'
+
+    // ✅ 실패 시에는 상세 JSON(예: loss/이유) 노출 금지
+    final bool isPass = status == 'PASS';
+    final String pretty = isPass
+        ? const JsonEncoder.withIndent('  ').convert(data)
+        : '얼굴인증에 실패했습니다.';
+
+    final Color color = isPass
         ? Colors.green
         : (status == 'ERROR' ? Colors.orange : Colors.red);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
