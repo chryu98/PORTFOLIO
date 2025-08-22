@@ -68,7 +68,7 @@ class _ApplicationStep6CardOptionPageState extends State<ApplicationStep6CardOpt
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: const BackButton(color: Colors.black87),
-        title: const Text('본인 인증', style: TextStyle(color: Colors.black87)),
+        title: const Text('카드 옵션 선택', style: TextStyle(color: Colors.black87)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0.5,
