@@ -13,7 +13,7 @@ class CardModel {
   final String? scBenefits;
   final int? annualFee;
   final int? scAnnualFee;
-  final String? cardBrand;
+  final String cardBrand;
   final String? notice;
 
   CardModel({
@@ -31,7 +31,7 @@ class CardModel {
     this.scBenefits,
     this.annualFee,
     this.scAnnualFee,
-    this.cardBrand,
+    required this.cardBrand,
     this.notice,
   });
 
@@ -51,7 +51,7 @@ class CardModel {
       scBenefits: json['scBenefits'],
       annualFee: json['annualFee'],
       scAnnualFee: json['scAnnualFee'],
-      cardBrand: json['cardBrand'],
+      cardBrand: json['cardBrand'] ?? '',
       notice: json['cardNotice'],
     );
   }

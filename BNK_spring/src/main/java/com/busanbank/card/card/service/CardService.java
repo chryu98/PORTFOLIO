@@ -40,5 +40,10 @@ public class CardService {
         return cardDao.selectPopularCards();
     }
     
+    //플러터 메인페이지용 인기카드 3개
+    public List<CardDto> getPopularTop3() {
+        return cardDao.selectTop3ByView();
+    }
+    
 
 }

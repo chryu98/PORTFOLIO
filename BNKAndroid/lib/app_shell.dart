@@ -1,5 +1,6 @@
 // lib/app_shell.dart
 import 'package:bnkandroid/user/CustomCardEditorPage.dart';
+import 'package:bnkandroid/user/MainPage.dart';
 import 'package:flutter/material.dart';
 
 import 'package:bnkandroid/user/CardListPage.dart';
@@ -108,10 +109,9 @@ class _AppShellState extends State<AppShell> {
   Widget _buildTabRoot(AppTab tab) {
     switch (tab) {
       case AppTab.cards:
-        return const _KeepAlive(child: CardListPage());
+        return const _KeepAlive(child: CardListPage()); //카드메인
       case AppTab.benefits:
-      // 👉 혜택 탭 = 메인 화면
-        return const _KeepAlive(child: BenefitsHomePage()); // ✅
+        return const _KeepAlive(child: CardMainPage()); //메인
       case AppTab.support:
         return const _KeepAlive(child: FaqPage());
       case AppTab.my:
