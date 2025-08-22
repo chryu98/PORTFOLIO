@@ -1,4 +1,3 @@
-// src/main/java/com/busanbank/card/cardapply/dao/ApplicationMapper.java
 package com.busanbank.card.cardapply.dao;
 
 import org.apache.ibatis.annotations.*;
@@ -65,7 +64,7 @@ public interface ApplicationMapper {
     // 전자서명 플로우용 (상태 조회/변경)
     // ─────────────────────────────────────────────────────────────
 
-    /** FINAL 상태 조회 (READY_FOR_SIGN / SIGNING / SIGNED 등) */
+    /** FINAL 상태 조회 */
     @Select("""
         SELECT STATUS
           FROM CARD_APPLICATION
@@ -81,4 +80,12 @@ public interface ApplicationMapper {
          WHERE APPLICATION_NO = #{appNo}
     """)
     int updateStatus(@Param("appNo") long appNo, @Param("status") String status);
+
+    /** (서명 INSERT 때 사용) 멤버번호 조회 */
+    @Select("""
+        SELECT MEMBER_NO
+          FROM CARD_APPLICATION
+         WHERE APPLICATION_NO = #{appNo}
+    """)
+    Integer findMemberNoByAppNo(@Param("appNo") long appNo);
 }
