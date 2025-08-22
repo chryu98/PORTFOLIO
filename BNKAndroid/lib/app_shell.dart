@@ -109,9 +109,9 @@ class _AppShellState extends State<AppShell> {
   Widget _buildTabRoot(AppTab tab) {
     switch (tab) {
       case AppTab.cards:
-        return const _KeepAlive(child: CardListPage()); //카드메인
-      case AppTab.benefits:
         return const _KeepAlive(child: CardMainPage()); //메인
+      case AppTab.benefits:
+        return const _KeepAlive(child: CardListPage()); //카드메인
       case AppTab.support:
         return const _KeepAlive(child: FaqPage());
       case AppTab.my:
