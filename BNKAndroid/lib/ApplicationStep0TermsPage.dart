@@ -1,7 +1,8 @@
 // lib/application_step0_terms_page.dart
 import 'dart:io' show Platform, File;
+import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
@@ -47,7 +48,6 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
     try {
       setState(() => _loading = true);
 
-      // 디버그: 현재 토큰 헤더 출력
       final h = await api.API.authHeader();
       // ignore: avoid_print
       print('[Step0] calling customer-info headers=$h');
@@ -78,31 +78,27 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
         }
 
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('로그인이 필요합니다.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
         Navigator.pop(context);
         return;
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('약관 불러오기 실패: ApiException(${e.statusCode})')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('약관 불러오기 실패: ApiException(${e.statusCode})')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('약관 불러오기 실패: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('약관 불러오기 실패: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  // 필수 항목이 모두 "동의됨"
-  bool get _allRequiredAgreed => _terms.where((t) => t.isRequired).every((t) => t.agreed);
+  bool get _allRequiredAgreed =>
+      _terms.where((t) => t.isRequired).every((t) => t.agreed);
 
-  // 모두 동의(시각적 체크) → 미동의 필수부터 순차 동의 받기
   Future<void> _startSequentialAgreement() async {
     setState(() {
       for (final t in _terms) t.checked = true; // 얇은 체크
@@ -113,11 +109,14 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
     }
   }
 
+  // ── 흰 배경 페이드 전환으로 약관 탭 열기 ───────────────────────────────
   Future<void> _openPdfTabs({required int initialIndex, bool autoFlow = false}) async {
     final res = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => TermsPdfTabs(
+      PageRouteBuilder(
+        opaque: true,
+        transitionDuration: const Duration(milliseconds: 220),
+        reverseTransitionDuration: const Duration(milliseconds: 220),
+        pageBuilder: (_, __, ___) => TermsPdfTabs(
           terms: _terms,
           initialIndex: initialIndex,
           autoFlow: autoFlow,
@@ -130,12 +129,17 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
             });
           },
         ),
+        transitionsBuilder: (_, anim, __, child) {
+          final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
+          return FadeTransition(opacity: curved, child: child);
+        },
       ),
     );
 
     if (res == true && autoFlow) {
       final next = _terms.indexWhere((t) => t.isRequired && !t.agreed);
       if (next != -1) {
+        await Future.delayed(const Duration(milliseconds: 80));
         await _openPdfTabs(initialIndex: next, autoFlow: true);
       }
     }
@@ -143,22 +147,19 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
 
   Future<void> _saveAgreementsAndNext() async {
     if (_memberNo == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인 정보가 없습니다. 다시 로그인 해주세요.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('로그인 정보가 없습니다. 다시 로그인 해주세요.')));
       return;
     }
     if (!_allRequiredAgreed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('필수 약관을 모두 동의해야 진행할 수 있습니다.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('필수 약관을 모두 동의해야 진행할 수 있습니다.')));
       return;
     }
 
     try {
       setState(() => _posting = true);
 
-      // 1) 동의 저장
       final agreedPdfNos = _terms.where((t) => t.agreed).map((e) => e.pdfNo).toList();
       await ApplyTermsService.saveAgreements(
         memberNo: _memberNo!,
@@ -166,7 +167,6 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
         pdfNos: agreedPdfNos,
       );
 
-      // 2) 발급 시작 → Step1
       final start = await apply.CardApplyService.start(cardNo: widget.cardNo);
 
       if (!mounted) return;
@@ -181,9 +181,7 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('진행 실패: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('진행 실패: $e')));
     } finally {
       if (mounted) setState(() => _posting = false);
     }
@@ -192,13 +190,13 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white, // 흰 배경
       appBar: AppBar(
         title: const Text('카드 발급 — 약관 동의'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0,
       ),
-      backgroundColor: Colors.white,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
@@ -290,11 +288,10 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
 
 class _TermRow extends StatelessWidget {
   final TermItem term;
-  final Future<void> Function() onView; // 아이콘/보기 클릭 시 PDF 열기
+  final Future<void> Function() onView;
 
   const _TermRow({required this.term, required this.onView});
 
-  // ○(회색) / ◯✓(빨강 아웃라인) / ●✓(빨강)
   Icon _statusIcon(TermItem t) {
     if (t.agreed) return const Icon(Icons.check_circle, color: kPrimaryRed);
     if (t.checked) return const Icon(Icons.check_circle_outline, color: kPrimaryRed);
@@ -311,7 +308,6 @@ class _TermRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // 아이콘 눌러도 항상 PDF 열기(직접 토글 금지)
           InkWell(onTap: onView, child: _statusIcon(term)),
           const SizedBox(width: 10),
           Expanded(
@@ -369,7 +365,7 @@ class _TermRow extends StatelessWidget {
   }
 }
 
-/* ───────────────────────────── PDF Tabs (네트워크 스트리밍) ───────────────────────────── */
+/* ───────────────────────────── PDF Tabs (마지막 페이지 도달 시만 동의 활성) ───────────────────────────── */
 
 class TermsPdfTabs extends StatefulWidget {
   final List<TermItem> terms;
@@ -393,19 +389,42 @@ class TermsPdfTabs extends StatefulWidget {
 
 class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderStateMixin {
   late final TabController _tab;
-  final Map<int, Uint8List> _cache = {};        // pdfNo -> bytes 캐시
-  final Map<int, String> _err = {};             // pdfNo -> 에러 메시지
-  bool _downloading = false;                    // 하단 [다운로드] 버튼 로딩
+
+  // 앱에서: 메모리/파일 캐시
+  final Map<int, Uint8List> _cache = {};
+  final Map<int, String> _err = {};
+  final Map<int, String> _filePath = {};
+
+  // 마지막 페이지 제어
+  final Map<int, PdfViewerController> _controllers = {};
+  final Map<int, int> _pageCount = {};
+  final Map<int, int> _pageNow = {};
+  final Set<int> _lastToastShown = {};
+
+  bool _downloading = false;
+
+  PdfViewerController _ctrl(int pdfNo) =>
+      _controllers.putIfAbsent(pdfNo, () => PdfViewerController());
+
+  bool get _canAgreeNow {
+    final pdfNo = widget.terms[_tab.index].pdfNo;
+    final c = _pageCount[pdfNo] ?? 0;
+    final n = _pageNow[pdfNo] ?? 0;
+    return c > 0 && n >= c;
+  }
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: widget.terms.length, vsync: this, initialIndex: widget.initialIndex);
-    // 최초 탭 것부터 미리 로드 (선택)
-    _ensureLoaded(widget.terms[_tab.index].pdfNo);
+
+    // 최초 탭: 앱이면 미리 받기, 웹이면 네트워크 위젯이 직접 로드
+    if (!kIsWeb) _ensureLoaded(widget.terms[_tab.index].pdfNo);
+
     _tab.addListener(() {
       if (_tab.indexIsChanging) return;
-      _ensureLoaded(widget.terms[_tab.index].pdfNo);
+      if (!kIsWeb) _ensureLoaded(widget.terms[_tab.index].pdfNo);
+      setState(() {}); // 버튼 상태 갱신
     });
   }
 
@@ -415,32 +434,130 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
     super.dispose();
   }
 
+  // 앞/뒤 잡음 제거 + %%EOF 뒤 자르기
+  Uint8List _sanitizePdfBytes(Uint8List src) {
+    if (src.isEmpty) return src;
+    int start = 0, end = src.length;
+
+    if (src.length >= 3 && src[0] == 0xEF && src[1] == 0xBB && src[2] == 0xBF) start = 3;
+    while (start < end) {
+      final b = src[start];
+      if (b == 0x00 || b == 0x09 || b == 0x0A || b == 0x0D || b == 0x20) {
+        start++;
+      } else {
+        break;
+      }
+    }
+    const sig = [0x25, 0x50, 0x44, 0x46];
+    final limit = (end - start) > 8192 ? start + 8192 : end;
+    int idx = -1;
+    outer:
+    for (int i = start; i + sig.length <= limit; i++) {
+      for (int j = 0; j < sig.length; j++) {
+        if (src[i + j] != sig[j]) continue outer;
+      }
+      idx = i; break;
+    }
+    if (idx >= 0) start = idx;
+
+    while (end > start) {
+      final b = src[end - 1];
+      if (b == 0x00 || b == 0x09 || b == 0x0A || b == 0x0D || b == 0x20) {
+        end--;
+      } else {
+        break;
+      }
+    }
+    final eof = [0x25, 0x25, 0x45, 0x4F, 0x46];
+    for (int i = end - eof.length; i >= start; i--) {
+      bool hit = true;
+      for (int j = 0; j < eof.length; j++) {
+        if (src[i + j] != eof[j]) { hit = false; break; }
+      }
+      if (hit) { end = i + eof.length; break; }
+    }
+
+    if (start == 0 && end == src.length) return src;
+    return Uint8List.sublistView(src, start, end);
+  }
+
   Future<void> _ensureLoaded(int pdfNo) async {
     if (_cache.containsKey(pdfNo) || _err.containsKey(pdfNo)) return;
+    if (kIsWeb) return; // 웹에서는 네트워크 위젯이 직접 로드함
+
     try {
-      final headers = await api.API.authHeader();
       final url = '${api.API.baseUrl}/api/card/apply/pdf/$pdfNo';
+      final headers = <String, String>{
+        ...Map<String, String>.from(await api.API.authHeader()),
+        'Accept': 'application/pdf',
+      };
+
       final res = await http.get(Uri.parse(url), headers: headers);
       if (res.statusCode != 200) {
         throw Exception('HTTP ${res.statusCode}');
       }
-      // 간단한 시그니처 체크(%PDF)
-      final b = res.bodyBytes;
+
+      Uint8List b = res.bodyBytes;
+      b = _sanitizePdfBytes(b);
       if (b.length < 4 || !(b[0] == 0x25 && b[1] == 0x50 && b[2] == 0x44 && b[3] == 0x46)) {
-        throw Exception('PDF 시그니처 아님');
+        throw Exception('PDF 시그니처 아님 (len=${b.length})');
       }
+
+      if (b.length >= 8) {
+        // ignore: avoid_print
+        print('[PDF] head ${b.sublist(0, 8).map((e) => e.toRadixString(16).padLeft(2, "0")).join(" ")} len=${b.length}');
+      }
+
       setState(() {
-        _cache[pdfNo] = Uint8List.fromList(b);
+        _cache[pdfNo] = b;
+        _err.remove(pdfNo);
       });
     } catch (e) {
-      setState(() {
-        _err[pdfNo] = e.toString();
-      });
+      setState(() => _err[pdfNo] = e.toString());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('PDF 로드 실패: $e')),
         );
       }
+    }
+  }
+
+  Future<File> _writeTempPdf(int pdfNo, Uint8List data) async {
+    final dir = Platform.isAndroid
+        ? await getExternalStorageDirectory()
+        : await getApplicationDocumentsDirectory();
+    final f = File('${dir!.path}/__tmp_term_$pdfNo.pdf');
+    await f.writeAsBytes(data, flush: true);
+    return f;
+  }
+
+  void _onLoaded(int pdfNo) {
+    final c = _ctrl(pdfNo).pageCount;
+    final n = _ctrl(pdfNo).pageNumber;
+    setState(() {
+      _pageCount[pdfNo] = c;
+      _pageNow[pdfNo] = n;
+    });
+    if (mounted && n >= c && !_lastToastShown.contains(pdfNo)) {
+      _lastToastShown.add(pdfNo);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('마지막 페이지입니다.')),
+      );
+    }
+  }
+
+  void _onChanged(int pdfNo, PdfPageChangedDetails d) {
+    final c = _ctrl(pdfNo).pageCount;
+    final n = d.newPageNumber;
+    setState(() {
+      _pageCount[pdfNo] = c;
+      _pageNow[pdfNo] = n;
+    });
+    if (mounted && n >= c && !_lastToastShown.contains(pdfNo)) {
+      _lastToastShown.add(pdfNo);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('마지막 페이지입니다.')),
+      );
     }
   }
 
@@ -451,7 +568,11 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
     if (widget.autoFlow) {
       final nextIdx = widget.terms.indexWhere((e) => e.isRequired && !e.agreed);
       if (nextIdx != -1) {
-        _tab.animateTo(nextIdx);
+        _tab.animateTo(
+          nextIdx,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+        );
         return;
       }
     }
@@ -460,15 +581,13 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
 
   Future<void> _downloadCurrent() async {
     if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('앱에서는 파일 저장을 지원하지 않습니다.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('앱에서는 파일 저장을 지원하지 않습니다.')));
       return;
     }
     setState(() => _downloading = true);
     final t = widget.terms[_tab.index];
     try {
-      // 캐시에 없으면 먼저 받아오기
       if (!_cache.containsKey(t.pdfNo)) {
         await _ensureLoaded(t.pdfNo);
       }
@@ -489,20 +608,70 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
   }
 
   Widget _paneFor(TermItem t) {
+    // ── 웹: 헤더 포함 네트워크 로딩 (사전 프리페치 X)
+    if (kIsWeb) {
+      final url = '${api.API.baseUrl}/api/card/apply/pdf/${t.pdfNo}';
+      final ctrl = _ctrl(t.pdfNo);
+      return FutureBuilder<Map<String, String>>(
+        future: api.API.authHeader(),
+        builder: (context, snap) {
+          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+          final headers = {...snap.data!, 'Accept': 'application/pdf'};
+          return SfPdfViewer.network(
+            url,
+            headers: headers,
+            controller: ctrl,
+            key: ValueKey('pdf_net_${t.pdfNo}'),
+            pageSpacing: 8,
+            onDocumentLoaded: (_) => _onLoaded(t.pdfNo),
+            onPageChanged: (d) => _onChanged(t.pdfNo, d),
+            onDocumentLoadFailed: (d) {
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text('PDF 로드 실패: ${d.description}')));
+            },
+          );
+        },
+      );
+    }
+
+    // ── 앱: file 우선 / memory fallback
+    final path = _filePath[t.pdfNo];
     final data = _cache[t.pdfNo];
-    final err = _err[t.pdfNo];
+    final err  = _err[t.pdfNo];
+    final ctrl = _ctrl(t.pdfNo);
+
+    if (path != null) {
+      return SfPdfViewer.file(
+        File(path),
+        controller: ctrl,
+        key: ValueKey('pdf_file_${t.pdfNo}'),
+        pageSpacing: 8,
+        onDocumentLoaded: (_) => _onLoaded(t.pdfNo),
+        onPageChanged: (d) => _onChanged(t.pdfNo, d),
+        onDocumentLoadFailed: (d) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('PDF 렌더 실패: ${d.description}')));
+        },
+      );
+    }
 
     if (data != null) {
       return SfPdfViewer.memory(
         data,
-        key: ValueKey('pdf_${t.pdfNo}'),
+        controller: ctrl,
+        key: ValueKey('pdf_mem_${t.pdfNo}'),
         pageSpacing: 8,
-        onDocumentLoaded: (_) => print('[PDF] loaded pdfNo=${t.pdfNo}, bytes=${data.length}'),
-        onDocumentLoadFailed: (d) {
-          print('[PDF] FAILED (viewer) pdfNo=${t.pdfNo} code=${d.error} desc=${d.description}');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('PDF 렌더 실패: ${d.description}')),
-          );
+        onDocumentLoaded: (_) => _onLoaded(t.pdfNo),
+        onPageChanged: (d) => _onChanged(t.pdfNo, d),
+        onDocumentLoadFailed: (d) async {
+          // 메모리 렌더 실패 → 파일로 저장해 다시 시도
+          try {
+            final f = await _writeTempPdf(t.pdfNo, data);
+            setState(() => _filePath[t.pdfNo] = f.path);
+          } catch (e) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text('PDF 임시파일 저장 실패: $e')));
+          }
         },
       );
     }
@@ -523,14 +692,16 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
       );
     }
 
-    // 아직 로딩 전이면 트리거
     _ensureLoaded(t.pdfNo);
     return const Center(child: CircularProgressIndicator());
   }
 
   @override
   Widget build(BuildContext context) {
+    final canAgree = _canAgreeNow;
+
     return Scaffold(
+      backgroundColor: Colors.white, // 흰 배경
       appBar: AppBar(
         title: const Text('약관 상세'),
         centerTitle: false,
@@ -573,13 +744,13 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: _agreeCurrent,
+                  onPressed: canAgree ? _agreeCurrent : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: widget.primaryColor,
-                    foregroundColor: Colors.white,
+                    backgroundColor: canAgree ? widget.primaryColor : Colors.grey.shade300,
+                    foregroundColor: canAgree ? Colors.white : Colors.black45,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: const Text('동의'),
+                  child: Text(canAgree ? '동의' : '마지막 페이지까지 읽어주세요'),
                 ),
               ),
             ],

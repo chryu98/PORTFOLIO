@@ -15,6 +15,9 @@ const bool kFeedbackOnFaqEnabled = true;   // <- 나중에 false로 끄면 끝
 const int  kFeedbackFaqCardNo    = 999000; // FAQ용 더미 카드번호(백엔드 NOT NULL 회피)
 // ===== FEEDBACK INJECT END =====
 
+// ===== BACK NAV OPTION =====
+const bool kBackFallbackToCardList = false; // CHANGED: 최상단에서만 CardList로 보낼지 여부
+
 class FaqPage extends StatefulWidget {
   const FaqPage({super.key});
   @override
@@ -22,7 +25,7 @@ class FaqPage extends StatefulWidget {
 }
 
 class _FaqPageState extends State<FaqPage> {
-  // ── BNK 부산은행 톤 (신한/농협의 화이트 + 은은한 회색, 강조는 BNK Red)
+  // ── BNK 부산은행 톤
   static const _bnkRed = Color(0xFFD6001C);
   static const _bnkRedDark = Color(0xFFA80016);
   static const _ink = Color(0xFF1C1C1F);
@@ -49,7 +52,7 @@ class _FaqPageState extends State<FaqPage> {
 
   Timer? _debounce;
 
-  // Tip Bubble(“궁금한 점…”)
+  // Tip Bubble
   Timer? _tipTicker;
   bool _showTip = false;
   static const _tipInterval = Duration(seconds: 5);
@@ -123,16 +126,37 @@ class _FaqPageState extends State<FaqPage> {
 
   Future<void> _onRefresh() async => _goTo(0);
 
+  // CHANGED: 뒤로가기 처리 공통 함수
+  Future<void> _handleBackPressed() async {
+    // 스택에 이전 라우트가 있으면 pop
+    final didPop = await Navigator.of(context).maybePop();
+    if (!didPop && kBackFallbackToCardList) {
+      if (!mounted) return;
+      // 최상단에서만 CardList로 대체 이동 (옵션)
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => CardListPage()),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final safeTop = MediaQuery.of(context).padding.top;
     final chatTopOffset = safeTop + kToolbarHeight + 8;
 
-    // 상단 앱바를 “투명 + 그라데이션 헤더”로 겹치게 연출
+    // CHANGED: WillPopScope에서 pop 허용. 최상단 + 옵션일 때만 CardList로.
     return WillPopScope(
       onWillPop: () async {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => CardListPage()));
-        return false;
+        if (Navigator.of(context).canPop()) {
+          return true; // 기본 동작(이전 화면으로)
+        }
+        if (kBackFallbackToCardList) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => CardListPage()),
+          );
+          return false;
+        }
+        return true; // 최상단이면 앱/셸 기본 동작(종료/탭 복귀 등)
       },
       child: Scaffold(
         backgroundColor: _bg,
@@ -151,15 +175,13 @@ class _FaqPageState extends State<FaqPage> {
           foregroundColor: Colors.white,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => CardListPage()));
-            },
+            onPressed: _handleBackPressed, // CHANGED: pushReplacement 제거
           ),
           flexibleSpace: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment( -0.9, -1.0),
-                end: Alignment( 0.9,  1.0),
+                begin: Alignment(-0.9, -1.0),
+                end: Alignment(0.9, 1.0),
                 colors: [_bnkRed, _bnkRedDark],
               ),
             ),
@@ -215,7 +237,7 @@ class _FaqPageState extends State<FaqPage> {
               ),
             ),
 
-            // 오른쪽 위 “상단 고정” 챗봇 FAB + Tip
+            // 오른쪽 위 상단 고정 챗봇 FAB + Tip
             Positioned(
               top: chatTopOffset,
               right: 12,
@@ -233,7 +255,7 @@ class _FaqPageState extends State<FaqPage> {
                         text: '궁금한 점이 있으시면 눌러주세요',
                         bg: Colors.white,
                         fg: _ink,
-                        border: Colors.black.withOpacity(0.12),
+                        border: Colors.black12,
                       ),
                     ),
                   ),
@@ -264,7 +286,7 @@ class _FaqPageState extends State<FaqPage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 검색 상자: 신한/농협 톤의 플랫 화이트 + 얇은 라인
+        // 검색 상자
         Container(
           decoration: BoxDecoration(
             color: _card,
@@ -310,7 +332,7 @@ class _FaqPageState extends State<FaqPage> {
         ),
         const SizedBox(height: 12),
 
-        // 카테고리: 더 플랫하고 또렷한 세그먼트 느낌의 ChoiceChip
+        // 카테고리
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -361,7 +383,10 @@ class _FaqPageState extends State<FaqPage> {
         Expanded(child: Text(_err, style: TextStyle(color: _ink))),
         TextButton(
           onPressed: () => _goTo(_page),
-          style: TextButton.styleFrom(foregroundColor: _bnkRed, textStyle: const TextStyle(fontWeight: FontWeight.w700)),
+          style: TextButton.styleFrom(
+            foregroundColor: _bnkRed,
+            textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          ),
           child: const Text('다시 시도'),
         ),
       ]),
@@ -401,7 +426,6 @@ class _FaqPageState extends State<FaqPage> {
           child: ExpansionTile(
             tilePadding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            // 상단 카테고리 칼라바
             leading: _catStripe(m.category),
             title: Text(
               m.faqQuestion,
@@ -422,7 +446,6 @@ class _FaqPageState extends State<FaqPage> {
             backgroundColor: _card,
             collapsedBackgroundColor: _card,
             children: [
-              // 답변 본문(가독성 높게 행간)
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
@@ -445,10 +468,9 @@ class _FaqPageState extends State<FaqPage> {
   }
 
   Widget _catStripe(String cat) {
-    // 카테고리별 색을 아주 은은하게
     final Color stripe = switch (cat) {
       '카드' => _bnkRed,
-      _ => const Color(0xFF2F6BFF), // 기본(신한톤 블루의 미묘한 인용)
+      _ => const Color(0xFF2F6BFF),
     };
     return Container(
       width: 8,
@@ -522,10 +544,10 @@ class _FaqPageState extends State<FaqPage> {
 }
 
 /// ─────────────────────────────────────────────────────────────────
-/// BNK 톤 챗봇 FAB (상단 고정 원형) — 디자인만 정리
+/// BNK 톤 챗봇 FAB (상단 고정 원형)
 class _ChatFab extends StatelessWidget {
   final VoidCallback onTap;
-  final bool compact; // true: 원형(상단용), false: 라벨 포함 캡슐
+  final bool compact;
   const _ChatFab({required this.onTap, this.compact = true});
 
   @override
@@ -546,13 +568,13 @@ class _ChatFab extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: [_FaqPageState._bnkRed, _FaqPageState._bnkRedDark],
               ),
-              border: Border.all(color: Colors.white.withOpacity(0.22), width: 1),
+              border: Border.all(color: Colors.white24, width: 1),
             ),
             child: InkWell(
               onTap: onTap,
               customBorder: const CircleBorder(),
-              splashColor: Colors.white.withOpacity(0.14),
-              highlightColor: Colors.white.withOpacity(0.08),
+              splashColor: Colors.white.withOpacity(0.14), // ← 기존 Colors.white14
+              highlightColor: Colors.white10,
               child: const Center(
                 child: Icon(Icons.smart_toy_outlined, color: Colors.white, size: 26),
               ),
@@ -562,7 +584,7 @@ class _ChatFab extends StatelessWidget {
       );
     }
 
-    // 필요 시 하단 배치: 라벨 포함 캡슐형
+    // 필요 시 하단 배치
     return Semantics(
       button: true,
       label: '챗봇 열기',
@@ -576,13 +598,13 @@ class _ChatFab extends StatelessWidget {
               colors: [_FaqPageState._bnkRed, _FaqPageState._bnkRedDark],
             ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.white.withOpacity(0.10), width: 1),
+            border: Border.all(color: Colors.white10, width: 1),
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(28),
             onTap: onTap,
-            splashColor: Colors.white.withOpacity(0.12),
-            highlightColor: Colors.white.withOpacity(0.06),
+            splashColor: Colors.white12,
+            highlightColor: Colors.white.withOpacity(0.06), // ← 기존 Colors.white06
             child: const Padding(
               padding: EdgeInsets.only(left: 8, right: 14, top: 6, bottom: 6),
               child: Row(

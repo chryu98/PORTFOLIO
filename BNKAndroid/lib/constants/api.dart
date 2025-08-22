@@ -10,7 +10,10 @@ class API {
   static String? baseUrl;
   static final http.Client _client = http.Client();
 
-  static const String _fallbackHost = '192.168.100.106';
+
+  // 사내/로컬 환경 기본값
+  static const String _fallbackHost = '192.168.0.5';
+
 
   static const int _configPort = 8090; // 설정 서버
   static const int _apiPort    = 8090; // 실제 스프링 API
@@ -22,7 +25,7 @@ class API {
 
   /// 앱 시작 시 1회 호출
   static Future<void> initBaseUrl() async {
-    const fallbackIp = '192.168.0.224'; // 각자 로컬/사내망 IP면 여기만 개인별로 바꿔도 동작
+    const fallbackIp = '192.168.0.5'; // 각자 로컬/사내망 IP면 여기만 개인별로 바꿔도 동작
     try {
       final cfg = await _client.get(
         Uri.parse('http://$_fallbackHost:$_configPort/api/config/base-url'),
