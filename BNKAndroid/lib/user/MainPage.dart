@@ -1,9 +1,14 @@
-import 'package:bnkandroid/user/CustomCardEditorPage.dart';
-import 'package:bnkandroid/user/model/CardModel.dart';
+import 'dart:convert';
+import 'package:bnkandroid/CardDetailPage.dart';
 import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;                         // ← 추가
+
+import 'package:bnkandroid/user/CustomCardEditorPage.dart';
+import 'package:bnkandroid/user/model/CardModel.dart';
+import 'package:bnkandroid/constants/api.dart';                 // API.baseUrl, /proxy/image 등
+import 'package:bnkandroid/user/NaverMapPage.dart';
 
 class CardMainPage extends StatefulWidget {
   const CardMainPage({super.key});
@@ -14,23 +19,87 @@ class CardMainPage extends StatefulWidget {
 
 class _CardMainPageState extends State<CardMainPage> {
   final PageController _pageCtrl = PageController(viewportFraction: 0.9);
-  String baseUrl = 'http://192.168.0.224:8090';
   int _current = 0;
 
-  Future<List<CardModel>> fetchPopularCards() async {
-    final uri = Uri.parse('$baseUrl/api/cards/top3');
-    final res = await http.get(uri);
-    if (res.statusCode == 200) {
-      final List list = json.decode(utf8.decode(res.bodyBytes));
-      return list.map((e) => CardModel.fromJson(e)).toList().cast<CardModel>();
-    }
-    throw Exception('popular cards fetch failed: ${res.statusCode}');
+  // ── 비교함 상태 (CardListPage와 동일 포맷으로 공유)
+  final compareIds = ValueNotifier<Set<String>>({});
+
+  // ── 인기/추천
+  late Future<List<CardModel>> _fPopular;
+
+  @override
+  void initState() {
+    super.initState();
+    _fPopular = _fetchPopularTop3(); // ← CardService 호출 대신 로컬 HTTP 호출
+    _restoreCompare();
   }
 
   @override
   void dispose() {
     _pageCtrl.dispose();
+    compareIds.dispose();
     super.dispose();
+  }
+
+  // ── 인기카드 Top3를 이 파일 내에서 직접 호출
+  Future<List<CardModel>> _fetchPopularTop3() async {
+    // 필요 시 '/cards/top3' → '/api/cards/top3' 로 변경
+    final uri = Uri.parse('http://192.168.0.224:8090/api/cards/top3');
+
+    final res = await http.get(uri, headers: {
+      'Content-Type': 'application/json',
+    });
+
+    if (res.statusCode != 200) {
+      throw Exception('(${res.statusCode}) 인기카드 조회 실패');
+    }
+
+    // 한글 깨짐 방지
+    final body = utf8.decode(res.bodyBytes);
+    final decoded = jsonDecode(body);
+
+    if (decoded is! List) {
+      throw Exception('응답 형태가 올바르지 않습니다(List 아님).');
+    }
+
+    // 보통 CardModel에 fromJson(Map<String, dynamic>) 이 있을 확률이 높습니다.
+    try {
+      return decoded
+          .cast<Map<String, dynamic>>()
+          .map<CardModel>((m) => CardModel.fromJson(m))
+          .toList();
+    } catch (_) {
+      // 만약 fromJson이 없다면, 아래 예시처럼 수동 매핑을 사용하세요.
+      // (필드명은 서버 응답 키에 맞춰 조정)
+      String _s(dynamic v) => v == null ? '' : v.toString();
+      return decoded.map<CardModel>((dynamic raw) {
+        final m = raw as Map<String, dynamic>;
+        return CardModel(
+          cardNo: int.tryParse('${m['cardNo']}') ?? 0,
+          cardName: _s(m['cardName']),
+          cardBrand: _s(m['cardBrand']),   // ← 여기
+          cardSlogan: _s(m['cardSlogan']),
+          cardUrl: _s(m['cardUrl']),       // ← 여기
+          viewCount: int.tryParse('${m['viewCount']}') ?? 0,
+        );
+      }).toList();
+    }
+  }
+
+  // ── 비교함 로컬 저장/복원 (CardListPage와 동일)
+  Future<void> _restoreCompare() async {
+    final p = await SharedPreferences.getInstance();
+    final raw = p.getStringList('compareCards') ?? [];
+    compareIds.value =
+        raw.map((e) => jsonDecode(e)['cardNo'].toString()).toSet();
+  }
+
+  Future<void> _saveCompare() async {
+    final p = await SharedPreferences.getInstance();
+    p.setStringList(
+      'compareCards',
+      compareIds.value.map((id) => jsonEncode({'cardNo': id})).toList(),
+    );
   }
 
   @override
@@ -48,7 +117,8 @@ class _CardMainPageState extends State<CardMainPage> {
         actions: [
           TextButton(
             onPressed: () {},
-            child: const Text('로그인', style: TextStyle(fontWeight: FontWeight.w700)),
+            child:
+            const Text('로그인', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
           IconButton(
             icon: const Icon(Icons.menu_rounded),
@@ -57,9 +127,9 @@ class _CardMainPageState extends State<CardMainPage> {
         ],
       ),
       body: ListView(
-        padding: EdgeInsets.only(bottom: 24),
+        padding: const EdgeInsets.only(bottom: 24),
         children: [
-          // 검색창
+          // 검색창(읽기 전용)
           Padding(
             padding: EdgeInsets.fromLTRB(pad, 12, pad, 4),
             child: _SearchPill(
@@ -68,7 +138,7 @@ class _CardMainPageState extends State<CardMainPage> {
             ),
           ),
 
-          // 이벤트 캐러셀
+          // 이벤트 캐러셀 (탭 → CustomCardEditorPage)
           Padding(
             padding: EdgeInsets.symmetric(horizontal: pad, vertical: 8),
             child: _EventCarousel(
@@ -87,13 +157,13 @@ class _CardMainPageState extends State<CardMainPage> {
 
           const SizedBox(height: 18),
 
-          // 인기·추천카드
+          // 인기 · 추천카드 (탭 → CardDetailPage(cardNo, compareIds, onCompareChanged))
           _SectionHeader(title: '인기 · 추천카드', onTapMore: () {}),
           const SizedBox(height: 8),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: pad),
             child: FutureBuilder<List<CardModel>>(
-              future: fetchPopularCards(),
+              future: _fPopular,
               builder: (context, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
                   return const Padding(
@@ -104,7 +174,10 @@ class _CardMainPageState extends State<CardMainPage> {
                 if (snap.hasError) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Text('불러오기 실패: ${snap.error}', style: const TextStyle(color: Colors.red)),
+                    child: Text(
+                      '불러오기 실패: ${snap.error}',
+                      style: const TextStyle(color: Colors.red),
+                    ),
                   );
                 }
                 final items = snap.data ?? [];
@@ -115,24 +188,37 @@ class _CardMainPageState extends State<CardMainPage> {
                   );
                 }
 
-                // 상위 3개를 세로 리스트로
                 return Column(
                   children: List.generate(items.length, (i) {
                     final it = items[i];
                     return Padding(
-                      padding: EdgeInsets.only(bottom: i == items.length - 1 ? 0 : 12),
+                      padding:
+                      EdgeInsets.only(bottom: i == items.length - 1 ? 0 : 12),
                       child: _CardListItem(
                         badge: i == 0 ? 'Top' : null,
                         title: it.cardName,
                         highlight: '${it.viewCount}회 조회',
-                        brand: it.cardBrand.isEmpty ? (it.cardSlogan ?? '') : it.cardBrand,
-                        // 색상은 순번에 따라 가볍게 바꿔줌
-                        color: [
-                          const Color(0xFF3AA0E7),
-                          const Color(0xFF7AB3C9),
-                          const Color(0xFFE24A3B),
+                        brand: (it.cardBrand ?? '').isEmpty
+                            ? (it.cardSlogan ?? '')
+                            : (it.cardBrand ?? ''),
+                        color: const [
+                          Color(0xFF3AA0E7),
+                          Color(0xFF7AB3C9),
+                          Color(0xFFE24A3B)
                         ][i % 3],
                         imageUrl: it.cardUrl,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CardDetailPage(
+                                cardNo: it.cardNo.toString(),
+                                compareIds: compareIds, // 같은 인스턴스 공유
+                                onCompareChanged: _saveCompare, // 저장 콜백 공유
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     );
                   }),
@@ -142,30 +228,45 @@ class _CardMainPageState extends State<CardMainPage> {
           ),
 
           const SizedBox(height: 20),
-
-          // 금융 섹션
-          _SectionHeader(title: '금융', onTapMore: () {}),
+          // ───── 금융 빠른메뉴 섹션
+          _SectionHeader(title: '금융', onTapMore: () {
+            // TODO: 전체 보기 이동
+          }),
           const SizedBox(height: 8),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: pad),
-            child: _RoundedPanel(
-              child: Column(
-                children: const [
-                  _FinanceRow(title: '장기카드대출(카드론)', sub: '목돈이 필요할 때'),
-                  Divider(height: 1),
-                  _FinanceRow(title: '단기카드대출(현금서비스)', sub: '365일 24시간 현금이 필요할 때'),
-                  Divider(height: 1),
-                  _FinanceRow(title: '일부결제금액이월약정(리볼빙)', sub: '결제금액이 부담될 때'),
-                  Divider(height: 1),
-                  _FinanceRow(title: '가계신용대출·사업자대출', sub: '목돈과 생활자금이 간편한'),
-                ],
-              ),
+            child: _FinanceQuickMenu(
+              items:  [
+                _FinanceItem(
+                  eyebrow: '직접 방문하실 때',
+                  title: '영업점 위치안내',
+                  onTap: () {
+                    Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                        builder: (_) => const NaverMapPage(),
+                        fullscreenDialog: false, // 필요 시 true로 시트 느낌
+                      ),
+                    );
+                  },
+                ),
+                _FinanceItem(
+                  eyebrow: '365일 24시간 현금이 필요할 때',
+                  title: '단기카드대출(현금서비스)',
+                ),
+                _FinanceItem(
+                  eyebrow: '결제금액이 부담될 때',
+                  title: '일부결제금액이월약정(리볼빙)',
+                ),
+              ],
             ),
           ),
-
           const SizedBox(height: 20),
 
-          // 이벤트 배너
+
+
+
+
+          // 이벤트 배너(샘플)
           _SectionHeader(title: '이벤트', onTapMore: () {}),
           const SizedBox(height: 8),
           Padding(
@@ -177,7 +278,10 @@ class _CardMainPageState extends State<CardMainPage> {
           Center(
             child: Text(
               '2 / 8',
-              style: TextStyle(color: Colors.black.withOpacity(0.45), fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Colors.black.withOpacity(0.45),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -193,7 +297,6 @@ class _Logo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // 로고가 없으면 텍스트로 대체
         Image.asset(
           'assets/logo.png',
           height: 28,
@@ -206,6 +309,94 @@ class _Logo extends StatelessWidget {
     );
   }
 }
+
+// ───────── 금융 빠른메뉴 위젯들
+class _FinanceItem {
+  final String eyebrow; // 작은 설명(캡션)
+  final String title;   // 큰 타이틀
+  final VoidCallback? onTap;
+  const _FinanceItem({required this.eyebrow, required this.title, this.onTap});
+}
+
+class _FinanceQuickMenu extends StatelessWidget {
+  final List<_FinanceItem> items;
+  const _FinanceQuickMenu({super.key, required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.black.withOpacity(0.06)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int i = 0; i < items.length; i++) ...[
+              _FinanceTile(item: items[i]),
+              if (i < items.length - 1)
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Colors.black.withOpacity(0.06),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FinanceTile extends StatelessWidget {
+  final _FinanceItem item;
+  const _FinanceTile({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: item.onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.eyebrow,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black.withOpacity(0.45),
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      height: 1.1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.black54),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 class _SearchPill extends StatelessWidget {
   final String hint;
@@ -227,7 +418,8 @@ class _SearchPill extends StatelessWidget {
         ),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
           borderSide: BorderSide(color: Colors.black.withOpacity(0.06)),
@@ -236,9 +428,9 @@ class _SearchPill extends StatelessWidget {
           borderRadius: BorderRadius.circular(30),
           borderSide: BorderSide(color: Colors.black.withOpacity(0.06)),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: const BorderSide(color: Color(0xFFB91111), width: 1.2),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(30)),
+          borderSide: BorderSide(color: Color(0xFFB91111), width: 1.2),
         ),
       ),
     );
@@ -258,7 +450,8 @@ class _SectionHeader extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: pad),
       child: Row(
         children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           const Spacer(),
           InkWell(
             onTap: onTapMore,
@@ -300,12 +493,9 @@ class _EventCarousel extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(18),
               onTap: () {
-                // 탭 시 커스텀 페이지로 이동
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const CustomCardEditorPage(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const CustomCardEditorPage()),
                 );
               },
               child: _GradientCard(
@@ -401,6 +591,7 @@ class _EventTag extends StatelessWidget {
   }
 }
 
+// ───────── 인기·추천 리스트 아이템
 class _CardListItem extends StatelessWidget {
   final String? badge;
   final String title;
@@ -408,6 +599,7 @@ class _CardListItem extends StatelessWidget {
   final String brand;
   final Color color;
   final String? imageUrl;
+  final VoidCallback? onTap;
 
   const _CardListItem({
     this.badge,
@@ -416,58 +608,54 @@ class _CardListItem extends StatelessWidget {
     required this.brand,
     this.color = const Color(0xFF3AA0E7),
     this.imageUrl,
+    this.onTap,
   });
 
+  Widget _fallbackGradient() {
+    const double thumbSize = 88;
+    return Container(
+      width: thumbSize,
+      height: thumbSize,
+      margin: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        gradient: LinearGradient(
+          colors: [color, color.withOpacity(0.6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: const Icon(Icons.credit_card, color: Colors.white, size: 34),
+    );
+  }
 
   Widget _buildThumb() {
+    const double thumbSize = 88; // ← 썸네일 크기 한 곳에서 조절
+
     if (imageUrl == null || imageUrl!.isEmpty) {
-      // Fallback: 기존 그라데이션 카드
-      return Container(
-        width: 68,
-        margin: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          gradient: LinearGradient(
-            colors: [color, color.withOpacity(0.6)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: const Icon(Icons.credit_card, color: Colors.white, size: 34),
-      );
+      return _fallbackGradient();
     }
+
+    final proxied =
+        '${API.baseUrl}/proxy/image?url=${Uri.encodeComponent(imageUrl!)}';
+
     return Container(
-      width: 100,
-      height: 300,
+      width: thumbSize,
+      height: thumbSize,
       margin: const EdgeInsets.all(10),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child:FittedBox(
-          fit:BoxFit.contain,
+        child: FittedBox(
+          fit: BoxFit.contain, // 원본 비율 유지
           child: RotatedBox(
-            quarterTurns: 1,
+            quarterTurns: 1, // 90° 회전 (시계방향)
             child: Image.network(
-              imageUrl!,
-              fit: BoxFit.contain,
-              // 로딩/에러 대비
+              proxied,
               loadingBuilder: (ctx, child, progress) {
                 if (progress == null) return child;
                 return Container(color: Colors.black12);
               },
-              errorBuilder: (ctx, err, stack) {
-                // 실패 시 그라데이션으로 대체
-                return Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    gradient: LinearGradient(
-                      colors: [color, color.withOpacity(0.6)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: const Icon(Icons.credit_card, color: Colors.white, size: 34),
-                );
-              },
+              errorBuilder: (ctx, err, stack) => _fallbackGradient(),
             ),
           ),
         ),
@@ -477,107 +665,89 @@ class _CardListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 140,
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withOpacity(0.06)),
-      ),
-      child: Row(
-        children: [
-          // 썸네일(그라데이션 카드)
-          _buildThumb(),
-          const SizedBox(width: 8),
-          // 텍스트
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 96),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.black.withOpacity(0.06)),
+          ),
+          child: Row(
+            children: [
+              _buildThumb(),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (badge != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEE2D2D),
-                            borderRadius: BorderRadius.circular(999),
+                      Row(
+                        children: [
+                          if (badge != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEE2D2D),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                badge!,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          if (badge != null) const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              title,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                              const TextStyle(fontWeight: FontWeight.w800),
+                            ),
                           ),
-                          child: Text(
-                            badge!,
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      if (badge != null) const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          title,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                              color: Colors.black.withOpacity(0.8),
+                              fontSize: 12,
+                              height: 1.2),
+                          children: [
+                            TextSpan(
+                                text: highlight,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF2046D1))),
+                            const TextSpan(text: '  '),
+                            TextSpan(text: brand),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(color: Colors.black.withOpacity(0.8), fontSize: 12, height: 1.2),
-                      children: [
-                        TextSpan(text: highlight, style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF2046D1))),
-                        const TextSpan(text: '  '),
-                        TextSpan(text: brand),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+              const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child:
+                Icon(Icons.chevron_right_rounded, color: Colors.black54),
+              ),
+            ],
           ),
-          const Padding(
-            padding: EdgeInsets.only(right: 8),
-            child: Icon(Icons.chevron_right_rounded, color: Colors.black54),
-          )
-        ],
+        ),
       ),
-    );
-  }
-}
-
-class _RoundedPanel extends StatelessWidget {
-  final Widget child;
-  const _RoundedPanel({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withOpacity(0.06)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: child,
-    );
-  }
-}
-
-class _FinanceRow extends StatelessWidget {
-  final String title;
-  final String sub;
-
-  const _FinanceRow({required this.title, required this.sub});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: Text(sub, style: TextStyle(color: Colors.black.withOpacity(0.55))),
-      trailing: const Icon(Icons.chevron_right_rounded),
-      onTap: () {},
     );
   }
 }
