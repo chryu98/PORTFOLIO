@@ -31,7 +31,6 @@ public class SecurityConfig {
             .securityMatcher("/admin/**")
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
-                		"/ws/**",
                     "/admin/Search/searchlog/**",
                     "/admin/Mainpage",
                     "/admin/adminLoginForm",
