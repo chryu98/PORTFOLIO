@@ -106,3 +106,6 @@
 2025-08-22 17:06:29,776 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
 2025-08-22 17:06:50,498 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
 2025-08-22 17:07:08,614 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 18:46:14,642 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 18:49:46,009 INFO feedback.analyze: feedback_no=13 rating=1 text_len=11
+2025-08-22 18:49:49,055 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
