@@ -152,8 +152,8 @@ class _ApplicationStep7AddressPageState extends State<ApplicationStep7AddressPag
           context,
           MaterialPageRoute(
             builder: (_) => ApplicationStep8CardPinPage(
-              // 필요한 값만 넘긴다. 서버는 세션/JWT에서 memberNo를 알 수 있음
-              cardNo: widget.cardNo, // ✅ 8페이지에서 핀 저장 API에 필요
+              applicationNo: widget.applicationNo, // ✅ 추가
+              cardNo: widget.cardNo,
             ),
           ),
         );
