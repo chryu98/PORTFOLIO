@@ -3,6 +3,26 @@
   PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.busanbank.card.card.dao.CardDao">
+
+	<resultMap id="CardMap" type="com.busanbank.card.card.dto.CardDto">
+	    <id     column="CARD_NO"        property="cardNo"/>
+	    <result column="CARD_NAME"      property="cardName"/>
+	    <result column="CARD_TYPE"      property="cardType"/>
+	    <result column="CARD_BRAND"     property="cardBrand"/>
+	    <result column="VIEW_COUNT"     property="viewCount"/>
+	    <result column="ANNUAL_FEE"     property="annualFee"/>
+	    <result column="ISSUEDTO"       property="issuedTo"/>
+	    <result column="SERVICE"        property="service"/>
+	    <result column="S_SERVICE"      property="sService"/>
+	    <result column="CARD_STATUS"    property="cardStatus"/>
+	    <result column="CARD_URL"       property="cardUrl"/>
+	    <result column="CARD_ISSUEDATE" property="cardIssueDate"/>
+	    <result column="CARD_DUEDATE"   property="cardDueDate"/>
+	    <result column="CARD_SLOGAN"    property="cardSlogan"/>
+	    <result column="CARD_NOTICE"    property="cardNotice"/>
+	    <result column="REG_DATE"       property="regDate"/>
+	    <result column="EDIT_DATE"      property="editDate"/>
+    </resultMap>
 	<select id="selectAll"
 		resultType="com.busanbank.card.card.dto.CardDto">
 		SELECT CARD_NO AS cardNo,
@@ -100,6 +120,18 @@
     FROM CARD
     ORDER BY VIEW_COUNT DESC
     FETCH FIRST 6 ROWS ONLY
+  </select>
+  
+  <select id="selectTop3ByView" resultMap="CardMap">
+    SELECT
+      CARD_NO, CARD_NAME, CARD_TYPE, CARD_BRAND, VIEW_COUNT,
+      ANNUAL_FEE, ISSUEDTO, SERVICE, S_SERVICE, CARD_STATUS,
+      CARD_URL, CARD_ISSUEDATE, CARD_DUEDATE, CARD_SLOGAN,
+      CARD_NOTICE, REG_DATE, EDIT_DATE
+    FROM CARD
+    WHERE CARD_STATUS = '게시중'
+    ORDER BY VIEW_COUNT DESC, EDIT_DATE DESC NULLS LAST
+    FETCH FIRST 3 ROWS ONLY
   </select>
 
 

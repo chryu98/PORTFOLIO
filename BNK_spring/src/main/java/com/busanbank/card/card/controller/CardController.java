@@ -114,6 +114,12 @@ public class CardController {
         return jdbcTemplate.query(sql, (rs, rowNum) -> rs.getString("KEYWORD"));
     }
 	
+	//플러터용 인기카드 3개
+	@GetMapping("/cards/top3")
+    public List<CardDto> popularTop3() {
+		System.out.println(cardService.getPopularTop3());
+        return cardService.getPopularTop3();
+    }
 	
 
 }

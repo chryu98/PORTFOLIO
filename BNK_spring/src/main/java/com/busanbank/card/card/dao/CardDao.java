@@ -24,4 +24,6 @@ public interface CardDao {
     	); //카드 리스트 정렬(?)
     
     List<CardDto> selectPopularCards();
+    
+    List<CardDto> selectTop3ByView();
 }

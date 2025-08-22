@@ -1,5 +1,9 @@
+import 'package:bnkandroid/user/CustomCardEditorPage.dart';
+import 'package:bnkandroid/user/model/CardModel.dart';
 import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class CardMainPage extends StatefulWidget {
   const CardMainPage({super.key});
@@ -10,7 +14,18 @@ class CardMainPage extends StatefulWidget {
 
 class _CardMainPageState extends State<CardMainPage> {
   final PageController _pageCtrl = PageController(viewportFraction: 0.9);
+  String baseUrl = 'http://192.168.0.224:8090';
   int _current = 0;
+
+  Future<List<CardModel>> fetchPopularCards() async {
+    final uri = Uri.parse('$baseUrl/api/cards/top3');
+    final res = await http.get(uri);
+    if (res.statusCode == 200) {
+      final List list = json.decode(utf8.decode(res.bodyBytes));
+      return list.map((e) => CardModel.fromJson(e)).toList().cast<CardModel>();
+    }
+    throw Exception('popular cards fetch failed: ${res.statusCode}');
+  }
 
   @override
   void dispose() {
@@ -77,30 +92,52 @@ class _CardMainPageState extends State<CardMainPage> {
           const SizedBox(height: 8),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: pad),
-            child: Column(
-              children: const [
-                _CardListItem(
-                  badge: 'New',
-                  title: '생활 맞춤 10% 할인',
-                  highlight: '정기결제 최대 20% 할인',
-                  brand: '신한카드 Discount Plan',
-                ),
-                SizedBox(height: 12),
-                _CardListItem(
-                  badge: 'New',
-                  title: '호시노 리조트 ~30% 할인',
-                  highlight: '국내외 적립/결합 추가 적립',
-                  brand: 'Haru(Hoshino Resorts)',
-                  color: Color(0xFF7AB3C9),
-                ),
-                SizedBox(height: 12),
-                _CardListItem(
-                  title: '공과금·일상 10% 할인',
-                  highlight: '주유소 60원/L 할인',
-                  brand: '신한카드 Mr.Life',
-                  color: Color(0xFFE24A3B),
-                ),
-              ],
+            child: FutureBuilder<List<CardModel>>(
+              future: fetchPopularCards(),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snap.hasError) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Text('불러오기 실패: ${snap.error}', style: const TextStyle(color: Colors.red)),
+                  );
+                }
+                final items = snap.data ?? [];
+                if (items.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Text('표시할 카드가 없습니다.'),
+                  );
+                }
+
+                // 상위 3개를 세로 리스트로
+                return Column(
+                  children: List.generate(items.length, (i) {
+                    final it = items[i];
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: i == items.length - 1 ? 0 : 12),
+                      child: _CardListItem(
+                        badge: i == 0 ? 'Top' : null,
+                        title: it.cardName,
+                        highlight: '${it.viewCount}회 조회',
+                        brand: it.cardBrand.isEmpty ? (it.cardSlogan ?? '') : it.cardBrand,
+                        // 색상은 순번에 따라 가볍게 바꿔줌
+                        color: [
+                          const Color(0xFF3AA0E7),
+                          const Color(0xFF7AB3C9),
+                          const Color(0xFFE24A3B),
+                        ][i % 3],
+                        imageUrl: it.cardUrl,
+                      ),
+                    );
+                  }),
+                );
+              },
             ),
           ),
 
@@ -257,37 +294,51 @@ class _EventCarousel extends StatelessWidget {
             [const Color(0xFF8E2DE2), const Color(0xFF4A00E0)],
             [const Color(0xFF1D976C), const Color(0xFF93F9B9)],
           ];
+
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: _GradientCard(
-              colors: colors[i],
-              child: Stack(
-                children: [
-                  const Positioned(
-                    right: 16,
-                    bottom: 12,
-                    child: Icon(Icons.credit_card, size: 72, color: Colors.white70),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: () {
+                // 탭 시 커스텀 페이지로 이동
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const CustomCardEditorPage(),
                   ),
-                  const Positioned(
-                    left: 14,
-                    top: 14,
-                    child: _EventTag(text: 'EVENT'),
-                  ),
-                  const Positioned(
-                    left: 14,
-                    bottom: 18,
-                    right: 14,
-                    child: Text(
-                      '기대 그 이상의 프리미엄\n최대 20만원 캐시백',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        height: 1.2,
-                        fontWeight: FontWeight.w800,
+                );
+              },
+              child: _GradientCard(
+                colors: colors[i],
+                child: Stack(
+                  children: [
+                    const Positioned(
+                      right: 16,
+                      bottom: 12,
+                      child: Icon(Icons.credit_card,
+                          size: 72, color: Colors.white70),
+                    ),
+                    const Positioned(
+                      left: 14,
+                      top: 14,
+                      child: _EventTag(text: 'EVENT'),
+                    ),
+                    const Positioned(
+                      left: 14,
+                      bottom: 18,
+                      right: 14,
+                      child: Text(
+                        '기대 그 이상의 프리미엄\n최대 20만원 캐시백',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          height: 1.2,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
@@ -356,6 +407,7 @@ class _CardListItem extends StatelessWidget {
   final String highlight;
   final String brand;
   final Color color;
+  final String? imageUrl;
 
   const _CardListItem({
     this.badge,
@@ -363,12 +415,70 @@ class _CardListItem extends StatelessWidget {
     required this.highlight,
     required this.brand,
     this.color = const Color(0xFF3AA0E7),
+    this.imageUrl,
   });
+
+
+  Widget _buildThumb() {
+    if (imageUrl == null || imageUrl!.isEmpty) {
+      // Fallback: 기존 그라데이션 카드
+      return Container(
+        width: 68,
+        margin: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          gradient: LinearGradient(
+            colors: [color, color.withOpacity(0.6)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: const Icon(Icons.credit_card, color: Colors.white, size: 34),
+      );
+    }
+    return Container(
+      width: 100,
+      height: 300,
+      margin: const EdgeInsets.all(10),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child:FittedBox(
+          fit:BoxFit.contain,
+          child: RotatedBox(
+            quarterTurns: 1,
+            child: Image.network(
+              imageUrl!,
+              fit: BoxFit.contain,
+              // 로딩/에러 대비
+              loadingBuilder: (ctx, child, progress) {
+                if (progress == null) return child;
+                return Container(color: Colors.black12);
+              },
+              errorBuilder: (ctx, err, stack) {
+                // 실패 시 그라데이션으로 대체
+                return Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    gradient: LinearGradient(
+                      colors: [color, color.withOpacity(0.6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Icon(Icons.credit_card, color: Colors.white, size: 34),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 88,
+      height: 140,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -377,19 +487,7 @@ class _CardListItem extends StatelessWidget {
       child: Row(
         children: [
           // 썸네일(그라데이션 카드)
-          Container(
-            width: 68,
-            margin: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              gradient: LinearGradient(
-                colors: [color, color.withOpacity(0.6)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: const Icon(Icons.credit_card, color: Colors.white, size: 34),
-          ),
+          _buildThumb(),
           const SizedBox(width: 8),
           // 텍스트
           Expanded(
