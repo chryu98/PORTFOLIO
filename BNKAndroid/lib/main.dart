@@ -1,36 +1,32 @@
+// main.dart
 import 'package:flutter/material.dart';
 import 'package:bnkandroid/constants/api.dart';
+import 'SignPage.dart';
 import 'app_shell.dart';
 import 'auth_state.dart';
 import 'package:bnkandroid/constants/faq_api.dart';
 import 'package:bnkandroid/constants/chat_api.dart';
 
+
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   try {
     await API.initBaseUrl();
-    // ✅ 스프링 FAQ 서버
     FAQApi.useLan(ip: '192.168.0.5', port: 8090);
     FAQApi.setPathPrefix('/api');
-
-    // ✅ 챗봇 서버(둘 중 하나)
     ChatAPI.useFastAPI(ip: '192.168.0.5', port: 8000);
-    // ChatAPI.useSpringProxy(ip: '192.168.0.5', port: 8090);
   } catch (e, _) {
     debugPrint('[API] init 실패: $e');
   }
-
   try {
     await AuthState.init();
     await AuthState.debugDump();
   } catch (e, _) {
     debugPrint('[AuthState] 초기화 실패: $e');
   }
-
   runApp(const MyApp());
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -81,6 +77,22 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: const AppShell(),
+
+      // ✅ 여기 추가: /sign 라우트 핸들링
+      onGenerateRoute: (settings) {
+        if (settings.name == '/sign') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          final appNo = (args?['applicationNo'] as int?) ?? 0;
+          return MaterialPageRoute(
+            builder: (_) => SignPage(applicationNo: appNo),
+            settings: settings,
+          );
+        }
+        return null; // 다른 라우트는 기본 처리
+      },
+
+      // 선택: 알 수 없는 라우트 안전망
+      // onUnknownRoute: (_) => MaterialPageRoute(builder: (_) => const AppShell()),
     );
   }
 }

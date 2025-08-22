@@ -1,5 +1,6 @@
 // lib/ApplicationStep8CardPinPage.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'ApplicationStep1Page.dart' show kPrimaryRed;
 import 'package:bnkandroid/constants/api.dart' as API;                // ✅ ApiException 캐치용
 import 'package:bnkandroid/user/service/card_password_service.dart' as cps;
@@ -7,10 +8,12 @@ import 'package:bnkandroid/user/service/card_password_service.dart' as cps;
 enum _PadStyle { card, flat }
 
 class ApplicationStep8CardPinPage extends StatefulWidget {
+  final int applicationNo;   // ✅ 승격 및 서명 이동에 필요
   final int cardNo;
 
   const ApplicationStep8CardPinPage({
     super.key,
+    required this.applicationNo,
     required this.cardNo,
   });
 
@@ -57,31 +60,36 @@ class _ApplicationStep8CardPinPageState extends State<ApplicationStep8CardPinPag
     }
 
     setState(() => _saving = true);
+    HapticFeedback.lightImpact();
+
     try {
-      // 3) 저장 요청
-      final result = await cps.CardPasswordService.savePin(
+      // 3) 저장 + 승격까지 한 번에 (옵션 A)
+      await cps.CardPasswordService.savePinAndPromote(
+        applicationNo: widget.applicationNo,
         cardNo: widget.cardNo,
         pin1: pin,
         pin2: pin,
       );
+
       if (!mounted) return;
 
-      // 4) 결과 처리
-      if (result.ok == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.message ?? '카드 비밀번호가 저장되었습니다.')),
-        );
-        Navigator.of(context).pop(true); // 현재 화면 종료(필요 시 다음 단계로 교체)
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.message ?? '저장에 실패했습니다. 다시 시도해주세요.')),
-        );
-      }
+      // 4) 성공 토스트 & 서명 화면으로 이동 (FINAL 기준)
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('비밀번호가 저장되고 신청이 준비되었습니다.')),
+      );
+
+      // 라우팅 규칙에 맞게 조정 가능: pushNamed/pushReplacementNamed 등
+      Navigator.of(context).pushReplacementNamed(
+        '/sign',
+        arguments: {'applicationNo': widget.applicationNo},
+      );
     } on API.ApiException catch (e) {
       if (!mounted) return;
       var msg = e.message ?? '요청 처리 중 오류가 발생했습니다.';
       if (e.statusCode == 401) {
         msg = '로그인이 필요합니다. 다시 로그인해 주세요.';
+      } else if (e.statusCode == 404) {
+        msg = '신청서를 찾을 수 없습니다. 처음부터 다시 시도해주세요.';
       } else if (e.statusCode == 400) {
         msg = '형식 오류: 숫자 4~6자리로 입력했는지 확인해주세요.';
       }
@@ -95,7 +103,6 @@ class _ApplicationStep8CardPinPageState extends State<ApplicationStep8CardPinPag
       if (mounted) setState(() => _saving = false);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {

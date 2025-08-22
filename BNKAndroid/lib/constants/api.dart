@@ -10,11 +10,8 @@ class API {
   static String? baseUrl;
   static final http.Client _client = http.Client();
 
-
   // 사내/로컬 환경 기본값
-  static const String _fallbackHost = '192.168.0.5';
-
-
+  static const String _fallbackHost = '192.168.100.106';
   static const int _configPort = 8090; // 설정 서버
   static const int _apiPort    = 8090; // 실제 스프링 API
 
@@ -182,7 +179,7 @@ class API {
       Uri uri, {
         Object? body,
         Map<String, String>? headers,
-        bool retry = false,       // ⬅︎ 여기 이름 바꿈 (_isRetry → retry)
+        bool retry = false, // ⬅︎ 401 재시도 플래그
       }) async {
     final auth = await authHeader();
     final merged = {
@@ -215,7 +212,7 @@ class API {
       await saveCookie(setCookie.split(',').first);
     }
 
-    if (res.statusCode == 401 && !retry) {   // ⬅︎ _isRetry → retry
+    if (res.statusCode == 401 && !retry) {
       final ok = await _tryRefreshToken();
       if (ok) {
         return _request(
@@ -223,7 +220,7 @@ class API {
           uri,
           body: body,
           headers: headers,
-          retry: true,                       // ⬅︎ _isRetry: true → retry: true
+          retry: true,
         );
       }
       await clearAuth();
@@ -304,8 +301,12 @@ class API {
   static String get customerInfo         => _j('/api/card/apply/customer-info');  // GET ?cardNo=
   static String termsPdf(int pdfNo)      => _j('/api/card/apply/pdf/$pdfNo');
 
-  // 페이지 8(카드비번)
-  static String pinSave(int cardNo) => _j('/card/apply/api/card-password/$cardNo/pin');
+  // 페이지 8(카드 비번)
+  static String pinSave(int cardNo)      => _j('/card/apply/api/card-password/$cardNo/pin');
+
+  // 승격(옵션 A: 클라에서 호출)
+  static String promote(int appNo)       => _j('/api/card/apply/promote/$appNo');
+
 
   // JWT
   static String get jwtLogin   => _j('/jwt/api/login');
@@ -335,4 +336,3 @@ class ApiException implements Exception {
   String toString() =>
       'ApiException($statusCode) ${message ?? raw ?? body ?? ''}';
 }
-

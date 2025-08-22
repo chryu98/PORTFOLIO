@@ -1,6 +1,7 @@
 package com.busanbank.card.cardapply.controller;
 
 import com.busanbank.card.cardapply.dao.CardApplySignatureDao;
+import com.busanbank.card.cardapply.dao.ApplicationMapper; // ✅ 상태 업데이트용
 import com.busanbank.card.cardapply.dto.CardApplySignatureRec;
 import com.busanbank.card.cardapply.dto.SignatureInfoRes;
 import com.busanbank.card.cardapply.dto.SignatureSaveReq;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.ZoneId;
@@ -21,6 +23,7 @@ import java.util.Map;
 public class CardApplySignatureRestController {
 
   private final CardApplySignatureDao dao;
+  private final ApplicationMapper appMapper; // ✅ 추가
 
   private Long currentMemberNo() {
     var auth = SecurityContextHolder.getContext().getAuthentication();
@@ -53,7 +56,34 @@ public class CardApplySignatureRestController {
     return Base64.getDecoder().decode(b64);
   }
 
-  /** 저장/덮어쓰기: FINAL 없으면 컨트롤러에서 바로 승격 후 진행 */
+  /** ✅ Flutter: 서명 대상 상태 조회 (FINAL)  GET /api/card/apply/sign/info?applicationNo=123 */
+  @GetMapping("/info")
+  public ResponseEntity<?> infoByQuery(@RequestParam("applicationNo") Long appNo) {
+    String status = appMapper.getFinalStatus(appNo);
+    if (status == null) return ResponseEntity.status(404).body(Map.of("status", "not_found"));
+    return ResponseEntity.ok(Map.of("applicationNo", appNo, "status", status));
+  }
+
+  /** ✅ Flutter: 서명 세션 생성  POST /api/card/apply/sign/session/{appNo} */
+  @PostMapping("/session/{appNo}")
+  @Transactional
+  public ResponseEntity<?> createSession(@PathVariable("appNo") Long appNo) {
+    appMapper.updateStatus(appNo, "SIGNING"); // 실제 연동 시 외부 URL/토큰 내려주기
+    return ResponseEntity.ok(Map.of(
+      "type", "redirect",
+      "url", "https://example.com/sign/callback?appNo=" + appNo
+    ));
+  }
+
+  /** ✅ Flutter: 서명 결과 조회  GET /api/card/apply/sign/result/{appNo} */
+  @GetMapping("/result/{appNo}")
+  @Transactional
+  public ResponseEntity<?> result(@PathVariable("appNo") Long appNo) {
+    appMapper.updateStatus(appNo, "SIGNED"); // 데모: 바로 완료로 전환
+    return ResponseEntity.ok(Map.of("status", "SIGNED"));
+  }
+
+  /** 저장/덮어쓰기: FINAL 없으면 즉시 승격 후 진행 (앱에서 직접 사인 이미지 업로드하는 경우) */
   @PostMapping
   public ResponseEntity<?> save(@RequestBody SignatureSaveReq req) {
     Long memberNo = currentMemberNo();
@@ -71,23 +101,22 @@ public class CardApplySignatureRestController {
 
     Long appNo = req.getApplicationNo();
 
-    // 1) FINAL 보장: 없고 TEMP에 있으면 즉시 승격 (컨트롤러에서 처리)
+    // FINAL 보장
     if (dao.existsInFinal(appNo) == 0) {
       if (dao.existsInTemp(appNo) == 0) {
         return ResponseEntity.status(404).body(Map.of("ok", false, "message", "신청서를 찾을 수 없습니다."));
       }
-      // 승격: INSERT -> TEMP 삭제 -> FINAL touch (멱등)
       dao.promoteInsertFinal(appNo);
-      dao.deleteTemp(appNo);
+      try { dao.deleteTemp(appNo); } catch (Exception ignore) { /* 비치명적 */ }
       dao.touchFinal(appNo);
     }
 
-    // 2) 오너 검사 (FINAL)
+    // 오너 검사
     if (dao.isOwnerInFinal(appNo, memberNo) == 0) {
       return ResponseEntity.status(403).body(Map.of("ok", false, "message", "신청 소유자가 아닙니다."));
     }
 
-    // 3) 저장
+    // 저장
     byte[] bytes = decodeBase64Image(req.getImageBase64());
     dao.upsertSignatureFinal(appNo, memberNo, bytes);
 
@@ -96,14 +125,14 @@ public class CardApplySignatureRestController {
 
   /** 존재 여부 (FINAL만) */
   @GetMapping("/{appNo}/exists")
-  public ResponseEntity<Map<String, Object>> exists(@PathVariable Long appNo) {
+  public ResponseEntity<Map<String, Object>> exists(@PathVariable("appNo") Long appNo) {
     boolean exists = dao.findFinalByApplicationNo(appNo) != null;
     return ResponseEntity.ok(Map.of("exists", exists));
   }
 
   /** 메타 정보 (FINAL만) */
   @GetMapping("/{appNo}")
-  public ResponseEntity<SignatureInfoRes> info(@PathVariable Long appNo) {
+  public ResponseEntity<SignatureInfoRes> info(@PathVariable("appNo") Long appNo) {
     CardApplySignatureRec r = dao.findFinalByApplicationNo(appNo);
     SignatureInfoRes res = new SignatureInfoRes();
     res.setApplicationNo(appNo);
