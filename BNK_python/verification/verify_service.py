@@ -26,7 +26,7 @@ def _parse_expected(rrn: str):
 def _mask_front(front: str) -> str:
     return f"{front[:2]}****" if front else ""
 
-def verify_identity(id_bytes: bytes, face_bytes: bytes, expected_rrn: str, face_threshold: float = 0.65):
+def verify_identity(id_bytes: bytes, face_bytes: bytes, expected_rrn: str, face_threshold: float = 0.6):
     # 1) OCR
     try:
         ocr = extract_rrn(id_bytes)  # {'front','gender','tail','masked','preview'}

@@ -39,6 +39,19 @@ class CardService {
     }
   }
 
+  /// 인기카드 Top3 (플러터 전용 API)
+  static Future<List<CardModel>> fetchPopularTop3() async {
+    final url = Uri.parse('${API.baseUrl}/cards/top3');
+    final r = await http.get(url);
+
+    if (r.statusCode == 200) {
+      final List<dynamic> jsonList = json.decode(utf8.decode(r.bodyBytes));
+      return jsonList.map((e) => CardModel.fromJson(e)).toList();
+    } else {
+      throw Exception('Failed to load popular top3 cards');
+    }
+  }
+
   //검색창 기능
   static Future<List<CardModel>> searchCards({
     String keyword = '',

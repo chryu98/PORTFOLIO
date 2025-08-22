@@ -541,7 +541,9 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
     if (mounted && n >= c && !_lastToastShown.contains(pdfNo)) {
       _lastToastShown.add(pdfNo);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('마지막 페이지입니다.')),
+        const SnackBar(content: Text('마지막 페이지입니다.'),
+            duration: Duration(seconds: 1),
+        ),
       );
     }
   }
@@ -556,7 +558,8 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
     if (mounted && n >= c && !_lastToastShown.contains(pdfNo)) {
       _lastToastShown.add(pdfNo);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('마지막 페이지입니다.')),
+        const SnackBar(content: Text('마지막 페이지입니다.')
+        ,duration: Duration(seconds: 1),),
       );
     }
   }
