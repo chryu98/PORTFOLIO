@@ -11,6 +11,7 @@ h1 {
   font-size: 22px;
   font-weight: 700;
   text-align: center;
+  padding-top:40px;
 }
 /* ===== 공통 ===== */
 * { box-sizing: border-box; }
