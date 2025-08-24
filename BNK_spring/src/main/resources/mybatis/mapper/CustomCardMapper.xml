@@ -8,7 +8,8 @@
     SELECT seq_custom_card.NEXTVAL FROM dual
   </select>
 
-  <insert id="insert" >
+  <!-- 등록 -->
+  <insert id="insert">
     INSERT INTO CUSTOM_CARD (
       custom_no, member_no, image_blob, status, reason, custom_service,
       created_at, ai_result, ai_reason
@@ -24,5 +25,23 @@
       #{aiReason,jdbcType=VARCHAR}
     )
   </insert>
+
+  <!-- ⬇️ 추가: 단건 조회 -->
+  <select id="findById" resultType="com.busanbank.card.custom.dto.CustomCardDto">
+    SELECT
+      custom_no       AS customNo,
+      member_no       AS memberNo,
+      image_blob      AS imageBlob,
+      status          AS status,
+      reason          AS reason,
+      custom_service  AS customService,
+      created_at      AS createdAt,
+      updated_at      AS updatedAt,
+      approved_at     AS approvedAt,
+      ai_result       AS aiResult,
+      ai_reason       AS aiReason
+    FROM CUSTOM_CARD
+    WHERE custom_no = #{customNo}
+  </select>
 
 </mapper>

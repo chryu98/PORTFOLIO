@@ -10,9 +10,9 @@ class API {
   static String? baseUrl;
   static final http.Client _client = http.Client();
 
-
   // 사내/로컬 환경 기본값
-  static const String _fallbackHost = '192.168.0.229';
+
+  static const String _fallbackHost = '172.20.10.10';
 
 
   static const int _configPort = 8090; // 설정 서버
@@ -25,7 +25,9 @@ class API {
 
   /// 앱 시작 시 1회 호출
   static Future<void> initBaseUrl() async {
-    const fallbackIp = '192.168.0.229'; // 각자 로컬/사내망 IP면 여기만 개인별로 바꿔도 동작
+
+    const fallbackIp = '192.168.0.5'; // 개인별 로컬/사내망 IP면 여기만 바꿔도 동작
+
     try {
       final cfg = await _client.get(
         Uri.parse('http://$_fallbackHost:$_configPort/api/config/base-url'),
@@ -137,6 +139,9 @@ class API {
     if (s.startsWith('http://') || s.startsWith('https://')) return s;
     return _j(s);
   }
+
+  /// ✅ 공개 유틸: 외부에서 경로/URL을 전달하면 baseUrl을 붙여 반환
+  static String joinBase(String pathOrUrl) => _resolve(pathOrUrl);
 
   // ────────────────────────────────────────────────────────────────────────
   // 공통 JSON 요청 헬퍼 (자동 인증 + 401 리프레시 1회 재시도)
@@ -311,11 +316,16 @@ class API {
   // 승격(옵션 A: 클라에서 호출)
   static String promote(int appNo)       => _j('/api/card/apply/promote/$appNo');
 
-
   // JWT
   static String get jwtLogin   => _j('/jwt/api/login');
   static String get jwtLogout  => _j('/jwt/api/logout');
   static String get jwtRefresh => _j('/jwt/api/refresh');
+
+  // ── 커스텀 카드 (이미지/혜택/조회) ───────────────────────────────────────
+  static String get customCards => _j('/api/custom-cards'); // POST 생성, (옵션) GET 목록
+  static String customCardOne(int customNo) => _j('/api/custom-cards/$customNo'); // GET 상세
+  static String customCardBenefit(int customNo) => _j('/api/custom-cards/$customNo/benefit'); // PUT 혜택 저장
+  static String customCardImage(int customNo) => _j('/api/custom-cards/$customNo/image');     // GET 이미지(옵션)
 }
 
 /// 통일된 예외 타입

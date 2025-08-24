@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.busanbank.card.custom.dao.BenefitMapper">
+
+  <!-- 존재 여부 -->
+  <select id="exists" resultType="int">
+    SELECT COUNT(1) FROM CUSTOM_CARD WHERE custom_no = #{customNo}
+  </select>
+
+  <!-- 혜택 조회 -->
+  <select id="getBenefit" resultType="string">
+    SELECT custom_service FROM CUSTOM_CARD WHERE custom_no = #{customNo}
+  </select>
+
+  <!-- 혜택 업데이트 -->
+  <update id="updateBenefit">
+    UPDATE CUSTOM_CARD
+       SET custom_service = #{customService,jdbcType=VARCHAR},
+           updated_at     = SYSDATE
+     WHERE custom_no      = #{customNo}
+  </update>
+
+  <!-- updated_at만 갱신 -->
+  <update id="touch">
+    UPDATE CUSTOM_CARD SET updated_at = SYSDATE WHERE custom_no = #{customNo}
+  </update>
+
+</mapper>
