@@ -17,10 +17,10 @@ class CustomCardInfo {
   final int customNo;
   final int memberNo;
   final String status;
-  final String? reason;        // 반려 사유
-  final String? aiResult;      // ACCEPT / REJECT
-  final String? aiReason;      // AI 거절 사유
-  final String? customService; // 기존 저장된 혜택 설명
+  final String? reason;
+  final String? aiResult;
+  final String? aiReason;
+  final String? customService;
 
   CustomCardInfo({
     required this.customNo,
@@ -48,31 +48,38 @@ class CustomCardInfo {
 }
 
 class CustomCardService {
-  /// 상세 조회: GET /api/custom-card/{customNo}
+  /// 상세 조회: GET /api/custom-cards/{customNo}
   static Future<CustomCardInfo> fetchOne(int customNo) async {
-    final res = await API.API.getJ(API.API.customCardOne(customNo));
+    final res = await API.API.getJ(_oneUrl(customNo));
     return CustomCardInfo.fromJson(_asMap(res));
   }
 
-  /// 혜택 저장: PUT /api/custom-card/{customNo}/benefit  body: { customService }
+  /// 혜택 저장: PUT /api/custom-cards/{customNo}/benefit  body: { customService }
+  /// 서버 응답: { "updated": true }
   static Future<bool> saveBenefit({
     required int customNo,
     required String customService,
   }) async {
     final body = jsonEncode({'customService': customService});
-    final res = await API.API.putJ(API.API.customCardBenefit(customNo), body: body);
+    final res = await API.API.putJ(_benefitUrl(customNo), body: body);
     final m = _asMap(res);
-    return m['ok'] == true;
+    return m['updated'] == true;   // ← 여기만 'ok' → 'updated' 로
   }
 
-  /// 렌더된 이미지 URL (서버 @GetMapping("/api/custom-card/{customNo}/image") 가정)
+  /// 렌더된 이미지 URL: GET /api/custom-cards/{customNo}/image
   static String imageUrl(int customNo) {
     final base = (API.API.baseUrl ?? '').trim();
     final sep = base.endsWith('/') ? '' : '/';
     return base.isEmpty
-        ? '/api/custom-card/$customNo/image'
-        : '${base}${sep}api/custom-card/$customNo/image';
+        ? '/api/custom-cards/$customNo/image'
+        : '${base}${sep}api/custom-cards/$customNo/image';
   }
+
+  // ---- 내부 유틸 ----
+  static String _oneUrl(int customNo) =>
+      API.API.joinBase('/api/custom-cards/$customNo');
+  static String _benefitUrl(int customNo) =>
+      API.API.joinBase('/api/custom-cards/$customNo/benefit');
 
   static Map<String, dynamic> _asMap(dynamic v) {
     if (v is Map) return v.map((k, val) => MapEntry(k.toString(), val));
