@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.busanbank.card.admin.dao.AdminReviewReportMapper">
 
-  <!-- 공통 SQL 조각 -->
+  <!-- 공통 -->
   <sql id="DATE_FROM"><![CDATA[ TO_DATE(#{startDt}, 'YYYY-MM-DD') ]]></sql>
   <sql id="DATE_TO"><![CDATA[ TO_DATE(#{endDt},   'YYYY-MM-DD') + 1 ]]></sql>
 
@@ -12,226 +12,116 @@
       SELECT COUNT(*)
         FROM CARD_APPLICATION_TEMP
        WHERE CREATED_AT >=
+    ]]><include refid="DATE_FROM"/><![CDATA[
+         AND CREATED_AT < 
+    ]]><include refid="DATE_TO"/><![CDATA[
     ]]>
-    <include refid="DATE_FROM"/>
-    <![CDATA[
-         AND CREATED_AT <
-    ]]>
-    <include refid="DATE_TO"/>
   </select>
 
   <select id="countIssuedApps" parameterType="map" resultType="int">
     <![CDATA[
       SELECT COUNT(*)
         FROM CARD_APPLICATION
-       WHERE STATUS = 'ISSUED'
+       WHERE STATUS = 'SIGNED'
          AND UPDATED_AT >=
+    ]]><include refid="DATE_FROM"/><![CDATA[
+         AND UPDATED_AT < 
+    ]]><include refid="DATE_TO"/><![CDATA[
     ]]>
-    <include refid="DATE_FROM"/>
-    <![CDATA[
-         AND UPDATED_AT <
-    ]]>
-    <include refid="DATE_TO"/>
   </select>
 
   <select id="countInProgressNow" resultType="int">
-    <![CDATA[
-      SELECT COUNT(*) FROM CARD_APPLICATION_TEMP
-    ]]>
+    <![CDATA[ SELECT COUNT(*) FROM CARD_APPLICATION_TEMP ]]>
   </select>
 
-  <!-- APP_ALL: cohort 계산용(유지) -->
   <sql id="APP_ALL_CTE"><![CDATA[
     APP_ALL AS (
-      SELECT APPLICATION_NO, CREATED_AT, HAS_ACCOUNT_AT_KYC, IS_SHORT_TERM_MULTI
-        FROM CARD_APPLICATION_TEMP
+      SELECT APPLICATION_NO, CREATED_AT FROM CARD_APPLICATION_TEMP
       UNION ALL
-      SELECT APPLICATION_NO, CREATED_AT, HAS_ACCOUNT_AT_KYC, IS_SHORT_TERM_MULTI
-        FROM CARD_APPLICATION
+      SELECT APPLICATION_NO, CREATED_AT FROM CARD_APPLICATION
     )
   ]]></sql>
 
   <select id="cohortConversion" parameterType="map" resultType="map">
     <![CDATA[
       WITH
-    ]]>
-    <include refid="APP_ALL_CTE"/>
-    <![CDATA[
-      ,
-      COHORT AS (
+    ]]><include refid="APP_ALL_CTE"/><![CDATA[
+      , COHORT AS (
         SELECT DISTINCT APPLICATION_NO
           FROM APP_ALL
          WHERE CREATED_AT >=
-    ]]>
-    <include refid="DATE_FROM"/>
-    <![CDATA[
-           AND CREATED_AT <
-    ]]>
-    <include refid="DATE_TO"/>
-    <![CDATA[
+    ]]><include refid="DATE_FROM"/><![CDATA[
+           AND CREATED_AT < 
+    ]]><include refid="DATE_TO"/><![CDATA[
       )
       SELECT
         (SELECT COUNT(*) FROM COHORT) AS cohortSize,
         (SELECT COUNT(*)
            FROM CARD_APPLICATION ca
            JOIN COHORT c ON c.APPLICATION_NO = ca.APPLICATION_NO
-          WHERE ca.STATUS = 'ISSUED') AS cohortIssued
-        FROM DUAL
+          WHERE ca.STATUS = 'SIGNED') AS cohortIssued
+      FROM DUAL
     ]]>
   </select>
 
+  <!-- avgIssueDays는 필요 시 유지 -->
   <select id="avgIssueDays" parameterType="map" resultType="double">
     <![CDATA[
       SELECT AVG( UPDATED_AT - CREATED_AT )
         FROM CARD_APPLICATION
-       WHERE STATUS = 'ISSUED'
+       WHERE STATUS = 'SIGNED'
          AND UPDATED_AT >=
+    ]]><include refid="DATE_FROM"/><![CDATA[
+         AND UPDATED_AT < 
+    ]]><include refid="DATE_TO"/><![CDATA[
     ]]>
-    <include refid="DATE_FROM"/>
-    <![CDATA[
-         AND UPDATED_AT <
-    ]]>
-    <include refid="DATE_TO"/>
   </select>
 
-  <!-- 트렌드 -->
-  <select id="dailyNewApps" parameterType="map"
-          resultType="com.busanbank.card.admin.dto.StatDto">
-    <![CDATA[
-      SELECT TO_CHAR(CREATED_AT, 'YYYY-MM-DD') AS day,
-             COUNT(*)                          AS cnt
+  <!-- Trends 삭제: dailyNewApps, dailyIssued -->
+
+  <!-- Product stats: isCreditCard 포함 -->
+<select id="productStats" parameterType="map" resultType="com.busanbank.card.admin.dto.ProductRow">
+  <![CDATA[
+    WITH STARTS AS (
+      SELECT CARD_NO, COUNT(*) AS STARTS
         FROM CARD_APPLICATION_TEMP
        WHERE CREATED_AT >=
-    ]]>
-    <include refid="DATE_FROM"/>
-    <![CDATA[
+  ]]><include refid="DATE_FROM"/><![CDATA[
          AND CREATED_AT <
-    ]]>
-    <include refid="DATE_TO"/>
-    <![CDATA[
-       GROUP BY TO_CHAR(CREATED_AT, 'YYYY-MM-DD')
-       ORDER BY day
-    ]]>
-  </select>
-
-  <select id="dailyIssued" parameterType="map"
-          resultType="com.busanbank.card.admin.dto.StatDto">
-    <![CDATA[
-      SELECT TO_CHAR(UPDATED_AT, 'YYYY-MM-DD') AS day,
-             COUNT(*)                           AS cnt
+  ]]><include refid="DATE_TO"/><![CDATA[
+       GROUP BY CARD_NO
+    ),
+    ISSUED AS (
+      SELECT CARD_NO, COUNT(*) AS ISSUED
         FROM CARD_APPLICATION
-       WHERE STATUS = 'ISSUED'
+       WHERE STATUS = 'SIGNED'
          AND UPDATED_AT >=
-    ]]>
-    <include refid="DATE_FROM"/>
-    <![CDATA[
+  ]]><include refid="DATE_FROM"/><![CDATA[
          AND UPDATED_AT <
-    ]]>
-    <include refid="DATE_TO"/>
-    <![CDATA[
-       GROUP BY TO_CHAR(UPDATED_AT, 'YYYY-MM-DD')
-       ORDER BY day
-    ]]>
-  </select>
+  ]]><include refid="DATE_TO"/><![CDATA[
+       GROUP BY CARD_NO
+    )
+    SELECT
+           COALESCE(s.CARD_NO, i.CARD_NO) AS cardNo,
+           NVL(s.STARTS,0)                AS starts,
+           NVL(i.ISSUED,0)                AS issued,
+           CASE WHEN NVL(s.STARTS,0)=0 THEN 0
+                ELSE ROUND(NVL(i.ISSUED,0)*100.0/NVL(s.STARTS,0), 1)
+           END                            AS conversionPct,
+           c.CARD_NAME                    AS cardName,
+           c.CARD_URL                     AS cardImg
+      FROM STARTS s
+      FULL OUTER JOIN ISSUED i ON i.CARD_NO = s.CARD_NO
+      LEFT JOIN CARD c ON c.CARD_NO = COALESCE(s.CARD_NO, i.CARD_NO)
+     ORDER BY issued DESC NULLS LAST, starts DESC NULLS LAST
+  ]]>
+</select>
 
-  <!-- 상품판매 현황: CARD 조인(이름/이미지 포함) -->
-  <select id="productStats" parameterType="map"
-          resultType="com.busanbank.card.admin.dto.StatDto">
-    <![CDATA[
-      WITH STARTS AS (
-        SELECT CARD_NO, COUNT(*) AS STARTS
-          FROM CARD_APPLICATION_TEMP
-         WHERE CREATED_AT >=
-    ]]>
-    <include refid="DATE_FROM"/>
-    <![CDATA[
-           AND CREATED_AT <
-    ]]>
-    <include refid="DATE_TO"/>
-    <![CDATA[
-         GROUP BY CARD_NO
-      ),
-      ISSUED AS (
-        SELECT CARD_NO, COUNT(*) AS ISSUED
-          FROM CARD_APPLICATION
-         WHERE STATUS = 'ISSUED'
-           AND UPDATED_AT >=
-    ]]>
-    <include refid="DATE_FROM"/>
-    <![CDATA[
-           AND UPDATED_AT <
-    ]]>
-    <include refid="DATE_TO"/>
-    <![CDATA[
-         GROUP BY CARD_NO
-      )
-      SELECT s.CARD_NO AS cardNo,
-             NVL(s.STARTS,0) AS starts,
-             NVL(i.ISSUED,0) AS issued,
-             CASE WHEN NVL(s.STARTS,0)=0 THEN 0
-                  ELSE ROUND(NVL(i.ISSUED,0)*100.0/s.STARTS, 1)
-             END AS conversionPct,
-             c.CARD_NAME AS cardName,
-             /* Oracle CLOB → String 매핑 이슈 있으면 아래 라인으로 교체:
-                DBMS_LOB.SUBSTR(c.CARD_URL, 4000, 1) AS cardImg */
-             c.CARD_URL  AS cardImg
-        FROM STARTS s
-        LEFT JOIN ISSUED i ON i.CARD_NO = s.CARD_NO
-        LEFT JOIN CARD   c ON c.CARD_NO = s.CARD_NO
-       ORDER BY issued DESC
-    ]]>
-  </select>
 
-  <!-- 신용/체크별 -->
-  <select id="creditKindStats" parameterType="map"
-          resultType="com.busanbank.card.admin.dto.StatDto">
+  <!-- Demography: TEMP -->
+  <select id="demogStarts" parameterType="map" resultType="com.busanbank.card.admin.dto.DemogRow">
     <![CDATA[
-      WITH STARTS AS (
-        SELECT IS_CREDIT_CARD, COUNT(*) AS STARTS
-          FROM CARD_APPLICATION_TEMP
-         WHERE CREATED_AT >=
-    ]]>
-    <include refid="DATE_FROM"/>
-    <![CDATA[
-           AND CREATED_AT <
-    ]]>
-    <include refid="DATE_TO"/>
-    <![CDATA[
-         GROUP BY IS_CREDIT_CARD
-      ),
-      ISSUED AS (
-        SELECT IS_CREDIT_CARD, COUNT(*) AS ISSUED
-          FROM CARD_APPLICATION
-         WHERE STATUS = 'ISSUED'
-           AND UPDATED_AT >=
-    ]]>
-    <include refid="DATE_FROM"/>
-    <![CDATA[
-           AND UPDATED_AT <
-    ]]>
-    <include refid="DATE_TO"/>
-    <![CDATA[
-         GROUP BY IS_CREDIT_CARD
-      )
-      SELECT s.IS_CREDIT_CARD AS isCreditCard,
-             NVL(s.STARTS,0)  AS starts,
-             NVL(i.ISSUED,0)  AS issued,
-             CASE WHEN NVL(s.STARTS,0)=0 THEN 0
-                  ELSE ROUND(NVL(i.ISSUED,0)*100.0/s.STARTS, 1)
-             END AS conversionPct
-        FROM STARTS s
-        LEFT JOIN ISSUED i ON i.IS_CREDIT_CARD = s.IS_CREDIT_CARD
-       ORDER BY issued DESC
-    ]]>
-  </select>
-
-  <!-- 인구통계: 신규 신청 -->
-  <select id="demogStarts" parameterType="map"
-          resultType="com.busanbank.card.admin.dto.DemogRow">
-    <![CDATA[
-      SELECT age_band AS ageBand,
-             gender   AS gender,
-             COUNT(*) AS cnt
+      SELECT age_band AS ageBand, gender AS gender, COUNT(*) AS cnt
       FROM (
         SELECT
           CASE
@@ -255,26 +145,19 @@
         FROM CARD_APPLICATION_TEMP t
         JOIN MEMBER m ON m.MEMBER_NO = t.MEMBER_NO
         WHERE t.CREATED_AT >=
-    ]]>
-    <include refid="DATE_FROM"/>
-    <![CDATA[
-          AND t.CREATED_AT <
-    ]]>
-    <include refid="DATE_TO"/>
-    <![CDATA[
+    ]]><include refid="DATE_FROM"/><![CDATA[
+          AND t.CREATED_AT < 
+    ]]><include refid="DATE_TO"/><![CDATA[
       )
       GROUP BY age_band, gender
       ORDER BY age_band, gender
     ]]>
   </select>
 
-  <!-- 인구통계: 발급 완료 -->
-  <select id="demogIssued" parameterType="map"
-          resultType="com.busanbank.card.admin.dto.DemogRow">
+  <!-- Demography: SIGNED -->
+  <select id="demogIssued" parameterType="map" resultType="com.busanbank.card.admin.dto.DemogRow">
     <![CDATA[
-      SELECT age_band AS ageBand,
-             gender   AS gender,
-             COUNT(*) AS cnt
+      SELECT age_band AS ageBand, gender AS gender, COUNT(*) AS cnt
       FROM (
         SELECT
           CASE
@@ -297,19 +180,128 @@
           END AS gender
         FROM CARD_APPLICATION a
         JOIN MEMBER m ON m.MEMBER_NO = a.MEMBER_NO
-        WHERE a.STATUS = 'ISSUED'
+        WHERE a.STATUS = 'SIGNED'
           AND a.UPDATED_AT >=
-    ]]>
-    <include refid="DATE_FROM"/>
-    <![CDATA[
-          AND a.UPDATED_AT <
-    ]]>
-    <include refid="DATE_TO"/>
-    <![CDATA[
+    ]]><include refid="DATE_FROM"/><![CDATA[
+          AND a.UPDATED_AT < 
+    ]]><include refid="DATE_TO"/><![CDATA[
       )
       GROUP BY age_band, gender
       ORDER BY age_band, gender
     ]]>
   </select>
+
+  <!-- 카드별 통합 현황 -->
+  <select id="cardCombined" parameterType="map" resultType="com.busanbank.card.admin.dto.CardCombinedRow">
+    <![CDATA[
+      WITH STARTS AS (
+        SELECT CARD_NO, COUNT(*) AS STARTS
+          FROM CARD_APPLICATION_TEMP
+         WHERE CREATED_AT >=
+    ]]><include refid="DATE_FROM"/><![CDATA[
+           AND CREATED_AT < 
+    ]]><include refid="DATE_TO"/><![CDATA[
+         GROUP BY CARD_NO
+      ),
+      ISSUED AS (
+        SELECT CARD_NO, COUNT(*) AS ISSUED
+          FROM CARD_APPLICATION
+         WHERE STATUS = 'SIGNED'
+           AND UPDATED_AT >=
+    ]]><include refid="DATE_FROM"/><![CDATA[
+           AND UPDATED_AT < 
+    ]]><include refid="DATE_TO"/><![CDATA[
+         GROUP BY CARD_NO
+      )
+      SELECT 
+             COALESCE(s.CARD_NO, i.CARD_NO)          AS cardNo,
+             c.CARD_NAME                              AS cardName,
+             c.CARD_URL                               AS cardImg,
+             NVL(s.STARTS,0)                          AS startsTemp,
+             NVL(i.ISSUED,0)                          AS confirmed,
+             CASE WHEN NVL(s.STARTS,0)=0 THEN 0
+                  ELSE ROUND(NVL(i.ISSUED,0)*100.0/NVL(s.STARTS,0),1)
+             END                                      AS conversionPct
+        FROM STARTS s
+        FULL OUTER JOIN ISSUED i ON i.CARD_NO = s.CARD_NO
+        LEFT JOIN CARD c ON c.CARD_NO = COALESCE(s.CARD_NO, i.CARD_NO)
+       ORDER BY confirmed DESC NULLS LAST, startsTemp DESC NULLS LAST
+    ]]>
+  </select>
+
+  <!-- 카드 × 나이대 × 성별 매트릭스 (자세히용) : cardImg 포함 -->
+<select id="cardDemogMatrix" parameterType="map" resultType="com.busanbank.card.admin.dto.CardDemogRow">
+  <![CDATA[
+    WITH TMP AS (
+      SELECT t.CARD_NO,
+             CASE
+               WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, TO_DATE(
+                 (CASE WHEN m.RRN_GENDER IN ('1','2') THEN '19' ELSE '20' END)||m.RRN_FRONT,'YYYYMMDD'))/12) < 20 THEN '10대 이하'
+               WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, TO_DATE(
+                 (CASE WHEN m.RRN_GENDER IN ('1','2') THEN '19' ELSE '20' END)||m.RRN_FRONT,'YYYYMMDD'))/12) < 30 THEN '20대'
+               WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, TO_DATE(
+                 (CASE WHEN m.RRN_GENDER IN ('1','2') THEN '19' ELSE '20' END)||m.RRN_FRONT,'YYYYMMDD'))/12) < 40 THEN '30대'
+               WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, TO_DATE(
+                 (CASE WHEN m.RRN_GENDER IN ('1','2') THEN '19' ELSE '20' END)||m.RRN_FRONT,'YYYYMMDD'))/12) < 50 THEN '40대'
+               WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, TO_DATE(
+                 (CASE WHEN m.RRN_GENDER IN ('1','2') THEN '19' ELSE '20' END)||m.RRN_FRONT,'YYYYMMDD'))/12) < 60 THEN '50대'
+               ELSE '60대+'
+             END AS age_band,
+             CASE WHEN m.RRN_GENDER IN ('1','3') THEN 'M'
+                  WHEN m.RRN_GENDER IN ('2','4') THEN 'F'
+                  ELSE 'U'
+             END AS gender,
+             1 AS startsTemp,
+             0 AS confirmed
+        FROM CARD_APPLICATION_TEMP t
+        JOIN MEMBER m ON m.MEMBER_NO = t.MEMBER_NO
+       WHERE t.CREATED_AT >=
+  ]]><include refid="DATE_FROM"/><![CDATA[
+         AND t.CREATED_AT <
+  ]]><include refid="DATE_TO"/><![CDATA[
+    ),
+    FIN AS (
+      SELECT a.CARD_NO,
+             CASE
+               WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, TO_DATE(
+                 (CASE WHEN m.RRN_GENDER IN ('1','2') THEN '19' ELSE '20' END)||m.RRN_FRONT,'YYYYMMDD'))/12) < 20 THEN '10대 이하'
+               WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, TO_DATE(
+                 (CASE WHEN m.RRN_GENDER IN ('1','2') THEN '19' ELSE '20' END)||m.RRN_FRONT,'YYYYMMDD'))/12) < 30 THEN '20대'
+               WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, TO_DATE(
+                 (CASE WHEN m.RRN_GENDER IN ('1','2') THEN '19' ELSE '20' END)||m.RRN_FRONT,'YYYYMMDD'))/12) < 40 THEN '30대'
+               WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, TO_DATE(
+                 (CASE WHEN m.RRN_GENDER IN ('1','2') THEN '19' ELSE '20' END)||m.RRN_FRONT,'YYYYMMDD'))/12) < 50 THEN '40대'
+               WHEN TRUNC(MONTHS_BETWEEN(SYSDATE, TO_DATE(
+                 (CASE WHEN m.RRN_GENDER IN ('1','2') THEN '19' ELSE '20' END)||m.RRN_FRONT,'YYYYMMDD'))/12) < 60 THEN '50대'
+               ELSE '60대+'
+             END AS age_band,
+             CASE WHEN m.RRN_GENDER IN ('1','3') THEN 'M'
+                  WHEN m.RRN_GENDER IN ('2','4') THEN 'F'
+                  ELSE 'U'
+             END AS gender,
+             0 AS startsTemp,
+             1 AS confirmed
+        FROM CARD_APPLICATION a
+        JOIN MEMBER m ON m.MEMBER_NO = a.MEMBER_NO
+       WHERE a.STATUS = 'SIGNED'
+         AND a.UPDATED_AT >=
+  ]]><include refid="DATE_FROM"/><![CDATA[
+         AND a.UPDATED_AT <
+  ]]><include refid="DATE_TO"/><![CDATA[
+    )
+    SELECT x.CARD_NO   AS cardNo,
+           c.CARD_NAME AS cardName,
+           MIN(DBMS_LOB.SUBSTR(c.CARD_URL, 4000, 1)) AS cardImg,  -- ★ CLOB → VARCHAR2 + 집계
+           x.age_band  AS ageBand,
+           x.gender    AS gender,
+           SUM(x.startsTemp) AS startsTemp,
+           SUM(x.confirmed)  AS confirmed
+      FROM (SELECT * FROM TMP UNION ALL SELECT * FROM FIN) x
+      LEFT JOIN CARD c ON c.CARD_NO = x.CARD_NO
+     GROUP BY x.CARD_NO, c.CARD_NAME, x.age_band, x.gender   -- ★ c.CARD_URL 제거
+     ORDER BY x.age_band, x.gender, SUM(x.confirmed) DESC, SUM(x.startsTemp) DESC
+  ]]>
+</select>
+
 
 </mapper>

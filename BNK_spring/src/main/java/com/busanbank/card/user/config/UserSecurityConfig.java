@@ -99,7 +99,10 @@ public class UserSecurityConfig {
                 "/card/apply/api/**",
                 "/user/chat/**",
                 "/loginProc",
-                "/logout"
+                "/logout",
+                "/ws/**",          // ✅ 추가
+                "/sse/**",         // ✅ 추가
+                "/me/push-consent" // (로그인 후만 허용하고 싶으면 같이 커버)
         );
 
         CustomRestAuthenticationFilter restLoginFilter = new CustomRestAuthenticationFilter(authenticationManager);
