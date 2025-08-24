@@ -521,6 +521,24 @@ class _NaverMapPageState extends State<NaverMapPage>
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
           child: Row(
             children: [
+              // ⬇️ 뒤로가기 버튼 (동그란 카드 스타일)
+              Material(
+                color: Colors.white,
+                shape: const CircleBorder(),
+                elevation: 6,
+                child: IconButton(
+                  tooltip: '뒤로가기',
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () async {
+                    // rootNavigator로 push했으니 동일 컨텍스트에서 pop 시도
+                    final canPopRoot = await Navigator.of(context, rootNavigator: true).maybePop();
+                    if (!canPopRoot && Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop();
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
               // 검색바
               Expanded(
                 child: Material(

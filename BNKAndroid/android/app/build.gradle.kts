@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.bnkandroid"
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = 36               // ← flutter.targetSdkVersion 대신 명시 권장
         versionCode = flutter.versionCode
         versionName = flutter.versionName

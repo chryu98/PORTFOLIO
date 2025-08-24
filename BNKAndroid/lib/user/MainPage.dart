@@ -108,40 +108,17 @@ class _CardMainPageState extends State<CardMainPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        title: _Logo(),
-        centerTitle: false,
-        actions: [
-          TextButton(
-            onPressed: () {},
-            child:
-            const Text('로그인', style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-          IconButton(
-            icon: const Icon(Icons.menu_rounded),
-            onPressed: () {},
-          ),
-        ],
-      ),
+
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
-          // 검색창(읽기 전용)
-          Padding(
-            padding: EdgeInsets.fromLTRB(pad, 12, pad, 4),
-            child: _SearchPill(
-              hint: '민생회복 소비쿠폰 바로가기',
-              onTapArrow: () {},
-            ),
-          ),
+
 
           // 이벤트 캐러셀 (탭 → CustomCardEditorPage)
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: pad, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: pad, vertical: 42),
             child: _EventCarousel(
+              height: 240,
               controller: _pageCtrl,
               onPageChanged: (i) => setState(() => _current = i),
             ),
@@ -229,7 +206,7 @@ class _CardMainPageState extends State<CardMainPage> {
 
           const SizedBox(height: 20),
           // ───── 금융 빠른메뉴 섹션
-          _SectionHeader(title: '금융', onTapMore: () {
+          _SectionHeader(title: '안내', onTapMore: () {
             // TODO: 전체 보기 이동
           }),
           const SizedBox(height: 8),
@@ -470,13 +447,18 @@ class _SectionHeader extends StatelessWidget {
 class _EventCarousel extends StatelessWidget {
   final PageController controller;
   final ValueChanged<int>? onPageChanged;
+  final double height;
 
-  const _EventCarousel({required this.controller, this.onPageChanged});
+  const _EventCarousel({
+    required this.controller,
+    this.onPageChanged,
+    this.height = 180, // 기본값
+  });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 180,
+      height: height,
       child: PageView.builder(
         controller: controller,
         onPageChanged: onPageChanged,
@@ -500,6 +482,7 @@ class _EventCarousel extends StatelessWidget {
               },
               child: _GradientCard(
                 colors: colors[i],
+                height: height,
                 child: Stack(
                   children: [
                     const Positioned(
@@ -541,16 +524,18 @@ class _EventCarousel extends StatelessWidget {
 class _GradientCard extends StatelessWidget {
   final List<Color> colors;
   final Widget child;
+  final double height; // ✅ 추가
 
   const _GradientCard({
     this.colors = const [Color(0xFF2F80ED), Color(0xFF56CCF2)],
     required this.child,
+    this.height = 180, // 기본값
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 180,
+      height: height, // ✅ 적용
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
         gradient: LinearGradient(

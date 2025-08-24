@@ -1,5 +1,11 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.bnkandroid">
+
+    <!-- 네이버 지도 API 사용을 위한 권한 -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <application
         android:label="BNKAndroid"
         android:name="${applicationName}"
@@ -20,6 +26,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 네이버 지도 API 클라이언트 ID 메타데이터 (발급받은 값으로 교체) -->
+        <meta-data
+            android:name="com.naver.maps.map.CLIENT_ID"
+            android:value="zsmkzlyhar" />
+
+        <meta-data
+            android:name="com.naver.maps.map.NCP_KEY_ID"
+            android:value="zsmkzlyhar"/>
 
         <meta-data
             android:name="flutterEmbedding"
