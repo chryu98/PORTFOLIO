@@ -1,31 +1,35 @@
 package com.busanbank.card.admin.dao;
 
+import com.busanbank.card.admin.dto.*;
+import org.apache.ibatis.annotations.Mapper;
+
 import java.util.List;
 import java.util.Map;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
-import com.busanbank.card.admin.dto.StatDto;
-import com.busanbank.card.admin.dto.DemogRow;
 
 @Mapper
 public interface AdminReviewReportMapper {
-    // KPI
-    int countNewApps(@Param("startDt") String startDt, @Param("endDt") String endDt);
-    int countIssuedApps(@Param("startDt") String startDt, @Param("endDt") String endDt);
+
+    // summary
+    int countNewApps(Map<String,Object> p);
+    int countIssuedApps(Map<String,Object> p); // SIGNED
     int countInProgressNow();
-    Map<String,Object> cohortConversion(@Param("startDt") String startDt, @Param("endDt") String endDt);
-    Double avgIssueDays(@Param("startDt") String startDt, @Param("endDt") String endDt);
+    Map<String,Object> cohortConversion(Map<String,Object> p);
+    Double avgIssueDays(Map<String,Object> p); // 안 쓰면 남겨두거나 삭제
 
-    // 트렌드
-    List<StatDto> dailyNewApps(@Param("startDt") String startDt, @Param("endDt") String endDt);
-    List<StatDto> dailyIssued(@Param("startDt") String startDt, @Param("endDt") String endDt);
+    // trends 삭제
 
-    // 상품/세그
-    List<StatDto> productStats(@Param("startDt") String startDt, @Param("endDt") String endDt);
-    List<StatDto> creditKindStats(@Param("startDt") String startDt, @Param("endDt") String endDt);
+    // products
+    List<ProductRow> productStats(Map<String,Object> p);
 
-    // 인구통계
-    List<DemogRow> demogStarts(@Param("startDt") String startDt, @Param("endDt") String endDt);
-    List<DemogRow> demogIssued(@Param("startDt") String startDt, @Param("endDt") String endDt);
+    // breakdowns 삭제
+
+    // demography
+    List<DemogRow> demogStarts(Map<String,Object> p);
+    List<DemogRow> demogIssued(Map<String,Object> p); // SIGNED
+
+    // combined (card summary)
+    List<CardCombinedRow> cardCombined(Map<String,Object> p);
+
+    // card × demography matrix (자세히)
+    List<CardDemogRow> cardDemogMatrix(Map<String,Object> p);
 }
