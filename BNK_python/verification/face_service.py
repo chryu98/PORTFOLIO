@@ -50,7 +50,7 @@ def _emb_from_bytes(file_bytes: bytes) -> torch.Tensor:
     face = _detect_face_tensor(img)
     return _embed(face)
 
-def verify_face(id_bytes: bytes, face_bytes: bytes, threshold: float = 0.65):
+def verify_face(id_bytes: bytes, face_bytes: bytes, threshold: float = 0.6):
     threshold = float(max(0.50, min(0.90, threshold)))
     e1 = _emb_from_bytes(id_bytes)
     e2 = _emb_from_bytes(face_bytes)

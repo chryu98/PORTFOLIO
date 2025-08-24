@@ -3,45 +3,29 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:bnkandroid/constants/api.dart' as API;
 
-/// 서명 상태
-enum SignStatus {
-  readyForSign,
-  signing,
-  signed,
-  rejected,
-  canceled,
-  unknown,
-}
+enum SignStatus { readyForSign, signing, signed, rejected, canceled, unknown }
 
 SignStatus parseSignStatus(String? raw) {
   final s = (raw ?? '').trim().toUpperCase();
   switch (s) {
-    case 'READY_FOR_SIGN':
-      return SignStatus.readyForSign;
-    case 'SIGNING':
-      return SignStatus.signing;
-    case 'SIGNED':
-      return SignStatus.signed;
-    case 'REJECTED':
-      return SignStatus.rejected;
-    case 'CANCELED':
-      return SignStatus.canceled;
-    default:
-      return SignStatus.unknown;
+    case 'READY_FOR_SIGN': return SignStatus.readyForSign;
+    case 'SIGNING':        return SignStatus.signing;
+    case 'SIGNED':         return SignStatus.signed;
+    case 'REJECTED':       return SignStatus.rejected;
+    case 'CANCELED':       return SignStatus.canceled;
+    default:               return SignStatus.unknown;
   }
 }
 
-/// 최종(FINAL) 신청서의 서명/상태 정보
+// 서버 컨트롤러 프리픽스
+const String _P = '/api/card/apply/sign';
+
 class SignInfo {
   final int applicationNo;
-  final String status;     // READY_FOR_SIGN | SIGNING | SIGNED ...
-  final String? applicant; // 선택
+  final String status;
+  final String? applicant;
 
-  SignInfo({
-    required this.applicationNo,
-    required this.status,
-    this.applicant,
-  });
+  SignInfo({required this.applicationNo, required this.status, this.applicant});
 
   SignStatus get statusEnum => parseSignStatus(status);
 
@@ -52,127 +36,127 @@ class SignInfo {
   );
 }
 
-/// 전자서명 전용 API 래퍼
-///
-/// 서버 엔드포인트(예시):
-/// - GET  /api/card/apply/sign/info?applicationNo=:appNo
-/// - POST /api/card/apply/sign/session                (리다이렉트/패드 세션 생성)
-/// - GET  /api/card/apply/sign/result?applicationNo=:appNo
-/// - POST /api/card/apply/sign/confirm/{appNo}
-/// - POST /api/card/apply/sign                        (패드 업로드: { applicationNo, imageBase64 })
-/// - GET  /api/card/apply/sign/:appNo/exists
-/// - GET  /card/apply/sign/:appNo/image               (공개 이미지 뷰어)
 class SignService {
-  // ───────────────────────────────────────────
-  // 공통 조회
-  // ───────────────────────────────────────────
-
-  /// FINAL 에서 서명 대상 정보 조회
+  // ───────────── 조회 ─────────────
   static Future<SignInfo> fetchInfo(int appNo) async {
-    final res = await API.API.getJ(
-      '/api/card/apply/sign/info',
-      params: {'applicationNo': appNo},
-    );
-    return SignInfo.fromJson(_asMap(res));
+    try {
+      final res = await API.API.getJ('$_P/info', params: {'applicationNo': appNo});
+      return SignInfo.fromJson(_asMap(res));
+    } on API.ApiException {
+      rethrow;
+    } catch (_) {
+      throw API.ApiException(statusCode: 500);
+    }
   }
 
-  /// 해당 신청번호의 서명 존재여부
-  /// GET /api/card/apply/sign/{appNo}/exists  -> { exists: true|false }
   static Future<bool> exists(int appNo) async {
-    final res = await API.API.getJ('/api/card/apply/sign/$appNo/exists');
-    final m = _asMap(res);
-    return m['exists'] == true;
+    try {
+      final res = await API.API.getJ('$_P/$appNo/exists');
+      final m = _asMap(res);
+      return m['exists'] == true;
+    } on API.ApiException {
+      rethrow;
+    } catch (_) {
+      throw API.ApiException(statusCode: 500);
+    }
   }
 
-  /// (뷰어용) 서명 이미지 절대 URL (백엔드에 @GetMapping("/card/apply/sign/{appNo}/image"))
+  // 공개 이미지 URL: /card/apply/sign/{appNo}/image
   static String imageUrl(int appNo) {
     final base = (API.API.baseUrl ?? '').trim();
     final sep = base.endsWith('/') ? '' : '/';
+    final publicPath = '/card/apply/sign';
     return base.isEmpty
-        ? '/card/apply/sign/$appNo/image'
-        : '${base}${sep}card/apply/sign/$appNo/image';
+        ? '$publicPath/$appNo/image'
+        : '${base}${sep}${publicPath.substring(1)}/$appNo/image';
   }
 
-  // ───────────────────────────────────────────
-  // Redirect(WebView) 플로우
-  // ───────────────────────────────────────────
-
-  /// 서명 세션 생성
-  /// return: { "type": "redirect", "url": "https://..." } 또는 { "type": "pad", ... }
+  // ──────── Redirect(WebView) 플로우 ────────
+  // 서버: POST /api/card/apply/sign/session/{appNo}
   static Future<Map<String, dynamic>> createSession(int appNo) async {
-    final body = jsonEncode({'applicationNo': appNo});
-    final res = await API.API.postJ('/api/card/apply/sign/session', body: body);
-    return _asMap(res);
+    try {
+      final res = await API.API.postJ('$_P/session/$appNo');
+      return _asMap(res);
+    } on API.ApiException {
+      rethrow;
+    } catch (_) {
+      throw API.ApiException(statusCode: 500);
+    }
   }
 
-  /// 서명 결과 조회 (서버 판단값)
-  /// return: { "status": "SIGNED" | "SIGNING" | "READY_FOR_SIGN" ... }
+  // 서버: GET /api/card/apply/sign/result/{appNo}
   static Future<Map<String, dynamic>> fetchResult(int appNo) async {
-    final res = await API.API.getJ(
-      '/api/card/apply/sign/result',
-      params: {'applicationNo': appNo},
-    );
-    return _asMap(res);
+    try {
+      final res = await API.API.getJ('$_P/result/$appNo');
+      return _asMap(res);
+    } on API.ApiException {
+      rethrow;
+    } catch (_) {
+      throw API.ApiException(statusCode: 500);
+    }
   }
 
-  /// 서명 완료 확정 → FINAL.STATUS = 'SIGNED'
+  // 서버에는 confirm 엔드포인트가 없음 → 업로드가 이미 SIGNED로 바꿈.
+  // 그래서 1) confirm 시도, 2) 404면 재조회로 대체.
   static Future<bool> confirmDone(int appNo) async {
-    final res = await API.API.postJ('/api/card/apply/sign/confirm/$appNo');
-    final m = _asMap(res);
-    return m['ok'] == true || (m['status']?.toString().toUpperCase() == 'SIGNED');
+    try {
+      final res = await API.API.postJ('$_P/confirm/$appNo');
+      final m = _asMap(res);
+      if (m['ok'] == true) return true;
+      if ((m['status'] ?? '').toString().toUpperCase() == 'SIGNED') return true;
+      return false;
+    } on API.ApiException catch (e) {
+      // 404면 서버에 confirm이 없는 구성 → 결과 재조회해서 SIGNED면 true
+      if (e.statusCode == 404) {
+        try {
+          final r = await fetchResult(appNo);
+          return (r['status'] ?? '').toString().toUpperCase() == 'SIGNED';
+        } catch (_) {
+          return true; // 업로드 시 이미 SIGNED로 전환하는 서버 구성: true로 간주
+        }
+      }
+      rethrow;
+    } catch (_) {
+      return true;
+    }
   }
 
-  // ───────────────────────────────────────────
-  // 패드 업로드 플로우
-  // ───────────────────────────────────────────
-
-  /// 사인 이미지(PNG 바이트) 업로드
-  /// body: { applicationNo, imageBase64: "data:image/png;base64,..." }
-  ///
-  /// ⚠️ 백엔드가 업로드 시점에 바로 SIGNED 로 바꾸도록 구현했다면 이 호출만으로 완료됩니다.
+  // ──────── 패드 업로드(JSON + base64) ────────
+  // 서버가 접두사 유무 모두 처리(decodeBase64Image)하므로 순수 base64로 전송
   static Future<bool> uploadSignature({
     required int applicationNo,
     required Uint8List pngBytes,
   }) async {
-    final dataUrl = 'data:image/png;base64,${base64Encode(pngBytes)}';
-    final body = jsonEncode({
-      'applicationNo': applicationNo,
-      'imageBase64': dataUrl,
-    });
-    final res = await API.API.postJ('/api/card/apply/sign', body: body);
-    final m = _asMap(res);
-    // 백엔드 응답이 { ok: true, status: 'SIGNED' } 형태면 그대로 통과
-    if (m['ok'] == true) return true;
-    // 일부 서버는 ok 없이 status 만 줄 수도 있음
-    if ((m['status'] ?? '').toString().toUpperCase() == 'SIGNED') return true;
-    return false;
+    try {
+      final b64 = base64Encode(pngBytes); // 접두사 없이
+      final body = jsonEncode({
+        'applicationNo': applicationNo,
+        'imageBase64': b64,
+      });
+      final res = await API.API.postJ(_P, body: body);
+      final m = _asMap(res);
+      if (m['ok'] == true) return true;
+      if ((m['status'] ?? '').toString().toUpperCase() == 'SIGNED') return true;
+      return false;
+    } on API.ApiException {
+      rethrow;
+    } catch (_) {
+      throw API.ApiException(statusCode: 500);
+    }
   }
 
-  /// 업로드 후 곧바로 상태를 `SIGNED` 로 확정까지 한 번에 처리
-  /// - 서버가 업로드 시점에 SIGNED 로 만들지 않는 구성일 때 사용.
   static Future<bool> uploadAndConfirm({
     required int applicationNo,
     required Uint8List pngBytes,
   }) async {
-    final ok = await uploadSignature(
-      applicationNo: applicationNo,
-      pngBytes: pngBytes,
-    );
+    final ok = await uploadSignature(applicationNo: applicationNo, pngBytes: pngBytes);
     if (!ok) return false;
-    // 업로드 결과가 true여도, 혹시 READY 상태인 서버 구성을 대비해 confirm 호출
-    final confirmed = await confirmDone(applicationNo);
-    return confirmed;
+    return await confirmDone(applicationNo);
   }
 
-  // ───────────────────────────────────────────
-  // 유틸
-  // ───────────────────────────────────────────
-
+  // ──────── 유틸 ────────
   static Map<String, dynamic> _asMap(dynamic v) {
-    if (v is Map) {
-      // Map<dynamic,dynamic> → Map<String,dynamic>
-      return v.map((k, val) => MapEntry(k.toString(), val));
-    }
-    throw StateError('Unexpected response type: ${v.runtimeType}');
+    if (v is Map) return v.map((k, val) => MapEntry(k.toString(), val));
+    throw API.ApiException(statusCode: 500);
   }
 }

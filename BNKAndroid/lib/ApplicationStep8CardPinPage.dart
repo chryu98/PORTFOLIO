@@ -51,8 +51,8 @@ class _ApplicationStep8CardPinPageState extends State<ApplicationStep8CardPinPag
         const SnackBar(content: Text('비밀번호가 저장되고 신청이 준비되었습니다.')),
       );
 
-      // 서명 화면으로 이동
-      Navigator.of(context).pushReplacementNamed(
+      // 🔴 변경: 서명 화면으로 이동 (rootNavigator 사용)
+      Navigator.of(context, rootNavigator: true).pushReplacementNamed(
         '/sign',
         arguments: {'applicationNo': widget.applicationNo},
       );
