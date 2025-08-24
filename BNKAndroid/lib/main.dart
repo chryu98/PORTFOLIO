@@ -62,7 +62,7 @@ class MyApp extends StatelessWidget {
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
         ),
-        bottomAppBarTheme: const BottomAppBarTheme(
+        bottomAppBarTheme: const BottomAppBarThemeData(
           color: Colors.white,
           surfaceTintColor: Colors.transparent,
           elevation: 8,
