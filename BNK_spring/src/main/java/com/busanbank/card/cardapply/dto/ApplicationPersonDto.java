@@ -19,4 +19,7 @@ public class ApplicationPersonDto {
     private String address1;           // 기본 주소 (필요 시)
     private String address2;           // 상세 주소 (필요 시)
     private Date createdAt;            // 생성일
+    private String job;                // 직업
+    private String purpose;            // 거래 목적
+    private String fundSource;         // 자금 출처
 }

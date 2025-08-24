@@ -16,4 +16,7 @@ public class CardApplicationDto {
     private String isShortTermMulti;   // 단기 다수 계좌 여부 ('Y'/'N')
     private Date createdAt;            // 생성일
     private Date updatedAt;            // 수정일
+    
+    private String cardName;
+    private String recommendation;
 }
