@@ -54,6 +54,13 @@ public class CardFeedback {
     private Date analyzedAt;
 
     @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "CREATED_AT")
+    @Column(name = "created_at", nullable = false) // insertable/updatable 기본값(true) 유지
     private Date createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = new Date();
+        }
+    }
 }

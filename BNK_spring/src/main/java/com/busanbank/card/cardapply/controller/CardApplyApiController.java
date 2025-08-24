@@ -133,6 +133,16 @@ public class CardApplyApiController {
         ));
     }
 
+    @PostMapping("/card-options")
+    public ResponseEntity<?> saveCardOptions(@RequestBody CardOptionDto cardOption) {
+        int updated = cardApplyDao.updateApplicationCardOptionTemp(cardOption);
+        if (updated > 0) {
+            return ResponseEntity.ok("카드 옵션이 저장되었습니다.");
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("저장 실패");
+        }
+    }
+
     /* =========================================================
      * 주소 프리필/저장
      * ========================================================= */

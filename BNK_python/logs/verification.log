@@ -61,3 +61,51 @@
 2025-08-21 20:45:47,033 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
 2025-08-21 20:47:32,907 INFO feedback.analyze: feedback_no=6 rating=5 text_len=43
 2025-08-21 20:47:35,259 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
+2025-08-22 12:47:27,741 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 12:47:46,582 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 12:48:08,408 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 12:48:24,474 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 13:24:46,403 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 13:24:55,495 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 13:38:20,615 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 13:38:31,633 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 13:38:51,452 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 13:39:02,018 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 13:39:15,064 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 14:05:45,652 INFO feedback.analyze: feedback_no=9 rating=5 text_len=7
+2025-08-22 14:05:49,903 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
+2025-08-22 14:11:05,740 INFO feedback.analyze: feedback_no=10 rating=3 text_len=11
+2025-08-22 14:11:07,359 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
+2025-08-22 14:32:50,876 INFO feedback.analyze: feedback_no=11 rating=5 text_len=6
+2025-08-22 14:32:53,119 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
+2025-08-22 14:35:39,925 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 14:35:52,145 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 14:36:09,915 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 14:40:33,534 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 14:56:43,150 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 15:58:23,179 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 15:58:44,367 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 15:58:56,060 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:08:13,388 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:26:50,094 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:37:17,061 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:44:57,112 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:55:34,301 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:55:43,369 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:55:53,931 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:56:03,639 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:56:34,996 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:56:55,254 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:57:06,250 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:57:14,692 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:57:21,439 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 16:58:30,972 INFO feedback.analyze: feedback_no=12 rating=5 text_len=8
+2025-08-22 16:58:34,513 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)
+2025-08-22 17:06:11,148 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 17:06:16,029 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 17:06:29,776 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 17:06:50,498 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 17:07:08,614 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 18:46:14,642 INFO [RRN] OCR front=01**** len=6 | EXP front=01**** len=6
+2025-08-22 18:49:46,009 INFO feedback.analyze: feedback_no=13 rating=1 text_len=11
+2025-08-22 18:49:49,055 WARNING OpenAI analyze failed → fallback to rule-based: Expecting value: line 1 column 1 (char 0)

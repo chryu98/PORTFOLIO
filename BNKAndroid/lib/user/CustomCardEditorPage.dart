@@ -9,6 +9,7 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 import 'package:http_parser/http_parser.dart';
+import 'package:bnkandroid/user/custom_benefit_page.dart';
 
 class CustomCardEditorPage extends StatefulWidget {
   const CustomCardEditorPage({super.key});
@@ -671,6 +672,16 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
             })),
             _actionItem(Icons.download, '이미지', _saveCardAsImage),
             _actionItem(Icons.check_circle, '디자인 결정', _finishDesign),
+            _actionItem(Icons.edit_note, '혜택 편집', () {
+              // 테스트용: DB에 이미 있는 커스텀번호로 진입 (예: 1)
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const CustomBenefitPage(
+                  applicationNo: 0,
+                  customNo: 1,                 // ← DB에 존재하는 번호로 테스트
+                  allowEditBeforeApproval: true,
+                ),
+              ));
+            }),
           ],
         ),
       ),

@@ -1,3 +1,4 @@
+// com/busanbank/card/feedback/service/CardFeedbackInsightService.java
 package com.busanbank.card.feedback.service;
 
 import com.busanbank.card.feedback.dto.InsightSummary;
@@ -19,18 +20,22 @@ public class CardFeedbackInsightService {
 
     @Transactional(readOnly = true)
     public InsightSummary insights(Integer days, Integer limit, Double minScore) {
-        int d = (days == null || days <= 0) ? 30 : days;
-        int topN = (limit == null || limit <= 0) ? 5 : limit;
-        Double cutoff = (minScore != null && minScore >= 0 && minScore <= 1) ? minScore : null;
+        final int d = (days == null || days <= 0) ? 30 : days;
+        final int topN = (limit == null || limit <= 0) ? 5 : limit;
+        final Double cutoff = (minScore != null && minScore >= 0.0 && minScore <= 1.0) ? minScore : null;
 
+        // 기간 계산
         Date to = new Date();
         Calendar cal = Calendar.getInstance();
         cal.setTime(to);
         cal.add(Calendar.DAY_OF_MONTH, -d);
         Date from = cal.getTime();
 
+        // 분석된 건만 기간 내 조회
         List<CardFeedback> rows = repo.findAnalyzedBetween(from, to);
+        if (rows == null) rows = Collections.emptyList();
 
+        // 전체 지표
         long total = rows.size();
         long pos = rows.stream().filter(r -> eq(r.getSentimentLabel(), "POSITIVE")).count();
         long neg = rows.stream().filter(r -> eq(r.getSentimentLabel(), "NEGATIVE")).count();
@@ -41,30 +46,33 @@ public class CardFeedbackInsightService {
         double positiveRatio = total == 0 ? 0.0 : (double) pos / total;
         double negativeRatio = total == 0 ? 0.0 : (double) neg / total;
 
+        // 주제(키워드)별 집계
         Map<String, Stats> map = new HashMap<>();
         for (CardFeedback f : rows) {
-            if (cutoff != null && f.getSentimentScore() != null) {
-                double sc = f.getSentimentScore().doubleValue();
-                if (sc < cutoff) continue; // 컷 미달 제외
+            // 신뢰도 컷(선택)
+            if (cutoff != null && f.getSentimentScore() != null
+                    && f.getSentimentScore().doubleValue() < cutoff) {
+                continue;
             }
+
             List<String> kws = splitKeywords(f.getAiKeywords());
             if (kws.isEmpty()) kws = List.of("기타");
 
             String label = val(f.getSentimentLabel());
             Integer rating = f.getRating();
-            Double score = f.getSentimentScore() == null ? null : f.getSentimentScore().doubleValue();
+            Double score = (f.getSentimentScore() == null) ? null : f.getSentimentScore().doubleValue();
 
             for (String kw : kws) {
                 Stats s = map.computeIfAbsent(kw, k -> new Stats());
                 s.total++;
-                switch (label) {
-                    case "POSITIVE" -> s.positive++;
-                    case "NEGATIVE" -> s.negative++;
-                    default -> s.neutral++;
-                }
-                if (rating != null) { s.ratingSum += rating; s.ratingCnt++; }
-                if (score != null)  { s.scoreSum  += score;  s.scoreCnt++; }
+                if ("POSITIVE".equals(label))      s.positive++;
+                else if ("NEGATIVE".equals(label)) s.negative++;
+                else                               s.neutral++;
 
+                if (rating != null) { s.ratingSum += rating; s.ratingCnt++; }
+                if (score  != null) { s.scoreSum  += score;  s.scoreCnt++; }
+
+                // 예시는 최대 2개만
                 if (s.examples.size() < 2) {
                     String cmt = Optional.ofNullable(f.getFeedbackComment()).orElse("");
                     if (cmt.length() > 120) cmt = cmt.substring(0, 120) + "…";
@@ -73,6 +81,7 @@ public class CardFeedbackInsightService {
             }
         }
 
+        // TopicInsight로 변환
         List<TopicInsight> allTopics = map.entrySet().stream()
                 .map(e -> {
                     Stats s = e.getValue();
@@ -86,8 +95,9 @@ public class CardFeedbackInsightService {
                 })
                 .collect(Collectors.toList());
 
+        // 정렬 기준
         Comparator<TopicInsight> byPos = Comparator
-                .comparing(TopicInsight::getPositiveRatio, Comparator.nullsFirst(Comparator.naturalOrder()))
+                .comparing(TopicInsight::getPositiveRatio) // double(원시)라 null 없음
                 .reversed()
                 .thenComparing(TopicInsight::getTotal, Comparator.reverseOrder());
 
@@ -96,14 +106,15 @@ public class CardFeedbackInsightService {
                 .reversed()
                 .thenComparing(TopicInsight::getTotal, Comparator.reverseOrder());
 
+        // 상위 목록
         List<TopicInsight> topPositive = allTopics.stream()
-                .filter(t -> t.getTotal() >= 3)
+                .filter(t -> t.getTotal() >= 1) // 필요시 3으로 올려 노이즈 제거
                 .sorted(byPos)
                 .limit(topN)
                 .collect(Collectors.toList());
 
         List<TopicInsight> topNegative = allTopics.stream()
-                .filter(t -> t.getTotal() >= 3)
+                .filter(t -> t.getTotal() >= 1)
                 .sorted(byNeg)
                 .limit(topN)
                 .collect(Collectors.toList());
@@ -111,21 +122,22 @@ public class CardFeedbackInsightService {
         return new InsightSummary(positiveRatio, negativeRatio, avgRating, topPositive, topNegative);
     }
 
-    // helpers
-    private static boolean eq(String a, String b) { return Objects.equals(val(a), b); }
+    // ── helpers ──────────────────────────────────────────────────────────────
+    private static boolean eq(String a, String b) { return Objects.equals(val(a), val(b)); }
     private static String val(String s) { return s == null ? "" : s.trim().toUpperCase(Locale.ROOT); }
 
     private static List<String> splitKeywords(String s) {
         if (s == null || s.isBlank()) return List.of();
-        String[] arr = s.split("\\s*,\\s*");
-        List<String> out = new ArrayList<>();
-        for (String a : arr) if (!a.isBlank()) out.add(a.trim());
+        String[] arr = s.split("\\s*,\\s*"); // 쉼표 + 양쪽 공백 제거
+        List<String> out = new ArrayList<>(arr.length);
+        for (String a : arr) { if (!a.isBlank()) out.add(a.trim()); }
         return out;
     }
+
     private static Double round2(Double v) { return v == null ? null : Math.round(v * 100.0) / 100.0; }
     private static double ratio(long a, long b) { return b == 0 ? 0.0 : (double) a / b; }
 
-    private static class Stats {
+    private static final class Stats {
         long total, positive, negative, neutral;
         long ratingSum; int ratingCnt;
         double scoreSum; int scoreCnt;

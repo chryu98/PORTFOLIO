@@ -65,12 +65,12 @@ public interface CardFeedbackRepository extends JpaRepository<CardFeedback, Long
 
     /** 분석 완료 데이터 범위 조회(선택) */
     @Query("""
-        select f
-          from CardFeedback f
-         where f.analyzedAt is not null
-           and (:from is null or f.createdAt >= :from)
-           and (:to   is null or f.createdAt <  :to)
-    """)
+    		  select f from CardFeedback f
+    		   where f.analyzedAt is not null
+    		     and (:from is null or f.createdAt >= :from)
+    		     and (:to   is null or f.createdAt <  :to)
+    		   order by f.createdAt desc
+    		""")
     List<CardFeedback> findAnalyzedBetween(@Param("from") Date from, @Param("to") Date to);
 
     /** 분석 완료만 조회(Insights 집계용) */
