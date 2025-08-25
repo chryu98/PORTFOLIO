@@ -37,7 +37,8 @@ public class SecurityConfig {
                     "/admin/login",
                     "/admin/logout",
                     "/admin/pdf/**",
-                    "/admin/api/proxy-img"
+                    "/admin/api/proxy-img",
+                    "/admin/api/**"
                 ).permitAll()
                 .anyRequest().access((authContext, context) -> {
                     boolean loggedIn = adminSession.isLoggedIn();
