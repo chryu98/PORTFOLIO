@@ -184,6 +184,15 @@ public interface ICardApplyDao {
 	int updateApplicationStatusByAppNo(@Param("applicationNo") Integer applicationNo,
 	                                   @Param("status") String status);
 
+	
+	@Update("""
+		    UPDATE card_application_temp
+		       SET status = #{status}, updated_at = SYSDATE
+		     WHERE application_no = #{applicationNo}
+		""")
+	int updateApplicationStatusByAppNo2(@Param("applicationNo") Long applicationNo,
+            @Param("status") String status);
+
 
 	
 }
