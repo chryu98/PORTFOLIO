@@ -34,13 +34,16 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
   // ===== 카드/배경 상태 =====
   final GlobalKey _cardKey = GlobalKey();            // 카드 전체의 위치/크기 계산용
   final GlobalKey _repaintKey = GlobalKey();         // 저장(캡쳐)용
-  ui.Image? _bgImage;                                 // 배경 이미지 (메모리상)
-  ImageProvider? _bgProvider;                         // 배경 이미지 Provider (화면 표시용)
-  Offset _bgOffset = Offset.zero;                     // 배경 위치(드래그)
-  double _bgScale = 1.0;                              // 배경 확대/축소
-  double _bgRotateDeg = 0.0;                          // 배경 회전(도)
+  ui.Image? _bgImage;                                // 배경 이미지 (메모리상)
+  ImageProvider? _bgProvider;                        // 배경 이미지 Provider (화면 표시용)
+  Offset _bgOffset = Offset.zero;                    // 배경 위치(드래그)
+  double _bgScale = 1.0;                             // 배경 확대/축소
+  double _bgRotateDeg = 0.0;                         // 배경 회전(도)
+  Color _cardBgColor = Colors.white;                 // 배경색(이미지와 병행)
 
-  Color _cardBgColor = Colors.white;                  // 카드 배경색 (이미지 없는 경우)
+  // 핀치 제스처용 베이스 값
+  double _baseScale = 1.0;
+  double _baseRotationDeg = 0.0;
 
   // ===== 텍스트/이모지 요소 =====
   int _seed = 0;
@@ -74,7 +77,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
   void _deselectAll() {
     setState(() {
       _selectedId = null;
-      _bgEditMode = true; // 빈 곳을 누르면 배경 모드도 종료
+      _bgEditMode = false; // 빈 곳 탭 시 배경 모드 종료(대기 상태)
     });
   }
 
@@ -105,16 +108,8 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
       _bgOffset = Offset.zero;
       _bgScale = 1.0;
       _bgRotateDeg = 0.0;
-      _cardBgColor = Colors.white; // 이미지 선택 시 배경색 의미 약화
+      // 배경색은 유지
     });
-  }
-
-  void _zoomInBg() {
-    setState(() => _bgScale = (_bgScale + 0.1).clamp(0.3, 3.0));
-  }
-
-  void _zoomOutBg() {
-    setState(() => _bgScale = (_bgScale - 0.1).clamp(0.3, 3.0));
   }
 
   void _resetAll() {
@@ -126,9 +121,8 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
       _bgScale = 1.0;
       _bgRotateDeg = 0.0;
 
-      // 카드 배경색(완전 초기화 느낌이면 흰색 또는 투명 중 선택)
+      // 배경색 초기화
       _cardBgColor = Colors.white;
-      // 필요하면 투명으로: _cardBgColor = Colors.transparent;
 
       // 요소(텍스트/이모지)
       _elements.clear();
@@ -139,7 +133,6 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
       _showFontList = false;
     });
 
-    // 사용자 피드백
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('카드를 초기화했습니다.')),
@@ -168,68 +161,6 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
     if (ok == true) _resetAll();
   }
 
-  Future<void> _openBackgroundSheet() async {
-    await showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1B1E22),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '배경 설정',
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () { Navigator.pop(context); _setBgColor(); },
-                        icon: const Icon(Icons.format_color_fill, color: Colors.white),
-                        label: const Text('배경 색상', style: TextStyle(color: Colors.white)),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.white24),
-                          backgroundColor: const Color(0xFF23272D),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () { Navigator.pop(context); _pickBackgroundImage(); },
-                        icon: const Icon(Icons.image_outlined, color: Colors.white),
-                        label: const Text('배경 이미지', style: TextStyle(color: Colors.white)),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.white24),
-                          backgroundColor: const Color(0xFF23272D),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-
   // =============== 요소(텍스트/이모지) 처리 ===============
 
   void _addText() {
@@ -246,7 +177,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
         isEditing: false,
       ));
       _selectedId = id;
-      _bgEditMode = false; // ✅ 텍스트 추가 후 상단 툴바를 "텍스트 전용"으로 전환
+      _bgEditMode = false; // 텍스트 추가 후 상단 툴바를 "텍스트 전용"으로 전환
     });
   }
 
@@ -264,7 +195,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
         isEditing: false,
       ));
       _selectedId = id;
-      _bgEditMode = false; // ✅ 이모티콘 추가 후에도 텍스트 전용 툴바로
+      _bgEditMode = false; // 이모지 추가 후에도 텍스트 전용 툴바로
     });
   }
 
@@ -345,7 +276,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
     setState(() => el.isEditing = force ?? !el.isEditing);
   }
 
-  // 회전 핸들 드래그 시 각도 계산
+  // 회전 핸들 드래그 시 각도 계산 (텍스트 요소용)
   void _onRotateDrag(_TextElement el, DragUpdateDetails d, GlobalKey boxKey) {
     final cardRect = _cardRectGlobal();
     final boxCtx = boxKey.currentContext;
@@ -353,7 +284,6 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
     final rb = boxCtx.findRenderObject() as RenderBox;
     final boxSize = rb.size;
 
-    // 요소의 "화면 내 중심 전역좌표"
     final elementCenterGlobal = Offset(
       cardRect.left + el.offset.dx + boxSize.width / 2,
       cardRect.top + el.offset.dy + boxSize.height / 2,
@@ -431,7 +361,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
                         height: math.min(w * 0.9, 340) * (5 / 3), // 3:5 비율
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
-                          color: _bgProvider == null ? _cardBgColor : Colors.white,
+                          color: _cardBgColor, // ✅ 항상 선택한 배경색 사용
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white10),
                           boxShadow: const [
@@ -445,12 +375,31 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
                         ),
                         child: Stack(
                           children: [
-                            // 배경 (드래그/줌/회전) — 카드 전체 히트
+                            // 배경 (한 손가락: 이동, 두 손가락: 확대/축소 + 회전)
                             if (_bgProvider != null)
                               Positioned.fill(
                                 child: GestureDetector(
                                   behavior: HitTestBehavior.opaque,
-                                  onPanUpdate: (d) => setState(() => _bgOffset += d.delta),
+
+                                  onScaleStart: (details) {
+                                    _baseScale = _bgScale;
+                                    _baseRotationDeg = _bgRotateDeg;
+                                  },
+
+                                  onScaleUpdate: (details) {
+                                    setState(() {
+                                      if (details.pointerCount == 1) {
+                                        // 한 손가락: 이동
+                                        _bgOffset += details.focalPointDelta;
+                                      } else if (details.pointerCount == 2) {
+                                        // 두 손가락: 확대/축소 + 회전
+                                        _bgScale = (_baseScale * details.scale).clamp(0.3, 3.0);
+                                        _bgRotateDeg =
+                                            _baseRotationDeg + (details.rotation * 180 / math.pi);
+                                      }
+                                    });
+                                  },
+
                                   child: Transform.translate(
                                     offset: _bgOffset,
                                     child: Transform.rotate(
@@ -474,7 +423,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
                               fontBuilder: _fonts[el.fontIndex].builder,
                               onTap: () => setState(() {
                                 _selectedId = el.id;
-                                _bgEditMode = false; // 텍스트/이모지 선택 시 배경 편집 모드는 종료
+                                _bgEditMode = false; // 텍스트/이모지 선택 시 배경 편집 모드 종료
                               }),
                               onDrag: (delta) => setState(() => el.offset += delta),
                               onStartEdit: () => _toggleEdit(el, force: true),
@@ -485,8 +434,10 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
                               onDelete: _removeSelected,
                               onRotateDrag: (d, key) => _onRotateDrag(el, d, key),
                             )),
+
+                            // 오버레이 자산
                             Positioned(
-                              top: 20, // 카드 안의 중앙 상단
+                              top: 20,
                               left: 0,
                               right: 0,
                               child: Align(
@@ -515,8 +466,8 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
             ),
 
             // 폰트/이모티콘 패널(토글)
-            if (_showFontList) _buildFontBar(),
-            if (_showEmojiList) _buildEmojiBar(),
+            if (_showFontList) _buildFontBar()
+            else if (_showEmojiList) _buildEmojiBar(),
 
             // ───── 하단 액션 바 ─────
             _buildBottomActionBar(),
@@ -534,16 +485,15 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
         border: Border(bottom: BorderSide(color: Colors.white12)),
       ),
       child: _bgEditMode
-          ? _buildTopToolbarForBackground() // ⬅️ 배경 모드 우선
+          ? _buildTopToolbarForBackground() // 배경 모드
           : (_hasSelection
           ? _buildTopToolbarForText()     // 텍스트/이모지 선택 시
-          : _buildTopToolbarIdle()),      // 아무 것도 아닐 때(간단 모드)
+          : _buildTopToolbarIdle()),      // 기본(대기) 모드
     );
   }
 
+  // ✅ 슬라이더 제거 버전
   Widget _buildTopToolbarForBackground() {
-    final labelStyle = const TextStyle(color: Colors.white70);
-
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Wrap(
@@ -551,56 +501,9 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
         runSpacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          // 종료(완료)
           _chipBtn('완료', onTap: () => setState(() => _bgEditMode = false)),
-
-          // 배경 이미지/색
           _chipBtnIcon(Icons.image_outlined, '배경 이미지', onTap: _pickBackgroundImage),
           _chipBtn('배경 색상', onTap: _setBgColor),
-
-          // 회전
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('회전', style: labelStyle),
-              SizedBox(
-                width: 140,
-                child: Slider(
-                  min: -180, max: 180,
-                  value: _bgRotateDeg,
-                  onChanged: (v) => setState(() => _bgRotateDeg = v),
-                ),
-              ),
-            ],
-          ),
-
-          // 크기(스케일)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('크기', style: labelStyle),
-              IconButton(
-                onPressed: () => setState(() => _bgScale = (_bgScale - 0.1).clamp(0.3, 3.0)),
-                icon: const Icon(Icons.remove, color: Colors.white),
-                tooltip: '축소',
-              ),
-              SizedBox(
-                width: 140,
-                child: Slider(
-                  min: 0.3, max: 3.0,
-                  value: _bgScale,
-                  onChanged: (v) => setState(() => _bgScale = v),
-                ),
-              ),
-              IconButton(
-                onPressed: () => setState(() => _bgScale = (_bgScale + 0.1).clamp(0.3, 3.0)),
-                icon: const Icon(Icons.add, color: Colors.white),
-                tooltip: '확대',
-              ),
-            ],
-          ),
-
-          // (선택) 배경 위치 초기화
           _chipBtn('위치 초기화', onTap: () => setState(() => _bgOffset = Offset.zero)),
         ],
       ),
@@ -634,9 +537,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
             _showEmojiList = false;
           })),
           _chipBtn('T 색상', onTap: _pickFontColor),
-          // (선택) 삭제 버튼을 상단에도 노출하고 싶다면:
           _chipBtn('삭제', onTap: _removeSelected),
-          // (선택) 편집 진입
           _chipBtn('편집', onTap: () {
             final sel = _selected;
             if (sel != null && sel.id != -1) _toggleEdit(sel, force: true);
@@ -645,8 +546,6 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
       ),
     );
   }
-
-
 
   Widget _buildBottomActionBar() {
     return Container(
@@ -673,11 +572,10 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
             _actionItem(Icons.download, '이미지', _saveCardAsImage),
             _actionItem(Icons.check_circle, '디자인 결정', _finishDesign),
             _actionItem(Icons.edit_note, '혜택 편집', () {
-              // 테스트용: DB에 이미 있는 커스텀번호로 진입 (예: 1)
               Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => const CustomBenefitPage(
                   applicationNo: 0,
-                  customNo: 1,                 // ← DB에 존재하는 번호로 테스트
+                  customNo: 1, // DB에 존재하는 번호로 테스트
                   allowEditBeforeApproval: true,
                 ),
               ));
@@ -690,15 +588,12 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
 
   Future<void> _finishDesign() async {
     try {
-      // 1) 카드 PNG 바이트 생성
       final pngBytes = await _captureCardPngBytes();
 
-      // 2) 업로드 파라미터 (필요에 맞게 세팅)
       final memberNo = 1001;              // 로그인 사용자 ID (앱에서 주입)
       final customService = '우대금리 + 영화예매 1천원 할인'; // 혜택 설명(선택)
       final uri = Uri.parse('http://192.168.0.224:8090/api/custom-cards');
 
-      // 3) 멀티파트 업로드 (image/png + 폼필드)
       final req = http.MultipartRequest('POST', uri)
         ..fields['memberNo'] = memberNo.toString()
         ..fields['customService'] = customService
@@ -787,14 +682,14 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
             Icon(
               icon,
               size: 22,
-              color: isActive ? Colors.white : Colors.white70, // ✅ 강조
+              color: isActive ? Colors.white : Colors.white70,
             ),
             const SizedBox(height: 6),
             Text(
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: isActive ? Colors.white : Colors.white70, // ✅ 강조
+                color: isActive ? Colors.white : Colors.white70,
                 fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
               ),
             ),
@@ -803,7 +698,6 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
       ),
     );
   }
-
 
   Widget _primaryActionItem(IconData icon, String label, VoidCallback onTap) {
     return ElevatedButton.icon(
@@ -816,20 +710,6 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 0,
-      ),
-    );
-  }
-
-  Widget _sheetButton(IconData icon, String label, VoidCallback onTap) {
-    return OutlinedButton.icon(
-      onPressed: () { Navigator.pop(context); onTap(); },
-      icon: Icon(icon, color: Colors.white),
-      label: Text(label, style: const TextStyle(color: Colors.white)),
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Colors.white24),
-        backgroundColor: const Color(0xFF23272D),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -994,14 +874,13 @@ class _TextElementWidgetState extends State<_TextElementWidget> {
         child: Transform.rotate(
           angle: el.rotationDeg * math.pi / 180,
           child: Stack(
-            clipBehavior: Clip.none, // 유지
+            clipBehavior: Clip.none,
             children: [
-              // ✅ 패딩으로 버튼 공간을 "스택 내부"에 포함시킴
               Padding(
-                key: _boxKey, // ⬅️ 회전 중심 계산에 쓰는 키를 '패딩 박스'에 부착
+                key: _boxKey,
                 padding: const EdgeInsets.all(_kHandlePad),
                 child: GestureDetector(
-                  onPanUpdate: (d) => widget.onDrag(d.delta), // 이동 제스처는 본체에만
+                  onPanUpdate: (d) => widget.onDrag(d.delta), // 요소 이동 제스처
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     decoration: widget.selected
@@ -1030,25 +909,23 @@ class _TextElementWidgetState extends State<_TextElementWidget> {
                 ),
               ),
 
-              // ✅ 삭제 버튼(우상단) — 이제 음수 좌표 없음
               if (widget.selected)
                 Positioned(
                   right: 2,
                   top: 2,
                   child: GestureDetector(
                     onTap: widget.onDelete,
-                    behavior: HitTestBehavior.opaque, // 히트 박스 보장
+                    behavior: HitTestBehavior.opaque,
                     child: _roundIcon(Colors.red, Icons.close, size: 18),
                   ),
                 ),
 
-              // ✅ 회전 버튼(좌상단) — 이제 음수 좌표 없음
               if (widget.selected)
                 Positioned(
                   left: 2,
                   top: 2,
                   child: GestureDetector(
-                    behavior: HitTestBehavior.opaque, // 히트 박스 보장
+                    behavior: HitTestBehavior.opaque,
                     onPanUpdate: (d) => widget.onRotateDrag(d, _boxKey),
                     child: _roundIcon(Colors.black54, Icons.rotate_right, size: 18),
                   ),
@@ -1060,11 +937,10 @@ class _TextElementWidgetState extends State<_TextElementWidget> {
     );
   }
 
-
   Widget _roundIcon(Color bg, IconData icon, {double size = 16}) {
     return Container(
-      width: 28,  // <- 24 → 28
-      height: 28, // <- 24 → 28
+      width: 28,
+      height: 28,
       decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
       alignment: Alignment.center,
       child: Icon(icon, color: Colors.white, size: size),
