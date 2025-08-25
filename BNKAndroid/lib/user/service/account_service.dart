@@ -5,27 +5,21 @@ import 'package:http/http.dart' as http;
 import 'package:bnkandroid/net/api_client.dart';
 
 /// 계좌(Accounts) 관련 API 호출 전용 서비스
-/// - ApiClient.getAuth/postAuth 를 사용해 jwt_token 기반 인증 헤더 자동 부착
+/// - ApiClient.getAuth/postAuth: jwt_token 기반 인증 헤더 자동 부착
 /// - UTF-8 안전 디코딩
 /// - 에러 발생 시 status/body 포함 반환
 class AccountService {
-  // =========================
   // 공통 디코더
-  // =========================
   static Map<String, dynamic> _decode(http.Response res) {
     final text = utf8.decode(res.bodyBytes);
     try {
-      final json = jsonDecode(text);
-      if (json is Map<String, dynamic>) return json;
-      return {'success': res.statusCode < 400, 'status': res.statusCode, 'raw': json};
+      final obj = jsonDecode(text);
+      if (obj is Map<String, dynamic>) return obj;
+      return {'success': res.statusCode < 400, 'status': res.statusCode, 'raw': obj};
     } catch (_) {
       return {'success': res.statusCode < 400, 'status': res.statusCode, 'body': text};
     }
   }
-
-  // =========================
-  // 공개 API
-  // =========================
 
   /// 현재 로그인 사용자의 활성 계좌 목록/상태
   static Future<Map<String, dynamic>> state() async {
@@ -102,7 +96,7 @@ class AccountService {
     return _decode(res);
   }
 
-  /// (옵션) 비번 없이 단순 세션 선택
+  /// (신규) 비번 없이 단순 세션 선택 (신규 계좌 비번 설정 직후 사용)
   static Future<Map<String, dynamic>> selectAccount({required int acNo}) async {
     final res = await ApiClient.postAuth(
       '/card/apply/api/accounts/select',

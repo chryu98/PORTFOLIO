@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:bnkandroid/user/service/account_service.dart';
 import 'ApplicationStep1Page.dart' show kPrimaryRed;
 import 'ApplicationStep6CardOptionPage.dart';
-// ▼ 8번 페이지와 동일한 전체화면 시큐어 패드 사용
 import 'ui/pin/fullscreen_pin_pad.dart';
 
 class ApplicationStep5AccountPage extends StatefulWidget {
@@ -26,12 +25,14 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
   // 서버 응답 원본
   List<Map<String, dynamic>> _accounts = [];
 
-  // 선택/상태
-  Map<String, dynamic>? _selectedAccount; // 드롭다운에서 선택한 계좌
-  Map<String, dynamic>? _createdAccount;  // 자동생성된 계좌
-  bool _pwdReady = false;                 // 자동생성 후 비번 설정 완료 여부
+  // 생성 제한(최근 20일) – 서버가 주면 우선 사용, 없으면 클라이언트에서 계산
+  bool? _recentLockedFromServer;
 
-  // 실패 메시지 (자동생성 실패 시)
+  // 선택/상태
+  Map<String, dynamic>? _selectedAccount; // 선택한 기존 계좌
+  Map<String, dynamic>? _createdAccount;  // 자동 생성된 새 계좌
+  bool _pwdReady = false;                 // 새 계좌 비번 설정 완료 여부
+
   String? _createError;
 
   @override
@@ -45,21 +46,16 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
     try {
       final res = await AccountService.state();
 
-      if (res['status'] != null && (res['status'] as int) >= 400) {
-        setState(() {
-          _loading = false;
-          _createError = '상태 조회 실패: 로그인/네트워크 확인';
-        });
-        return;
-      }
-
       final list = (res['accounts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
       setState(() {
         _accounts = list;
+        if (res.containsKey('recentCreatedWithinDays')) {
+          _recentLockedFromServer = res['recentCreatedWithinDays'] == true;
+        }
         _loading = false;
       });
 
-      // 계좌가 없으면 → 오버레이로 자동 생성 플로우 시작
+      // 계좌가 없을 때만 자동 생성 플로우 시작
       if (mounted && list.isEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) => _autoCreateFlow());
       }
@@ -71,23 +67,22 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
     }
   }
 
-  // 20일 내 생성 계좌가 하나라도 있으면 신규 개설 금지
+  // 정책 계산(서버 플래그 우선, 없으면 createdAt 기반으로 20일 계산)
   bool get _isNewOpenBlockedBy20Days {
+    if (_recentLockedFromServer != null) return _recentLockedFromServer!;
     final now = DateTime.now();
     for (final a in _accounts) {
       final created = _parseDate(a['createdAt']);
       if (created == null) continue;
-      final diff = now.difference(created).inDays;
-      if (diff < 20) return true;
+      if (now.difference(created).inDays < 20) return true;
     }
     return false;
   }
 
   DateTime? _parseDate(dynamic v) {
-    if (v == null) return null;
-    try {
-      if (v is String) return DateTime.tryParse(v);
-    } catch (_) {}
+    if (v is String) {
+      try { return DateTime.tryParse(v); } catch (_) {}
+    }
     return null;
   }
 
@@ -99,11 +94,10 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
     return '$head-****-****-$tail';
   }
 
-  // ===== 자동 생성 플로우(오버레이 로딩 → 결과 수신) =====
+  // ===== 자동 생성 플로우(오버레이 로딩 → 서버 판단) =====
   Future<void> _autoCreateFlow() async {
-    // 계좌가 있으면 자동생성 금지
-    if (_accounts.isNotEmpty) {
-      _snack('이미 보유 중인 계좌가 있어 자동 생성이 제한됩니다. 기존 계좌를 선택해주세요.');
+    if (_isNewOpenBlockedBy20Days) {
+      _snack('최근 20일 이내 개설된 계좌가 있어 신규 개설이 제한됩니다.');
       return;
     }
 
@@ -117,32 +111,26 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
     if (!mounted) return;
 
     if (account != null) {
-      // 성공 → 화면을 '신규 계좌가 생성되었습니다' 상태로 전환
       setState(() {
         _createdAccount = account;
         _createError = null;
         _pwdReady = false;
       });
       _snack('신규 계좌가 생성되었습니다.');
-      // 생성 직후 비밀번호 설정을 바로 유도하려면:
-      // _showSetPasswordSheet(acNo: account['acNo'] as int);
     } else {
-      // 실패
-      setState(() {
-        _createError = '계좌 생성에 실패했습니다.';
-      });
+      setState(() => _createError = '계좌 생성에 실패했습니다.');
       _snack(_createError!);
     }
   }
 
-  // ===== 신규 계좌 비밀번호 설정(전체화면 시큐어 패드) =====
+  // ===== 새 계좌 비밀번호 설정(전체화면 시큐어 패드) =====
   Future<void> _showSetPasswordSheet({required int acNo}) async {
     final pin = await FullscreenPinPad.open(
       context,
       title: '계좌 비밀번호를 입력해주세요',
-      confirm: true,   // 새 비번 → 2회 확인
-      length: 6,       // 6자리 통일
-      birthYmd: null,  // 알면 'YYYYMMDD' 전달
+      confirm: true,   // 새 비번 2회
+      length: 6,
+      birthYmd: null,
     );
     if (pin == null) return;
 
@@ -150,6 +138,9 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
     if (!mounted) return;
 
     if (res['ok'] == true) {
+      // ✅ 새 계좌를 이번 신청에 사용할 계좌로 서버 세션에 명시
+      await AccountService.selectAccount(acNo: acNo);
+
       setState(() => _pwdReady = true);
       _snack('비밀번호 설정 완료');
     } else {
@@ -157,7 +148,7 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
     }
   }
 
-  // ===== 기존 계좌 비밀번호 검증(전체화면 시큐어 패드) =====
+  // ===== 기존 계좌 인증(전체화면 시큐어 패드) =====
   Future<void> _verifyExistingWithKeypad({
     required int acNo,
     required String accountNumber,
@@ -165,7 +156,7 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
     final pin = await FullscreenPinPad.open(
       context,
       title: '계좌 비밀번호를 입력해주세요',
-      confirm: false,  // 검증은 1회 입력
+      confirm: false,  // 1회 입력
       length: 6,
       birthYmd: null,
     );
@@ -239,17 +230,18 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
 
   bool get _primaryButtonEnabled {
     if (_accounts.isEmpty) {
-      // 자동 생성 케이스 → 비번 설정까지 마쳐야 다음 가능
       return _createdAccount != null && _pwdReady;
     } else {
-      // 기존 계좌 선택 시, 하나 선택됐을 때만
       return _selectedAccount != null;
     }
   }
 
   Future<void> _onPrimaryPressed() async {
     if (_accounts.isEmpty) {
+      // 안전망: 비번 설정 단계에서 select가 실패했을 가능성 대비
       if (_createdAccount != null && _pwdReady) {
+        final acNo = (_createdAccount!['acNo'] as num).toInt();
+        await AccountService.selectAccount(acNo: acNo);
         _goStep6();
       } else {
         _snack('비밀번호 설정을 먼저 완료해주세요.');
@@ -257,13 +249,13 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
       return;
     }
 
-    // 기존 계좌는 키패드 인증으로 분기
-    final acNo = _selectedAccount!['acNo'] as int;
+    // 기존 계좌는 키패드 인증
+    final acNo = (_selectedAccount!['acNo'] as num).toInt();
     final number = _selectedAccount!['accountNumber'] as String;
     await _verifyExistingWithKeypad(acNo: acNo, accountNumber: number);
   }
 
-  // ----- VIEW: 계좌 없음 → (오버레이로 생성) → 성공 화면 -----
+  // ----- VIEW: 계좌 없음 → (오버레이 생성) → 성공/실패 화면 -----
   Widget _buildAutoCreatedView() {
     if (_createdAccount != null) {
       return Column(
@@ -281,7 +273,7 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
           if (!_pwdReady)
             _CTA(
               text: '계좌 비밀번호 설정',
-              onTap: () => _showSetPasswordSheet(acNo: _createdAccount!['acNo'] as int),
+              onTap: () => _showSetPasswordSheet(acNo: (_createdAccount!['acNo'] as num).toInt()),
             ),
           if (_pwdReady)
             const Text('비밀번호가 설정되었습니다.', style: TextStyle(color: Colors.black87)),
@@ -318,7 +310,8 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
   // ----- VIEW: 계좌 있음 → 선택 + (옵션) 신규 개설 -----
   Widget _buildHasAccountView() {
     final blocked = _isNewOpenBlockedBy20Days;
-    const accent = Color(0xFF9AA4AE); // 중간 회색
+    const accent = Color(0xFF9AA4AE);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -328,7 +321,6 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
         const Text('계좌 선택', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
         const SizedBox(height: 10),
 
-        // 리스트는 토스처럼 큼직한 카드로
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.only(bottom: 8),
@@ -337,7 +329,7 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
             itemBuilder: (_, i) {
               final a = _accounts[i];
               final number = a['accountNumber'] as String;
-              final selected = identical(_selectedAccount, a);
+              final selected = (_selectedAccount?['acNo'] == a['acNo']);
 
               return _AccountTile(
                 title: _maskAccount(number),
@@ -362,7 +354,7 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
                 side: BorderSide(color: accent, width: 1.2),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: _autoCreateFlow,
+              onPressed: _autoCreateFlow, // 계좌가 있어도 정책은 서버가 판단
               child: const Text('신규 계좌 개설', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ),
@@ -424,7 +416,6 @@ class _AutoCreateDialogState extends State<_AutoCreateDialog> {
   Future<void> _kickoff() async {
     setState(() { _running = true; _error = null; });
 
-    // 다이얼로그가 먼저 그려지도록 아주 짧게 대기
     await Future.delayed(const Duration(milliseconds: 150));
 
     final startedAt = DateTime.now();
@@ -442,7 +433,6 @@ class _AutoCreateDialogState extends State<_AutoCreateDialog> {
       error = e is StateError ? e.message : '네트워크/인증 오류';
     }
 
-    // 최소 표시 시간 보장
     final elapsed = DateTime.now().difference(startedAt);
     if (elapsed < widget.minDisplay) {
       await Future.delayed(widget.minDisplay - elapsed);

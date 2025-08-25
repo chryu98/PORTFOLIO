@@ -1,16 +1,15 @@
+// lib/application/ApplicationStep3JobPage.dart
 import 'package:flutter/material.dart';
 import 'ApplicationStep1Page.dart' show kPrimaryRed;
 import 'user/service/card_apply_service.dart' as apply;
 
-// ✅ 5페이지로 바로 이동하려면 이걸 import
-//import 'ApplicationStep5AccountPage.dart';
-// (원복하려면 위 import 대신 4페이지를 import 하고 아래 플래그를 false 로 바꾸면 됨)
- import 'ApplicationStep4OcrPage.dart';
+// ✅ 5페이지(계좌연결)로 바로 이동
+import 'ApplicationStep5AccountPage.dart';
 
 // -------------------------
-// 개발용: OCR 스킵 여부
-const bool kSkipOcrForDev = true;
+// 개발용: OCR 스킵 여부 (true면 Step5로 직행)
 // -------------------------
+const bool kSkipOcrForDev = true;
 
 /// Step 3: 직업/거래목적/자금출처
 class ApplicationStep3JobPage extends StatefulWidget {
@@ -76,13 +75,13 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('저장 완료')));
+
 
       // ✅ OCR 스킵: Step5(계좌연결)로 곧장 이동
       if (kSkipOcrForDev) {
         await Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => ApplicationStep4OcrPage(
+            builder: (_) => ApplicationStep5AccountPage(
               applicationNo: widget.applicationNo,
               cardNo: widget.cardNo,
             ),
@@ -219,7 +218,7 @@ class _StepHeader3 extends StatelessWidget {
   }
 }
 
-/// 풀스크린 선택 위젯 (그대로)
+/// 풀스크린 선택 위젯
 class FullScreenSelectField extends FormField<String> {
   FullScreenSelectField({
     Key? key,
@@ -264,7 +263,8 @@ class FullScreenSelectField extends FormField<String> {
           isEmpty: showHint,
           decoration: dec.copyWith(
             errorText: hasError ? state.errorText : null,
-            suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.black54),
+            suffixIcon:
+            const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.black54),
           ),
           child: showHint
               ? const SizedBox(height: 20)
@@ -304,7 +304,8 @@ class _SelectFullScreenPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0.4,
         leading: const CloseButton(color: Colors.black87),
-        title: Text(title, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
+        title: Text(title,
+            style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
         centerTitle: false,
       ),
       body: SafeArea(
@@ -318,7 +319,8 @@ class _SelectFullScreenPage extends StatelessWidget {
               final isSelected = opt == sel;
               return ListTile(
                 tileColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                 minVerticalPadding: 12,
                 title: Text(
                   opt,
@@ -328,7 +330,8 @@ class _SelectFullScreenPage extends StatelessWidget {
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                   ),
                 ),
-                trailing: isSelected ? const Icon(Icons.check_rounded, color: kPrimaryRed) : null,
+                trailing:
+                isSelected ? const Icon(Icons.check_rounded, color: kPrimaryRed) : null,
                 onTap: () => Navigator.pop(context, opt),
               );
             },
