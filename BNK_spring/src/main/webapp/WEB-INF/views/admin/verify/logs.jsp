@@ -263,8 +263,11 @@ a.btn.btn-outline.active { /* 통과만 보기 ON 상태 */
 	pointer-events: none
 }
 </style>
+
+<link rel="stylesheet" href="/css/adminstyle.css">
 </head>
 <body>
+	<jsp:include page="../fragments/header.jsp"></jsp:include>
 	<div class="wrap">
 		<div class="title">인증 로그 기록</div>
 
@@ -478,5 +481,6 @@ a.btn.btn-outline.active { /* 통과만 보기 ON 상태 */
 			파라미터로 제어(기본 10, 최대 200).
 		</div>
 	</div>
+	<script src="/js/adminHeader.js"></script>
 </body>
 </html>

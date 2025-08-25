@@ -112,6 +112,17 @@ public interface ICardApplyDao {
 			""")
 	void insertAgreement(@Param("memberNo") int memberNo, @Param("cardNo") Long cardNo, @Param("pdfNo") Long pdfNo);
 
+//	상태 추가
+	// 상태 업데이트 (memberNo + cardNo 로 찾음)
+	@Update("""
+	    UPDATE card_application_temp
+	    SET status = #{status}, updated_at = SYSDATE
+	    WHERE member_no = #{memberNo}
+	      AND card_no   = #{cardNo}
+	""")
+	void updateApplicationStatus(@Param("memberNo") int memberNo,
+	                             @Param("cardNo") Long cardNo,
+	                             @Param("status") String status);
 	@Select("""
 			    SELECT zip_code, address1, address2
 			      FROM member
@@ -162,4 +173,17 @@ public interface ICardApplyDao {
 	int updateStatusWithReason(@Param("applicationNo") Integer applicationNo,
 							   @Param("status") String status,
 							   @Param("reason") String reason);
+			 
+	
+	// 카드 앱플리케이션 탬프 (임시 테이블) 상태 변경
+	@Update("""
+		    UPDATE card_application_temp
+		       SET status = #{status}, updated_at = SYSDATE
+		     WHERE application_no = #{applicationNo}
+		""")
+	int updateApplicationStatusByAppNo(@Param("applicationNo") Integer applicationNo,
+	                                   @Param("status") String status);
+
+
+	
 }

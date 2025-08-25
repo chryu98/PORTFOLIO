@@ -1,6 +1,7 @@
 // com.busanbank.card.verify.controller.VerifyController.java
 package com.busanbank.card.verify.controller;
 
+import com.busanbank.card.cardapply.dao.ICardApplyDao;
 import com.busanbank.card.verify.entity.VerifyLog;
 import com.busanbank.card.verify.service.ExpectedRrnService;
 import com.busanbank.card.verify.service.VerifyLogService;
@@ -83,6 +84,10 @@ public class VerifyController {
 			String reason = result != null ? String.valueOf(result.getOrDefault("reason", "")) : "";
 
 			verifyLogService.save(new VerifyLog(userNo, status, reason));
+			
+			// 이대영이 추가함
+			ICardApplyDao.updateApplicationStatusByAppNo(applicationNo, "PHOTO_UPLOADED");
+			
 			return ResponseEntity.status(res.getStatusCode()).body(result);
 
 		} catch (Exception e) {
