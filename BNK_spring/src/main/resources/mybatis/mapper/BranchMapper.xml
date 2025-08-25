@@ -47,5 +47,55 @@
 	      AND LATITUDE IS NOT NULL
 	      AND LONGITUDE IS NOT NULL
 	</select>
+	
+<!-- 검색 카운트 -->
+  <select id="count" parameterType="map" resultType="long">
+  <bind name="kw" value="(q != null &amp;&amp; q != '') ? '%' + q.toLowerCase() + '%' : null" />
+  SELECT COUNT(*)
+  FROM bnk_branch
+  <where>
+    <if test="kw != null">
+      (LOWER(BRANCH_NAME) LIKE #{kw}
+       OR LOWER(BRANCH_ADDRESS) LIKE #{kw})
+    </if>
+  </where>
+</select>
+
+<select id="selectPage" parameterType="map" resultMap="BranchMap">
+  <bind name="kw" value="(q != null &amp;&amp; q != '') ? '%' + q.toLowerCase() + '%' : null" />
+  SELECT *
+  FROM bnk_branch
+  <where>
+    <if test="kw != null">
+      (LOWER(BRANCH_NAME) LIKE #{kw}
+       OR LOWER(BRANCH_ADDRESS) LIKE #{kw})
+    </if>
+  </where>
+  ORDER BY BRANCH_NO DESC
+  OFFSET #{offset} ROWS FETCH NEXT #{size} ROWS ONLY
+</select>
+
+ <!-- 단건 조회 -->
+<select id="findById" parameterType="long" resultMap="BranchMap">
+  SELECT * FROM bnk_branch WHERE BRANCH_NO = #{id}
+</select>
+
+ <!-- 등록 -->
+<insert id="insert" parameterType="com.busanbank.card.branch.dto.BranchDto">
+  INSERT INTO bnk_branch
+    (BRANCH_NO, BRANCH_NAME, BRANCH_ADDRESS, BRANCH_TEL, LATITUDE, LONGITUDE)
+  VALUES
+    (SEQ_BRANCH_NO.NEXTVAL,
+     #{branchName},
+     #{branchAddress},
+     #{branchTel},
+     #{latitude,  jdbcType=NUMERIC},
+     #{longitude, jdbcType=NUMERIC})
+</insert>
+
+  <!-- 삭제 -->
+  <delete id="deleteById" parameterType="long">
+    DELETE FROM bnk_branch WHERE BRANCH_NO = #{id}
+  </delete>
 
 </mapper>

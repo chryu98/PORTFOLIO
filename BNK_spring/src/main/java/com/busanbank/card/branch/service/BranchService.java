@@ -1,6 +1,7 @@
 // BranchService.java
 package com.busanbank.card.branch.service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -68,5 +69,46 @@ public class BranchService {
     
     public List<BranchDto> searchBranches(String keyword) {
         return branchMapper.searchBranches("%" + keyword + "%");
+    }
+    
+    @Transactional(readOnly = true)
+    public Paged<BranchDto> list(String q, int page, int size) {
+        page = Math.max(page, 1);
+        size = Math.max(size, 10);
+        int offset = (page - 1) * size;
+
+        long total = branchMapper.count(q);
+        var items = branchMapper.selectPage(q, offset, size);
+        return new Paged<>(items, page, size, total);
+    }
+
+    @Transactional
+    public void create(BranchDto dto) {
+        // 좌표가 없으면 주소로 보정
+        if ((dto.getLatitude() == null || dto.getLongitude() == null)
+            && dto.getBranchAddress() != null && !dto.getBranchAddress().isBlank()) {
+
+            var latLng = geocodingClient.geocode(dto.getBranchAddress());
+            if (latLng != null) {
+                dto.setLatitude(latLng.getLat());
+                dto.setLongitude(latLng.getLng());
+            }
+        }
+        branchMapper.insert(dto);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+    	branchMapper.deleteById(id);
+    }
+
+    // 간단한 페이지 응답용 DTO
+    public record Paged<T>(java.util.List<T> items, int page, int size, long total) {
+        // JSP EL이 인식할 수 있도록 JavaBean 게터 추가
+        public java.util.List<T> getItems() { return items; }
+        public int getPage() { return page; }
+        public int getSize() { return size; }
+        public long getTotal() { return total; }
+        public long getTotalPages() { return (total + size - 1) / size; }
     }
 }

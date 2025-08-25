@@ -22,4 +22,12 @@ public interface BranchMapper {
     );
     
     List<BranchDto> searchBranches(@Param("keyword") String keyword);
+    
+    long count(@Param("q") String q);
+    List<BranchDto> selectPage(@Param("q") String q,
+                               @Param("offset") int offset,
+                               @Param("size") int size);
+    BranchDto findById(@Param("id") Long id);
+    int insert(BranchDto dto);
+    int deleteById(@Param("id") Long id);
 }
