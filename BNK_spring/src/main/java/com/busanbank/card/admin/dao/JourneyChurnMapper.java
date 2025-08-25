@@ -25,7 +25,7 @@ public interface JourneyChurnMapper {
     })
     List<CardOption> selectCards(@Param("activeOnly") String activeOnly);
 
-    // 요약
+    // 요약 (발급/취소 제외 토글 제거, isCredit 제거) - 항상 ISSUED/CANCELLED 제외
     @Select({
         "<script>",
         "WITH",
@@ -69,9 +69,6 @@ public interface JourneyChurnMapper {
         "</if>",
         "<if test='toDate != null'>",
         "    AND t.CREATED_AT &lt; TRUNC(#{toDate}) + 1",
-        "</if>",
-        "<if test='isCredit != null and isCredit != \"\"'>",
-        "    AND t.IS_CREDIT_CARD = #{isCredit}",
         "</if>",
         "),",
         "reached_from AS (",
@@ -134,25 +131,21 @@ public interface JourneyChurnMapper {
         "         THEN ROUND((100 * stuck_cnt) / reached_cnt_from, 1)",
         "    END               AS dropPct",
         "  FROM joined_rows",
-        "  WHERE 1=1",
-        "<if test='excludeTerminals == null or excludeTerminals == \"Y\"'>",
-        "    AND to_code NOT IN ('ISSUED','CANCELLED')",
-        "</if>",
+        "  WHERE to_code NOT IN ('ISSUED','CANCELLED')",  // 항상 제외
         "  ORDER BY droppedBetween DESC, dropPct DESC, toStepOrder",
         ") v",
+        // limitPerCard 유지
         "WHERE ROWNUM &lt;= #{limitPerCard}",
         "</script>"
     })
     List<StepChurnRow> selectCardStepChurnSummary(
             @Param("fromDate") Date fromDate,
             @Param("toDate") Date toDate,
-            @Param("isCredit") String isCredit,
             @Param("cardNo") Long cardNo,
-            @Param("excludeTerminals") String excludeTerminals,
             @Param("limitPerCard") Integer limitPerCard
     );
 
-    // 상세
+    // 상세 (성별/나이 포함; isCredit 제거)
     @Select({
         "<script>",
         "<![CDATA[",
@@ -189,9 +182,6 @@ public interface JourneyChurnMapper {
         "<if test='toDate != null'>",
         "  AND t.CREATED_AT &lt; TRUNC(#{toDate}) + 1",
         "</if>",
-        "<if test='isCredit != null and isCredit != \"\"'>",
-        "  AND t.IS_CREDIT_CARD = #{isCredit}",
-        "</if>",
         "<![CDATA[",
         ")",
         "SELECT",
@@ -199,6 +189,20 @@ public interface JourneyChurnMapper {
         "  l.MEMBER_NO      AS memberNo,",
         "  m.NAME           AS name,",
         "  m.USERNAME       AS username,",
+        "  /* 성별: 주민번호 성별코드(1,3=남 / 2,4=여) */",
+        "  CASE",
+        "    WHEN m.RRN_GENDER IN ('1','3') THEN '남'",
+        "    WHEN m.RRN_GENDER IN ('2','4') THEN '여'",
+        "    ELSE NULL",
+        "  END              AS gender,",
+        "  /* 나이(만 나이 근사): RRN_FRONT + RRN_GENDER로 출생일 산출 후 연령 */",
+        "  CASE",
+        "    WHEN REGEXP_LIKE(m.RRN_FRONT, '^\\d{6}$') AND m.RRN_GENDER IN ('1','2','3','4') THEN",
+        "      TRUNC(MONTHS_BETWEEN(TRUNC(SYSDATE),",
+        "        TO_DATE(CASE WHEN m.RRN_GENDER IN ('1','2') THEN '19' ELSE '20' END || m.RRN_FRONT, 'YYYYMMDD')",
+        "      )/12)",
+        "    ELSE NULL",
+        "  END              AS ageYears,",
         "  l.last_status    AS lastStatus,",
         "  l.CREATED_AT     AS createdAt,",
         "  l.UPDATED_AT     AS updatedAt",
@@ -212,8 +216,6 @@ public interface JourneyChurnMapper {
             @Param("cardNo") Long cardNo,
             @Param("fromStepCode") String fromStepCode,
             @Param("fromDate") Date fromDate,
-            @Param("toDate") Date toDate,
-            @Param("isCredit") String isCredit
+            @Param("toDate") Date toDate
     );
-
 }
