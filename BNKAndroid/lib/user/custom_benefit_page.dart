@@ -2,6 +2,7 @@
 // lib/custom/custom_benefit_page.dart
 // UX v6: 총합 20% 제한, 프리셋, 진행바+남은%, 하단 고정 Dock(큰 '카드 발급')
 // - 카드 탭/플러스 시 20% 초과 가드 메시지 (BenefitMatrix 쪽에서 처리)
+// - ✅ 저장 성공 시 로그인 가드 후 ApplicationStep0TermsPage(cardNo: 999)로 풀스크린 이동
 // ============================================================================
 
 import 'dart:typed_data';
@@ -13,13 +14,18 @@ import 'package:bnkandroid/user/service/custom_card_service.dart';
 import 'package:bnkandroid/widgets/benefit_matrix.dart'
     show BenefitMatrix, CategoryChoice, CategorySpec, kDefaultSpecs;
 
+// ✅ 추가: 로그인 가드 & 풀스크린 네비게이션, Step0 페이지
+import 'package:bnkandroid/navigation/guards.dart';
+import 'package:bnkandroid/app_shell.dart' show pushFullScreen;
+import 'package:bnkandroid/ApplicationStep0TermsPage.dart';
+
 const kBrand = Color(0xFFE4002B);
 const _kMaxPercent = 20; // ✅ 총합 제한 20%
 
 class CustomBenefitPage extends StatefulWidget {
   final int? applicationNo;
   final int customNo;
-  final int memberNo;          // 🔹추가
+  final int memberNo;          // 🔹추가(요구사항 유지)
   final bool showImagePreview;
   final bool allowEditBeforeApproval;
   final Uint8List? initialPreviewBytes;
@@ -149,6 +155,16 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
     return true;
   }
 
+  /// ✅ 저장 성공 후 로그인 가드 → Step0로 풀스크린 이동 (cardNo: 999 고정)
+  Future<void> _goToStep0WithFixedCard() async {
+    await ensureLoggedInAndRun(context, () async {
+      await pushFullScreen(
+        context,
+        const ApplicationStep0TermsPage(cardNo: 999),
+      );
+    });
+  }
+
   Future<void> _save() async {
     if (_isOver) {
       _toast('총합이 20%를 초과했어요. 자동맞춤으로 정리해 주세요.');
@@ -165,9 +181,12 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
         customService: composed,
       );
       if (!mounted) return;
+
       if (ok1) {
         _toast('혜택이 저장되었습니다.');
-        Navigator.of(context).pop(true);
+        // ✅ 저장까지 모두 끝났으니, 로그인 가드 거쳐서 Step0로 이동 (cardNo=999)
+        await _goToStep0WithFixedCard();
+        return; // 여기서 종료 (pop 하지 않음)
       } else {
         _toast('저장 실패. 잠시 후 다시 시도해 주세요.');
       }
