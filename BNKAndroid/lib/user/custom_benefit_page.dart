@@ -1,6 +1,12 @@
+// ============================================================================
 // lib/custom/custom_benefit_page.dart
+// UX v6: 총합 20% 제한, 프리셋, 진행바+남은%, 하단 고정 Dock(큰 '카드 발급')
+// - 카드 탭/플러스 시 20% 초과 가드 메시지 (BenefitMatrix 쪽에서 처리)
+// ============================================================================
+
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:bnkandroid/user/service/custom_card_service.dart';
 
 // 매트릭스(퍼센트/브랜드 선택)
@@ -8,14 +14,13 @@ import 'package:bnkandroid/widgets/benefit_matrix.dart'
     show BenefitMatrix, CategoryChoice, CategorySpec, kDefaultSpecs;
 
 const kBrand = Color(0xFFE4002B);
+const _kMaxPercent = 20; // ✅ 총합 제한 20%
 
 class CustomBenefitPage extends StatefulWidget {
   final int applicationNo;
   final int customNo;
   final bool showImagePreview;
   final bool allowEditBeforeApproval;
-
-  /// 전 단계에서 만든 카드 미리보기 이미지(bytes). 있으면 우선 노출.
   final Uint8List? initialPreviewBytes;
 
   const CustomBenefitPage({
@@ -39,8 +44,31 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
   /// 카테고리 선택 상태: 예) '편의점' -> {percent:5, sub:'CU'}
   Map<String, CategoryChoice> _choices = {};
 
-  /// 스펙(아이콘/브랜드 목록/퍼센트 범위) – 필요 시 정책에 맞게 교체
-  final List<CategorySpec> _specs = kDefaultSpecs;
+  /// 스펙(아이콘/브랜드 목록/퍼센트 범위)
+  final List<CategorySpec> _specs = kDefaultSpecs; // (항목별 maxPercent=20)
+
+  /// 프리셋 (총합 20%)
+  late final Map<String, Map<String, CategoryChoice>> _presets = {
+    '편의점형': {
+      '편의점': const CategoryChoice(percent: 10, sub: 'CU'),
+      '배달앱': const CategoryChoice(percent: 5, sub: '배달의민족'),
+      '쇼핑': const CategoryChoice(percent: 5, sub: '쿠팡'),
+    },
+    '주유형': {
+      '주유': const CategoryChoice(percent: 12, sub: '현대오일뱅크'),
+      '대중교통': const CategoryChoice(percent: 8),
+    },
+    '병원형': {
+      '병원': const CategoryChoice(percent: 10),
+      '대중교통': const CategoryChoice(percent: 5),
+      '쇼핑': const CategoryChoice(percent: 5, sub: '마켓컬리'),
+    },
+    '온라인형': {
+      '쇼핑': const CategoryChoice(percent: 10, sub: '쿠팡'),
+      '배달앱': const CategoryChoice(percent: 5, sub: '요기요'),
+      '영화': const CategoryChoice(percent: 5, sub: 'CGV'),
+    },
+  };
 
   @override
   void initState() {
@@ -54,8 +82,7 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
       final info = await CustomCardService.fetchOne(widget.customNo);
       if (!mounted) return;
       _info = info;
-
-      // 서버에 매트릭스를 저장한다면 여기서 불러와 _choices 세팅
+      // selections 서버 저장 시 여기서 불러오기
       // _choices = await CustomCardService.fetchBenefitMatrix(widget.customNo);
     } catch (e) {
       if (!mounted) return;
@@ -65,17 +92,16 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
     }
   }
 
-  // ───────────────────────── helpers
-
   void _toast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      behavior: SnackBarBehavior.floating,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+    );
   }
 
   int get _totalPercent =>
-      _choices.values.fold(0, (p, e) => p + e.percent.clamp(0, 100));
+      _choices.values.fold(0, (p, e) => p + e.percent.clamp(0, _kMaxPercent));
+  int get _remaining => (_kMaxPercent - _totalPercent).clamp(-999, 999);
+  bool get _isOver => _totalPercent > _kMaxPercent;
 
   /// 선택 상태 → 서버 전송용 설명 문구 자동 생성
   String _composeTextFromChoices() {
@@ -92,7 +118,6 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
       final cat = e.key;
       final sub = (e.value.sub ?? '').trim();
       final percent = e.value.percent;
-      // 간단 라벨 룰: 적립 카테고리
       final accrueCats = {'대중교통', '교통', '이동통신', '주유', '배달앱'};
       final label = accrueCats.contains(cat) ? '적립' : '할인';
       final subPart = sub.isEmpty ? '' : '($sub) ';
@@ -101,7 +126,6 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
     return lines.join('\n');
   }
 
-  /// 저장 전 검사: 1) 최소 한 개 선택 2) 브랜드 필요한데 미선택이면 에러
   bool _validateBeforeSave() {
     final hasAny = _choices.values.any((c) => c.percent > 0);
     if (!hasAny) {
@@ -124,30 +148,22 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
   }
 
   Future<void> _save() async {
+    if (_isOver) {
+      _toast('총합이 20%를 초과했어요. 자동맞춤으로 정리해 주세요.');
+      HapticFeedback.selectionClick();
+      return;
+    }
     if (!_validateBeforeSave()) return;
 
     setState(() => _saving = true);
     try {
-      // 텍스트 영역은 UI에서 제거했지만, 서버에는 자동 생성 문구를 보냄
       final composed = _composeTextFromChoices();
-
       final ok1 = await CustomCardService.saveBenefit(
         customNo: widget.customNo,
         customService: composed,
       );
-
-      // 매트릭스도 저장할 거면 API에 맞춰 주석 해제
-      // final payload = _choices.map((k, v) => MapEntry(k, {
-      //   'percent': v.percent,
-      //   'sub': v.sub,
-      // }));
-      // final ok2 = await CustomCardService.saveBenefitMatrix(
-      //   customNo: widget.customNo,
-      //   body: payload,
-      // );
-
       if (!mounted) return;
-      if (ok1 /* && ok2 */) {
+      if (ok1) {
         _toast('혜택이 저장되었습니다.');
         Navigator.of(context).pop(true);
       } else {
@@ -159,6 +175,87 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  CategorySpec _specOf(String name) => _specs.firstWhere(
+        (s) => s.name == name,
+    orElse: () => const CategorySpec(name: '', icon: Icons.help_outline),
+  );
+
+  void _applyPreset(String name) {
+    final preset = _presets[name];
+    if (preset == null) return;
+
+    final Map<String, CategoryChoice> next = {};
+    for (final e in preset.entries) {
+      final spec = _specOf(e.key);
+      final pct = e.value.percent.clamp(spec.minPercent, spec.maxPercent);
+      next[e.key] = e.value.copyWith(percent: pct);
+    }
+    setState(() => _choices = next);
+    _toast('“$name” 프리셋을 적용했어요.');
+  }
+
+  /// 총합 20% 자동 정렬: 과할 땐 비례 축소, 모자라면 상위 항목부터 채움
+  Future<void> _autoBalance() async {
+    if (_choices.isEmpty) return;
+    final target = _kMaxPercent; // 20
+
+    final entries = _choices.entries
+        .where((e) => e.value.percent > 0)
+        .toList()
+      ..sort((a, b) => b.value.percent.compareTo(a.value.percent));
+
+    final total = _totalPercent;
+
+    if (total > target) {
+      final scale = target / total;
+      final Map<String, CategoryChoice> next = {};
+      for (final e in entries) {
+        final spec = _specOf(e.key);
+        final raw = (e.value.percent * scale);
+        int snapped = (((raw / spec.step).round() * spec.step)
+            .clamp(spec.minPercent, spec.maxPercent))
+            .toInt();
+        next[e.key] = e.value.copyWith(percent: snapped);
+      }
+      int diff = target - next.values.fold(0, (p, v) => p + v.percent);
+      for (final e in entries) {
+        if (diff == 0) break;
+        final spec = _specOf(e.key);
+        final cur = next[e.key]!.percent;
+        final tryVal = ((cur + diff.sign * spec.step)
+            .clamp(spec.minPercent, spec.maxPercent))
+            .toInt();
+        if (tryVal != cur) {
+          next[e.key] = e.value.copyWith(percent: tryVal);
+          diff = target - next.values.fold(0, (p, v) => p + v.percent);
+        }
+      }
+      setState(() => _choices = next);
+      _toast('총합을 20%로 맞췄어요.');
+      HapticFeedback.lightImpact();
+      return;
+    }
+
+    int remain = target - total;
+    final Map<String, CategoryChoice> next = {..._choices};
+    for (final e in entries) {
+      if (remain <= 0) break;
+      final spec = _specOf(e.key);
+      final cur = next[e.key]!.percent;
+      final can = (spec.maxPercent - cur).clamp(0, target);
+      if (can <= 0) continue;
+      final stepFill = (remain ~/ spec.step) * spec.step;
+      final add = stepFill.clamp(0, can);
+      if (add > 0) {
+        next[e.key] = e.value.copyWith(percent: cur + add);
+        remain -= add;
+      }
+    }
+    setState(() => _choices = next);
+    _toast('남은 퍼센트를 채워 20%로 맞췄어요.');
+    HapticFeedback.lightImpact();
   }
 
   @override
@@ -208,7 +305,7 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 120), // ⬅️ bottom dock 여백
           children: [
             if (widget.showImagePreview)
               _SectionCard(
@@ -221,7 +318,25 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
               ),
             if (widget.showImagePreview) const SizedBox(height: 12),
 
-            // 1) 선택 요약(브랜드 + 퍼센트 포함) — 기존 "키워드/문구목록" 섹션 대체
+            // 프리셋
+            _SectionCard(
+              title: '추천 프리셋',
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final name in _presets.keys)
+                    ActionChip(
+                      label: Text(name),
+                      onPressed: () => _applyPreset(name),
+                    ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // 선택 요약
             _SectionCard(
               title: '선택 요약',
               child: _SelectedSummaryGrid(
@@ -232,42 +347,131 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
 
             const SizedBox(height: 12),
 
-            // 2) 실제 선택/편집 매트릭스
+            // 실제 선택/편집 매트릭스
             _SectionCard(
-              title: '선택 매트릭스',
+              title: '원하시는 혜택을 골라주세요',
               trailing: _TotalPill(total: _totalPercent),
               child: BenefitMatrix(
                 selections: _choices,
                 onChanged: (next) => setState(() => _choices = {...next}),
+                specs: _specs,
+                maxTotal: _kMaxPercent, // ✅ 총합 20% 제한 전달
               ),
             ),
-
-            // ✅ 텍스트 "혜택 설명" 섹션 완전 제거 (요청사항)
           ],
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-          child: SizedBox(
-            height: 56,
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: (_saving || disabled) ? null : _save,
-              style: FilledButton.styleFrom(
-                backgroundColor: kBrand,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              icon: _saving
-                  ? const SizedBox(
-                width: 18, height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-              )
-                  : const Icon(Icons.save_rounded),
-              label: const Text('저장', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+
+      // ▶ 하단 고정 Dock
+      bottomNavigationBar: _BottomDock(
+        total: _totalPercent,
+        remaining: _remaining,
+        over: _isOver,
+        saving: _saving,
+        onAuto: _autoBalance,
+        onSave: _save,
+      ),
+    );
+  }
+}
+
+/* -------------------- Bottom Dock -------------------- */
+
+class _BottomDock extends StatelessWidget {
+  final int total;
+  final int remaining;
+  final bool over;
+  final bool saving;
+  final VoidCallback onAuto;
+  final VoidCallback onSave;
+
+  const _BottomDock({
+    required this.total,
+    required this.remaining,
+    required this.over,
+    required this.saving,
+    required this.onAuto,
+    required this.onSave,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 18, offset: const Offset(0, -8)),
+          ],
+          border: const Border(top: BorderSide(color: Color(0xFFE7E8EC))),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 상단 라벨 + 진행바 (중앙 정렬)
+            Column(
+              children: [
+                Text(
+                  over
+                      ? '총합 $total% · 초과 ${total - _kMaxPercent}%'
+                      : '총합 $total% · 남은 ${remaining.abs()}%',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: over ? Colors.redAccent : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: (total / _kMaxPercent).clamp(0, 1),
+                    minHeight: 8,
+                    backgroundColor: const Color(0xFFEDEFF3),
+                    color: over ? Colors.redAccent : kBrand,
+                  ),
+                ),
+              ],
             ),
-          ),
+            const SizedBox(height: 10),
+            // 버튼 라인: 자동맞춤 + 큰 카드 발급
+            Row(
+              children: [
+                OutlinedButton(
+                  onPressed: onAuto,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                  ),
+                  child: const Text('자동맞춤(20%)'),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: saving || over ? null : onSave,
+                    icon: saving
+                        ? const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                        : const Icon(Icons.credit_card_rounded),
+                    label: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text('카드 발급', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kBrand,
+                      foregroundColor: Colors.white,
+                      elevation: 6,
+                      shadowColor: kBrand.withOpacity(.4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -342,11 +546,7 @@ class _SummaryCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  const _SummaryCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
+  const _SummaryCard({required this.icon, required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -390,19 +590,11 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-/* -------------------- Reusable fintech-ish section -------------------- */
-
 class _SectionCard extends StatelessWidget {
   final String? title;
   final Widget child;
   final Widget? trailing;
-
-  const _SectionCard({
-    required this.title,
-    required this.child,
-    this.trailing,
-  });
-
+  const _SectionCard({required this.title, required this.child, this.trailing});
   @override
   Widget build(BuildContext context) {
     final showHeader = (title != null && (title!.trim().isNotEmpty));
@@ -447,7 +639,7 @@ class _TotalPill extends StatelessWidget {
   }
 }
 
-/* -------------------- Preview image (bytes > network > placeholder) --- */
+/* -------------------- Preview image -------------------- */
 
 class _PreviewCardImage extends StatelessWidget {
   final int customNo;
