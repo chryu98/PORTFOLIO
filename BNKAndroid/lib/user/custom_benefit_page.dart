@@ -17,8 +17,9 @@ const kBrand = Color(0xFFE4002B);
 const _kMaxPercent = 20; // ✅ 총합 제한 20%
 
 class CustomBenefitPage extends StatefulWidget {
-  final int applicationNo;
+  final int? applicationNo;
   final int customNo;
+  final int memberNo;          // 🔹추가
   final bool showImagePreview;
   final bool allowEditBeforeApproval;
   final Uint8List? initialPreviewBytes;
@@ -27,6 +28,7 @@ class CustomBenefitPage extends StatefulWidget {
     super.key,
     required this.applicationNo,
     required this.customNo,
+    required this.memberNo,
     this.showImagePreview = false,
     this.allowEditBeforeApproval = false,
     this.initialPreviewBytes,

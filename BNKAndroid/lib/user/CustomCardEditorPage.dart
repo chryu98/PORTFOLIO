@@ -713,8 +713,9 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => CustomBenefitPage(
-            applicationNo: 0,     // 필요 시 실제 값으로 교체
-            customNo: customNo,   // 방금 저장한 커스텀 번호
+            applicationNo: null,        // 새 작성이면 null 권장 (아래 2번 참고)
+            customNo: customNo,         // 방금 저장한 커스텀 번호
+            memberNo: widget.memberNo,  // 🔹에디터가 들고 있는 회원번호 전달
             allowEditBeforeApproval: true,
           ),
         ),
