@@ -58,6 +58,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
   // ===== 하단 패널 토글 =====
   bool _showEmojiList = false;
   bool _showFontList = false;
+  bool _submitting = false;
 
   // ===== 폰트 프리셋 =====
   final List<_FontPreset> _fonts = [
@@ -576,15 +577,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
             })),
             _actionItem(Icons.download, '이미지', _saveCardAsImage),
             _actionItem(Icons.check_circle, '디자인 결정', _finishDesign),
-            _actionItem(Icons.edit_note, '혜택 편집', () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const CustomBenefitPage(
-                  applicationNo: 0,
-                  customNo: 1, // DB에 존재하는 번호로 테스트
-                  allowEditBeforeApproval: true,
-                ),
-              ));
-            }),
+
           ],
         ),
       ),
@@ -592,7 +585,10 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
   }
 
   Future<void> _finishDesign() async {
-    // 1) 검증중 다이얼로그: "보여주기만" (await ❌)
+    if (_submitting) return; // 중복 실행 방지
+    _submitting = true;
+
+    // 1) 진행 다이얼로그 보여주기(대기 없이 표시)
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -617,16 +613,18 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
       ),
     );
 
-    // 다이얼로그가 먼저 그려지도록 한 프레임 양보
+    // UI가 먼저 그려지도록 한 프레임 양보
     await Future.delayed(const Duration(milliseconds: 50));
+
+    const timeoutShort = Duration(seconds: 15);
+    const timeoutLong  = Duration(seconds: 20);
 
     try {
       // 2) 카드 PNG 캡처
       final pngBytes = await _captureCardPngBytes();
 
-      // 3) 카드 저장(스프링) → customNo 획득
-      final uriSave = Uri.parse(apiPublicBase);
-      final req = http.MultipartRequest('POST', uriSave)
+      // 3) 카드 저장 → customNo 획득
+      final req = http.MultipartRequest('POST', Uri.parse(apiPublicBase))
         ..fields['memberNo'] = widget.memberNo.toString()
         ..fields['customService'] = '우대금리 + 영화예매 1천원 할인'
         ..files.add(http.MultipartFile.fromBytes(
@@ -635,15 +633,16 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
           contentType: MediaType('image', 'png'),
         ));
 
-      final streamed = await req.send().timeout(const Duration(seconds: 20));
-      final saveRes = await http.Response.fromStream(streamed);
+      final streamed = await req.send().timeout(timeoutLong);
+      final saveRes  = await http.Response.fromStream(streamed);
+
+      debugPrint('[SAVE] ${saveRes.statusCode} ${saveRes.body}');
       if (saveRes.statusCode != 201) {
         throw Exception('저장 실패: ${saveRes.statusCode} ${saveRes.body}');
       }
       final customNo = (json.decode(saveRes.body)['customNo'] as num).toInt();
 
-      // 4) AI 서버 검증 (백엔드 규격에 맞게 하나로 통일!)
-      // 👉 _runAiModeration가 multipart 기대라면 아래처럼 multipart로 호출해 주세요.
+      // 4) AI 서버 검증 (multipart 기준)
       final modReq = http.MultipartRequest('POST', Uri.parse(aiModerateUrl))
         ..fields['customNo'] = customNo.toString()
         ..fields['memberNo'] = widget.memberNo.toString()
@@ -652,64 +651,85 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
           filename: 'card.png',
           contentType: MediaType('image', 'png'),
         ));
-      final modStream = await modReq.send().timeout(const Duration(seconds: 20));
-      final modRes = await http.Response.fromStream(modStream);
+      final modStream = await modReq.send().timeout(timeoutLong);
+      final modRes    = await http.Response.fromStream(modStream);
+
+      debugPrint('[AI] ${modRes.statusCode} ${modRes.body}');
       if (modRes.statusCode != 200) {
         throw Exception('AI 검증 실패: ${modRes.statusCode} ${modRes.body}');
       }
-      final mod = json.decode(modRes.body) as Map<String, dynamic>;
+      final mod      = json.decode(modRes.body) as Map<String, dynamic>;
       final decision = ((mod['decision'] ?? mod['result']) ?? 'ACCEPT').toString().toUpperCase();
       final reason   = (mod['reason'] ?? 'OK').toString();
 
-      // 5) 결과 기록
+      // 5) 결과 기록 (스프링에 /api/custom-cards/{customNo}/ai 가 꼭 있어야 함)
       final uriAi = Uri.parse('$apiPublicBase/$customNo/ai');
       final aiRes = await http.post(
         uriAi,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'aiResult': decision,                  // 'ACCEPT' / 'REJECT'
+          'aiResult': decision,            // 'ACCEPT' / 'REJECT'
           'aiReason': _humanReadable(reason),
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(timeoutShort);
 
+      debugPrint('[AI-UPDATE] ${aiRes.statusCode} ${aiRes.body}');
       if (aiRes.statusCode != 200) {
-        debugPrint('[AI-UPDATE] ${aiRes.statusCode} ${aiRes.body}');
+        // 404가 난다면 백엔드에 해당 엔드포인트 추가 필요!
         throw Exception('AI 결과 저장 실패: ${aiRes.statusCode}');
       }
-      // 6) 다이얼로그 닫기
+
+      // 6) 진행 다이얼로그 닫기
       if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop(); // progress dialog 닫기
+        Navigator.of(context, rootNavigator: true).pop();
       }
 
-      // 7) 사용자 안내
+      // 7) 안내 & 분기
       if (decision == 'REJECT') {
         await showDialog(
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('사용자 불허'),
             content: Text('부적절한 이미지가 감지되었습니다.\n사유: ${_humanReadable(reason)}'),
-            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('확인'))],
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('확인')),
+            ],
           ),
         );
         return;
       }
 
+      // ✅ 통과
       await showDialog(
         context: context,
         builder: (_) => const AlertDialog(
           title: Text('통과'),
-          content: Text('심사가 끝났습니다. 혜택으로 이동합니다.'),
+          content: Text('심사가 끝났습니다. 혜택 편집 페이지로 이동합니다.'),
         ),
       );
-      // TODO: 혜택 화면으로 이동
+      if (!mounted) return;
+
+      // 8) 혜택 페이지로 이동 (스택 정리하며 교체)
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => CustomBenefitPage(
+            applicationNo: 0,     // 필요 시 실제 값으로 교체
+            customNo: customNo,   // 방금 저장한 커스텀 번호
+            allowEditBeforeApproval: true,
+          ),
+        ),
+      );
     } catch (e) {
-      // 실패 시에도 반드시 닫아주기
+      // 에러 시 진행 다이얼로그가 떠있다면 닫아주기
       if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
+        Navigator.of(context, rootNavigator: true).maybePop();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('오류: $e')));
       }
+    } finally {
+      _submitting = false;
     }
   }
+
 
 
 // “VIOLENCE_GUN” → “총 이미지 노출” 등 보기 좋게
@@ -766,6 +786,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
 
   Widget _actionItem(IconData icon, String label, VoidCallback onTap) {
     final bool isActive = _activeBottom == label;
+
 
     return InkWell(
       onTap: () {
