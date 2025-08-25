@@ -28,6 +28,7 @@ public class VerifyController {
 
 	private final VerifyLogService verifyLogService;
 	private final ExpectedRrnService expectedRrnService;
+	private final ICardApplyDao cardApplyDao;
 
 	@Value("${chatbot.python.base-url:http://127.0.0.1:8000}")
 	private String pythonBaseUrl;
@@ -86,7 +87,7 @@ public class VerifyController {
 			verifyLogService.save(new VerifyLog(userNo, status, reason));
 			
 			// 이대영이 추가함
-			ICardApplyDao.updateApplicationStatusByAppNo(applicationNo, "PHOTO_UPLOADED");
+			cardApplyDao.updateApplicationStatusByAppNo2(applicationNo, "PHOTO_UPLOADED");
 			
 			return ResponseEntity.status(res.getStatusCode()).body(result);
 
