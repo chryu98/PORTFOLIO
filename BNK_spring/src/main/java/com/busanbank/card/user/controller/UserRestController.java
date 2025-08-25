@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.busanbank.card.cardapply.config.JwtTokenProvider;
 import com.busanbank.card.user.dao.IUserDao;
 import com.busanbank.card.user.dto.PushMemberDto;
+import com.busanbank.card.user.dto.UserCardDto;
 import com.busanbank.card.user.dto.UserDto;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -198,6 +199,16 @@ public class UserRestController {
 	    return ResponseEntity.ok(Map.of("success", updated > 0));
 	}
 
+	@PostMapping("/card-list")
+	public ResponseEntity<List<UserCardDto>> getCardApplications(Principal principal) {
+	    // 로그인한 사용자의 memberNo 조회
+	    UserDto user = userDao.findByUsername(principal.getName());
+	    int memberNo = user.getMemberNo();
+
+	    List<UserCardDto> cards = userDao.getUserCardList(memberNo);
+	    return ResponseEntity.ok(cards);
+	}
+
 	@GetMapping("/session-status")
 	public ResponseEntity<?> sessionStatus(HttpSession session) {
 		Map<String, Object> response = new HashMap<>();
@@ -231,6 +242,8 @@ public class UserRestController {
 		response.put("status", "active");
 		return ResponseEntity.ok(response);
 	}
+	
+
 
 	@PostMapping("/logout")
 	public ResponseEntity<?> logout(HttpServletRequest request) {

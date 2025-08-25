@@ -8,10 +8,10 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import com.busanbank.card.card.dto.CardDto;
-import com.busanbank.card.cardapply.dto.AddressDto;
 import com.busanbank.card.user.dto.PushMemberDto;
 import com.busanbank.card.user.dto.TermDto;
 import com.busanbank.card.user.dto.TermsAgreementDto;
+import com.busanbank.card.user.dto.UserCardDto;
 import com.busanbank.card.user.dto.UserDto;
 
 @Mapper
@@ -71,4 +71,16 @@ public interface IUserDao {
     @Select("SELECT push_yn FROM push_member WHERE member_no = #{memberNo}")
     char findPushYn(int memberNo);
     
+    @Select("SELECT c.card_no, "
+    		+ "c.card_name, "
+    		+ "c.card_url, "
+    		+ "ca.application_no, "
+    		+ "ca.status, "
+    		+ "a.account_number "
+    		+ "FROM card_application ca "
+    		+ "JOIN card c ON ca.card_no = c.card_no "
+    		+ "LEFT JOIN accounts a ON ca.member_no = a.member_no "
+    		+ "WHERE ca.member_no = #{memberNo}"
+    		+ "  AND ca.status IN ('SIGNED', 'APPROVED')")
+    List<UserCardDto> getUserCardList(int memberNo);
 }
