@@ -43,8 +43,12 @@
     .kvs dt{color:var(--muted)}
     .empty{padding:18px; text-align:center; color:var(--muted)}
   </style>
+  
+<link rel="stylesheet" href="/css/adminstyle.css">
 </head>
 <body>
+
+<jsp:include page="../fragments/header.jsp"></jsp:include>
 <h1>커스텀 AI 판단 로그</h1>
 
 <div class="wrap">
@@ -139,6 +143,8 @@
 </div>
 
 <c:url value="/admin/api/custom-cards" var="apiBase"/>
+
+<script src="/js/adminHeader.js"></script>
 <script>
   // HTML escape
   function h(s){ s=(s??'').toString(); return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')
