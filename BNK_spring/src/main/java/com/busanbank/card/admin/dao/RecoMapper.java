@@ -30,4 +30,15 @@ public interface RecoMapper {
  // ★ 자동완성용(현재 JSP가 호출함)
  List<CardInsightDto> searchCards(@Param("q") String q);
  List<CardInsightDto> searchMembers(@Param("q") String q);
+ 
+ 
+ // 앱에서의 추가
+ void insertBehaviorLog(@Param("memberNo") Long memberNo,
+         @Param("cardNo") Long cardNo,
+         @Param("type") String type,
+         @Param("isoTime") String isoTime,
+         @Param("device") String device,
+         @Param("ua") String ua,
+         @Param("ip") String ip);
+ 
 }
