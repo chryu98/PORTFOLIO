@@ -179,6 +179,9 @@ public class CardApplyRestController {
         person.setRrnTailEnc(loginUser.getRrnTailEnc()); // ← DB 암호문 그대로
 
         cardApplyDao.insertApplicationPersonTemp(person);
+        
+        // 카드 앱플리케이션 탬프 상태 추가
+        cardApplyDao.updateApplicationStatusByAppNo(app.getApplicationNo(), "INFO_INPUT");
 
         // 응답
         result.put("success", true);
@@ -247,6 +250,8 @@ public class CardApplyRestController {
 
         int updated = cardApplyDao.updateApplicationContactTemp(contactInfo);
         if (updated == 0) return fail(result, "임시 신청 정보를 찾을 수 없습니다.");
+        
+        cardApplyDao.updateApplicationStatusByAppNo(contactInfo.getApplicationNo(), "CONTACT_INPUT");
 
         result.put("success", true);
         result.put("applicationNo", contactInfo.getApplicationNo());
@@ -264,6 +269,8 @@ public class CardApplyRestController {
 
         int updated = cardApplyDao.updateApplicationJobTemp(jobInfo);
         if (updated == 0) return fail(result, "정보 저장에 실패했습니다.");
+        
+        cardApplyDao.updateApplicationStatusByAppNo(jobInfo.getApplicationNo(), "JOB_INPUT");
 
         result.put("success", true);
         result.put("applicationNo", jobInfo.getApplicationNo());
