@@ -74,6 +74,8 @@ class _LoginPageState extends State<LoginPage> {
   );
 
   Future<void> _login() async {
+
+
     if (!_canSubmit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('아이디와 비밀번호를 입력해 주세요.')),
@@ -102,12 +104,15 @@ class _LoginPageState extends State<LoginPage> {
 
       String? access;
       String? refresh;
+      Map<String, dynamic>? parsed; // 👈 블록 밖에 선언
 
+      // 응답 파싱
       try {
-        final parsed = jsonDecode(raw);
-        if (parsed is Map<String, dynamic>) {
-          access = (parsed['accessToken'] ?? parsed['access'] ?? parsed['token'])?.toString();
-          refresh = (parsed['refreshToken'] ?? parsed['refresh'])?.toString();
+        final p = jsonDecode(raw);
+        if (p is Map<String, dynamic>) {
+          parsed = p; // 👈 저장해두고
+          access  = (p['accessToken'] ?? p['access'] ?? p['token'])?.toString();
+          refresh = (p['refreshToken'] ?? p['refresh'])?.toString();
         }
       } catch (_) {
         if (raw.isNotEmpty && !raw.trim().startsWith('<')) {
@@ -119,13 +124,36 @@ class _LoginPageState extends State<LoginPage> {
         _showError('서버에서 액세스 토큰을 받지 못했습니다.');
         return;
       }
-
       if (access.startsWith('Bearer ')) access = access.substring(7);
 
       final payload = _decodeJwt(access);
       userName = payload['name']?.toString() ?? '사용자';
 
+      // 저장
       final prefs = await SharedPreferences.getInstance();
+
+      int? memberNoToSave;
+
+// 1) 로그인 응답에서 시도
+      final fromResp = parsed?['memberNo'] ?? parsed?['member']?['memberNo'];
+      if (fromResp is num) {
+        memberNoToSave = fromResp.toInt();
+      } else if (fromResp is String) {
+        memberNoToSave = int.tryParse(fromResp);
+      }
+
+// 2) 없으면 JWT 클레임에서 시도 (memberNo / member_id / userId / sub 등)
+      if (memberNoToSave == null) {
+        final c = payload['memberNo'] ?? payload['member_id'] ?? payload['userId'] ?? payload['sub'];
+        if (c is num) memberNoToSave = c.toInt();
+        else if (c is String) memberNoToSave = int.tryParse(c);
+      }
+
+// 3) 있으면 저장
+      if (memberNoToSave != null) {
+        await prefs.setInt('memberNo', memberNoToSave);
+      }
+
       await prefs.setString('jwt_token', access);
       await prefs.setString('accessToken', access);
       if (refresh != null && refresh.isNotEmpty) {
@@ -136,9 +164,10 @@ class _LoginPageState extends State<LoginPage> {
 
       await AuthState.markLoggedIn(remember: _remember, access: access, refresh: refresh);
 
-      if (!mounted) return;
+      // 👇 응답에 memberNo가 없을 수도 있으니, 백업 플로우로 /api/member/me 조회
+      await _fetchAndStoreMemberNo(access);
 
-      // ✅ 로그인 성공: 루트 네비게이터에서 스택 제거 후 목적지로
+      if (!mounted) return;
       final rootNav = Navigator.of(context, rootNavigator: true);
       rootNav.pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => widget.redirectBuilder?.call(context) ?? const AppShell()),
@@ -150,6 +179,31 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  Future<void> _fetchAndStoreMemberNo(String access) async {
+    try {
+      final res = await http.get(
+        Uri.parse('${API_FILE.API.baseUrl}/api/member/me'), // 실제 "내 정보" API 경로로 바꿔도 됨
+        headers: {
+          'Authorization': 'Bearer $access',
+          'Accept': 'application/json',
+        },
+      );
+      if (res.statusCode == 200) {
+        final j = jsonDecode(utf8.decode(res.bodyBytes));
+        final no = (j['memberNo'] ?? j['member']?['memberNo']);
+        if (no is num) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('memberNo', no.toInt());
+        }
+      }
+    } catch (_) {
+      // 로그만 남기거나 무시
+    }
+  }
+
+
+
 
   Map<String, dynamic> _decodeJwt(String token) {
     try {
