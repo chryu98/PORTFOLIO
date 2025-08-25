@@ -1,5 +1,13 @@
+// ============================================================================
 // lib/widgets/benefit_matrix.dart
+// UX v6: '자세히' 제거, 중앙정렬(− % +), 20% 총합 가드
+// - 카드 탭 시: 총합이 가득 찼고 현재 항목이 0%면 토스트만 띄우고 시트 미오픈
+// - + 버튼/시트 + 버튼: 총합 초과 시 토스트 + 햅틱, 증가 차단
+// - 롱프레스: 0% 리셋
+// ============================================================================
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// 선택 결과 모델
 class CategoryChoice {
@@ -17,7 +25,7 @@ class CategorySpec {
   final IconData icon;
   final List<String> subs; // 브랜드 목록(없으면 빈 리스트)
   final int minPercent;
-  final int maxPercent;
+  final int maxPercent; // 기본 20%
   final int step;
 
   const CategorySpec({
@@ -25,55 +33,24 @@ class CategorySpec {
     required this.icon,
     this.subs = const [],
     this.minPercent = 0,
-    this.maxPercent = 10,
+    this.maxPercent = 20,
     this.step = 1,
   });
 
   String get displayName => name;
 }
 
-/// 기본 카테고리 스펙(예시)
+/// 기본 카테고리 스펙(예시) – 모두 maxPercent=20 + 병원 추가
 const List<CategorySpec> kDefaultSpecs = [
-  CategorySpec(
-    name: '편의점',
-    icon: Icons.storefront_rounded,
-    subs: ['GS25', 'CU', '이마트24', '세븐일레븐'],
-    maxPercent: 7,
-  ),
-  CategorySpec(
-    name: '베이커리',
-    icon: Icons.cookie_rounded,
-    subs: ['파리바게뜨', '뚜레쥬르', '던킨', '크리스피'],
-  ),
-  CategorySpec(
-    name: '주유',
-    icon: Icons.local_gas_station_rounded,
-    subs: ['SK에너지', 'GS칼텍스', '현대오일뱅크', 'S-OIL'],
-  ),
-  CategorySpec(
-    name: '영화',
-    icon: Icons.movie_creation_rounded,
-    subs: ['CGV', '롯데시네마', '메가박스'],
-  ),
-  CategorySpec(
-    name: '쇼핑',
-    icon: Icons.shopping_bag_rounded,
-    subs: ['쿠팡', '마켓컬리', 'G마켓', '11번가'],
-  ),
-  CategorySpec(
-    name: '배달앱',
-    icon: Icons.delivery_dining_rounded,
-    subs: ['배달의민족', '요기요', '쿠팡이츠'],
-  ),
-  CategorySpec(
-    name: '대중교통',
-    icon: Icons.directions_transit_rounded,
-  ),
-  CategorySpec(
-    name: '이동통신',
-    icon: Icons.wifi_rounded,
-    subs: ['SKT', 'KT', 'LGU+'],
-  ),
+  CategorySpec(name: '편의점', icon: Icons.storefront_rounded, subs: ['GS25', 'CU', '이마트24', '세븐일레븐']),
+  CategorySpec(name: '베이커리', icon: Icons.cookie_rounded, subs: ['파리바게뜨', '뚜레쥬르', '던킨', '크리스피']),
+  CategorySpec(name: '주유', icon: Icons.local_gas_station_rounded, subs: ['SK에너지', 'GS칼텍스', '현대오일뱅크', 'S-OIL']),
+  CategorySpec(name: '영화', icon: Icons.movie_creation_rounded, subs: ['CGV', '롯데시네마', '메가박스']),
+  CategorySpec(name: '쇼핑', icon: Icons.shopping_bag_rounded, subs: ['쿠팡', '마켓컬리', 'G마켓', '11번가']),
+  CategorySpec(name: '배달앱', icon: Icons.delivery_dining_rounded, subs: ['배달의민족', '요기요', '쿠팡이츠']),
+  CategorySpec(name: '대중교통', icon: Icons.directions_transit_rounded),
+  CategorySpec(name: '이동통신', icon: Icons.wifi_rounded, subs: ['SKT', 'KT', 'LGU+']),
+  CategorySpec(name: '병원', icon: Icons.local_hospital_rounded),
 ];
 
 /// 조사 붙이기(을/를, 은/는 등)
@@ -91,7 +68,6 @@ String _josa(String word, String pair) {
   return hasBatchim ? parts[0] : parts[1];
 }
 
-/// 카테고리 → 자연스러운 명사 치환(원하면 수정)
 const Map<String, String> _brandNoun = {
   '쇼핑': '쇼핑몰',
   '영화': '영화관',
@@ -100,6 +76,7 @@ const Map<String, String> _brandNoun = {
   '대중교통': '대중교통',
   '이동통신': '이동통신',
   '주유': '주유소',
+  '병원': '병원',
 };
 
 String _brandTitle(String category) {
@@ -112,12 +89,14 @@ class BenefitMatrix extends StatefulWidget {
   final Map<String, CategoryChoice> selections;
   final List<CategorySpec> specs;
   final ValueChanged<Map<String, CategoryChoice>> onChanged;
+  final int maxTotal; // ✅ 총합 제한 (부모에서 20 전달)
 
   const BenefitMatrix({
     super.key,
     required this.selections,
     required this.onChanged,
     this.specs = kDefaultSpecs,
+    this.maxTotal = 100,
   });
 
   @override
@@ -136,7 +115,6 @@ class _BenefitMatrixState extends State<BenefitMatrix> {
   @override
   void didUpdateWidget(covariant BenefitMatrix oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 외부에서 selections가 갱신되면 반영
     if (!identical(oldWidget.selections, widget.selections)) {
       _map = {...widget.selections};
     }
@@ -144,6 +122,7 @@ class _BenefitMatrixState extends State<BenefitMatrix> {
 
   void _emit() => widget.onChanged({..._map});
 
+  int _total() => _map.values.fold(0, (p, c) => p + c.percent);
   CategoryChoice _get(String name) => _map[name] ?? const CategoryChoice();
 
   void _set(String name, CategoryChoice value) {
@@ -152,9 +131,26 @@ class _BenefitMatrixState extends State<BenefitMatrix> {
     setState(() {});
   }
 
+  void _overToast() {
+    HapticFeedback.selectionClick();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('총합이 ${widget.maxTotal}%를 초과할 수 없어요'),
+        duration: const Duration(milliseconds: 900),
+      ),
+    );
+  }
+
   Future<void> _openPercentSheet(CategorySpec spec) async {
     final cur = _get(spec.name);
     int temp = cur.percent;
+
+    // 현재 다른 항목 합
+    final others = _total() - cur.percent;
+    final allowedMax = (others >= widget.maxTotal)
+        ? cur.percent // 이미 꽉 참 → 현재값 이상 불가
+        : (cur.percent + (widget.maxTotal - others));
+    final hardMax = allowedMax.clamp(spec.minPercent, spec.maxPercent).toInt();
 
     final picked = await showModalBottomSheet<int>(
       context: context,
@@ -172,14 +168,15 @@ class _BenefitMatrixState extends State<BenefitMatrix> {
               children: [
                 Text('${spec.displayName} 비율', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 6),
-                Text('원하는 혜택 비율을 설정하세요', style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                Text('최대 $hardMax% 까지 설정 가능', style: const TextStyle(fontSize: 13, color: Colors.black54)),
                 const SizedBox(height: 16),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _RoundIconButton(
                       icon: Icons.remove_rounded,
                       onTap: () {
-                        temp = (temp - spec.step).clamp(spec.minPercent, spec.maxPercent);
+                        temp = ((temp - spec.step).clamp(spec.minPercent, hardMax)).toInt();
                         (ctx as Element).markNeedsBuild();
                       },
                     ),
@@ -189,12 +186,10 @@ class _BenefitMatrixState extends State<BenefitMatrix> {
                     _RoundIconButton(
                       icon: Icons.add_rounded,
                       onTap: () {
-                        temp = (temp + spec.step).clamp(spec.minPercent, spec.maxPercent);
+                        temp = ((temp + spec.step).clamp(spec.minPercent, hardMax)).toInt();
                         (ctx as Element).markNeedsBuild();
                       },
                     ),
-                    const Spacer(),
-                    Text('최대 ${spec.maxPercent}%', style: const TextStyle(color: Colors.black54)),
                   ],
                 ),
                 const SizedBox(height: 18),
@@ -216,16 +211,13 @@ class _BenefitMatrixState extends State<BenefitMatrix> {
 
     if (picked == null) return;
 
-    // 비율 0이면 브랜드 초기화
     if (picked == 0) {
       _set(spec.name, const CategoryChoice(percent: 0, sub: null));
       return;
     }
 
-    // 비율만 변경
     _set(spec.name, _get(spec.name).copyWith(percent: picked));
 
-    // 브랜드 필요하고 아직 선택 안했으면 곧바로 브랜드 시트
     if (spec.subs.isNotEmpty && (_get(spec.name).sub == null || _get(spec.name).sub!.isEmpty)) {
       await _openBrandSheet(spec);
     }
@@ -248,15 +240,9 @@ class _BenefitMatrixState extends State<BenefitMatrix> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                /// 🔹 요청 카피: 주로 쓰는 {카테고리}{은/는} 어디인가요?
                 Text(
                   _brandTitle(spec.displayName),
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  '선택하신 브랜드 기준으로 혜택을 최적화해 드릴게요',
-                  style: TextStyle(fontSize: 13, color: Colors.black54),
                 ),
                 const SizedBox(height: 14),
                 Wrap(
@@ -303,7 +289,22 @@ class _BenefitMatrixState extends State<BenefitMatrix> {
 
   void _inc(CategorySpec spec) {
     final c = _get(spec.name);
-    final next = (c.percent + spec.step).clamp(spec.minPercent, spec.maxPercent);
+    final total = _total();
+    final remaining = (widget.maxTotal - total).clamp(0, widget.maxTotal);
+    if (remaining <= 0) {
+      _overToast();
+      return;
+    }
+    if (c.percent >= spec.maxPercent) {
+      HapticFeedback.selectionClick();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('최대 ${spec.maxPercent}% 입니다'), duration: const Duration(milliseconds: 800)),
+      );
+      return;
+    }
+    final inc = spec.step.clamp(0, remaining);
+    final next = ((c.percent + inc).clamp(spec.minPercent, spec.maxPercent)).toInt();
+    HapticFeedback.lightImpact();
     _set(spec.name, c.copyWith(percent: next));
     if (next > 0 && spec.subs.isNotEmpty && (c.sub == null || c.sub!.isEmpty)) {
       _openBrandSheet(spec);
@@ -312,8 +313,15 @@ class _BenefitMatrixState extends State<BenefitMatrix> {
 
   void _dec(CategorySpec spec) {
     final c = _get(spec.name);
-    final next = (c.percent - spec.step).clamp(spec.minPercent, spec.maxPercent);
-    // 0이 되면 브랜드 초기화
+    if (c.percent <= spec.minPercent) {
+      HapticFeedback.selectionClick();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('최소치입니다'), duration: Duration(milliseconds: 700)),
+      );
+      return;
+    }
+    final next = ((c.percent - spec.step).clamp(spec.minPercent, spec.maxPercent)).toInt();
+    HapticFeedback.lightImpact();
     _set(spec.name, c.copyWith(percent: next, sub: next == 0 ? null : c.sub));
   }
 
@@ -342,7 +350,21 @@ class _BenefitMatrixState extends State<BenefitMatrix> {
 
           return InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: () => _openPercentSheet(spec),
+            onTap: () {
+              final total = _total();
+              // 총합 꽉 찼고 현재 항목이 0%면 증가 의도 → 가드
+              if (total >= widget.maxTotal && choice.percent == 0) {
+                _overToast();
+                return;
+              }
+              _openPercentSheet(spec);
+            },
+            onLongPress: () {
+              if (choice.percent > 0) {
+                HapticFeedback.mediumImpact();
+                _set(spec.name, const CategoryChoice(percent: 0, sub: null));
+              }
+            },
             child: Container(
               decoration: BoxDecoration(
                 color: selected ? const Color(0xFFF1F5FF) : Colors.white,
@@ -362,35 +384,46 @@ class _BenefitMatrixState extends State<BenefitMatrix> {
                       Icon(spec.icon, size: 22, color: Colors.black87),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(spec.displayName,
-                            style: const TextStyle(fontWeight: FontWeight.w800)),
+                        child: Text(spec.displayName, style: const TextStyle(fontWeight: FontWeight.w800)),
                       ),
                       if (selected)
                         const Icon(Icons.check_circle_rounded, size: 18, color: Color(0xFF3B82F6)),
                     ],
                   ),
                   const Spacer(),
+                  // 중앙 정렬: −  %  +
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _RoundIconButton(icon: Icons.remove_rounded, onTap: () => _dec(spec)),
                       const SizedBox(width: 12),
-                      Text('${choice.percent}%', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        transitionBuilder: (c, anim) => ScaleTransition(scale: anim, child: c),
+                        child: Text(
+                          '${choice.percent}%',
+                          key: ValueKey(choice.percent),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                        ),
+                      ),
                       const SizedBox(width: 12),
                       _RoundIconButton(icon: Icons.add_rounded, onTap: () => _inc(spec)),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () async {
-                          await _openPercentSheet(spec);
-                        },
-                        child: const Text('자세히'),
-                      ),
                     ],
                   ),
                   if ((choice.sub ?? '').isNotEmpty) ...[
                     const SizedBox(height: 6),
-                    Text(
-                      choice.sub!,
-                      style: const TextStyle(fontSize: 12.5, color: Colors.black54),
+                    Text(choice.sub!, style: const TextStyle(fontSize: 12.5, color: Colors.black54)),
+                  ],
+                  if (spec.subs.isNotEmpty && choice.percent > 0 && (choice.sub ?? '').isEmpty) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFE7E7),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0xFFFFCACA)),
+                      ),
+                      child: const Text('브랜드 선택 필요', style: TextStyle(fontSize: 11, color: Colors.red)),
                     ),
                   ],
                 ],
