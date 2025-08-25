@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.busanbank.card.admin.mapper.CustomCardAdminMapper">
+
+  <!-- 목록/카운트에 쓰는 컬럼(가벼운 버전: BLOB 제외) -->
+  <sql id="baseColumns">
+    custom_no      AS customNo,
+    member_no      AS memberNo,
+    status,
+    ai_result      AS aiResult,
+    ai_reason      AS aiReason,
+    created_at     AS createdAt,
+    updated_at     AS updatedAt,
+    approved_at    AS approvedAt,
+    custom_service AS customService
+  </sql>
+
+  <!-- 상세/이미지용 resultMap (BLOB 포함) -->
+  <resultMap id="CustomCardMap" type="com.busanbank.card.custom.dto.CustomCardDto">
+    <id     column="CUSTOM_NO"      property="customNo"/>
+    <result column="MEMBER_NO"      property="memberNo"/>
+    <result column="STATUS"         property="status"/>
+    <result column="AI_RESULT"      property="aiResult"/>
+    <result column="AI_REASON"      property="aiReason"/>
+    <result column="CUSTOM_SERVICE" property="customService"/>
+    <result column="CREATED_AT"     property="createdAt"/>
+    <result column="UPDATED_AT"     property="updatedAt"/>
+    <result column="APPROVED_AT"    property="approvedAt"/>
+    <!-- BLOB 필수 -->
+    <result column="IMAGE_BLOB"     property="imageBlob" jdbcType="BLOB"/>
+  </resultMap>
+
+  <select id="countCards" resultType="int">
+    SELECT COUNT(*) FROM CUSTOM_CARD
+    <where>
+      <if test="aiResult != null and aiResult != ''"> AND ai_result = #{aiResult} </if>
+      <if test="memberNo != null">                  AND member_no = #{memberNo} </if>
+      <if test="status != null and status != ''">   AND status = #{status}       </if>
+    </where>
+  </select>
+
+  <select id="findCards" resultType="com.busanbank.card.custom.dto.CustomCardDto">
+    SELECT <include refid="baseColumns"/>
+      FROM CUSTOM_CARD
+    <where>
+      <if test="aiResult != null and aiResult != ''"> AND ai_result = #{aiResult} </if>
+      <if test="memberNo != null">                  AND member_no = #{memberNo} </if>
+      <if test="status != null and status != ''">   AND status = #{status}       </if>
+    </where>
+    ORDER BY created_at DESC
+    OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+  </select>
+
+  <!-- 상세: BLOB 포함해서 가져온다 -->
+  <select id="findOne" resultMap="CustomCardMap">
+    SELECT
+      CUSTOM_NO, MEMBER_NO, STATUS,
+      AI_RESULT, AI_REASON,
+      CUSTOM_SERVICE, CREATED_AT, UPDATED_AT, APPROVED_AT,
+      IMAGE_BLOB
+    FROM CUSTOM_CARD
+    WHERE custom_no = #{customNo}
+  </select>
+
+  <!-- 상태/사유 업데이트 -->
+  <update id="updateStatus">
+    UPDATE CUSTOM_CARD
+       SET status      = #{status},
+           reason      = #{reason},
+           updated_at  = SYSDATE,
+           approved_at = CASE WHEN #{status} = 'APPROVED' THEN SYSDATE ELSE approved_at END
+     WHERE custom_no   = #{customNo}
+  </update>
+</mapper>

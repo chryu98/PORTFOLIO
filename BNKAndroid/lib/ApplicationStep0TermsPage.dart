@@ -22,6 +22,14 @@ import 'ApplicationStep1Page.dart';
 
 const kPrimaryRed = Color(0xffB91111);
 
+Future<bool> _hasJwt() async {
+  final h = await api.API.authHeader();
+  final auth = h['Authorization'] ?? '';
+  return auth.isNotEmpty;
+}
+
+
+
 class ApplicationStep0TermsPage extends StatefulWidget {
   final int cardNo;
   const ApplicationStep0TermsPage({super.key, required this.cardNo});

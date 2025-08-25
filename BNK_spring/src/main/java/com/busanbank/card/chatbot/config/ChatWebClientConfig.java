@@ -7,6 +7,7 @@ import io.netty.handler.timeout.WriteTimeoutHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
@@ -19,7 +20,8 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 public class ChatWebClientConfig {
 
-    @Bean
+	@Bean("chatWebClient") 
+	 @Primary // ★ chatWebClient를 기본 WebClient로
     public WebClient chatWebClient(@Value("${chatbot.python.base-url}") String baseUrl) {
         // 1) Netty 타임아웃/커넥션 설정
         HttpClient httpClient = HttpClient.create()

@@ -18,6 +18,7 @@ class CardMainPage extends StatefulWidget {
 }
 
 class _CardMainPageState extends State<CardMainPage> {
+  int? _memberNo;
   /// ── 무한 캐러셀 세팅
   static const int _kLoopBase = 1000;
 
@@ -41,6 +42,7 @@ class _CardMainPageState extends State<CardMainPage> {
   @override
   void initState() {
     super.initState();
+    _loadMemberNo();
     _pageCtrl = PageController(
       viewportFraction: 0.92,
       initialPage: _kLoopBase * (_bannerImages.isEmpty ? 1 : _bannerImages.length),
@@ -54,6 +56,11 @@ class _CardMainPageState extends State<CardMainPage> {
     _pageCtrl.dispose();
     compareIds.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadMemberNo() async {
+    final p = await SharedPreferences.getInstance();
+    setState(() => _memberNo = p.getInt('memberNo')); // 로그인 시 저장해둔 값
   }
 
   // ── 인기카드 Top3 로드
@@ -92,6 +99,22 @@ class _CardMainPageState extends State<CardMainPage> {
     }
   }
 
+
+
+  void _openEditorIfLoggedIn() {
+    if (_memberNo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다.')),
+      );
+      return;
+    }
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+        builder: (_) => CustomCardEditorPage(memberNo: _memberNo!), // 로그인 회원번호 전달
+        fullscreenDialog: true,
+      ),
+    );
+  }
   // ── 비교함 로컬 저장/복원
   Future<void> _restoreCompare() async {
     final p = await SharedPreferences.getInstance();
@@ -128,6 +151,7 @@ class _CardMainPageState extends State<CardMainPage> {
               imagesAreAssets: _bannerImagesAreAssets,
               // 무한 인덱스 → mod 로 현재 페이지 저장
               onPageChanged: (i) => setState(() => _current = i % bannerCount),
+              onTapBanner: _openEditorIfLoggedIn, // ★ 여기만 추가
             ),
           ),
           const SizedBox(height: 16),
@@ -390,6 +414,7 @@ class _EventCarousel extends StatelessWidget {
 
   final List<String>? images;
   final bool imagesAreAssets;
+  final VoidCallback? onTapBanner;
 
   const _EventCarousel({
     required this.controller,
@@ -397,6 +422,7 @@ class _EventCarousel extends StatelessWidget {
     this.height = 180,
     this.images,
     this.imagesAreAssets = true,
+    this.onTapBanner,
   });
 
   @override
@@ -434,15 +460,7 @@ class _EventCarousel extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               clipBehavior: Clip.antiAlias, // 터치/리플 경계 일치
               child: InkWell(
-                onTap: () {
-                  // 첫 번째 슬라이드에서만 열고 싶으면: if ((rawIndex % count) != 0) return;
-                  Navigator.of(context, rootNavigator: true).push(
-                    MaterialPageRoute(
-                      builder: (_) => const CustomCardEditorPage(),
-                      fullscreenDialog: true, // 상단 모달 스타일(툴바 없는 느낌)
-                    ),
-                  );
-                },
+                onTap:onTapBanner,
                 child: _GradientCard(
                   colors: colors[i % colors.length],
                   height: height,

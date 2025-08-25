@@ -43,5 +43,13 @@
     FROM CUSTOM_CARD
     WHERE custom_no = #{customNo}
   </select>
+  
+  <update id="updateAi">
+  UPDATE CUSTOM_CARD
+     SET AI_RESULT = #{aiResult},
+         AI_REASON = #{aiReason},
+         UPDATED_AT = CURRENT_TIMESTAMP
+   WHERE CUSTOM_NO = #{customNo}
+</update>
 
 </mapper>

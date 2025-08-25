@@ -16,4 +16,8 @@ public interface CustomCardMapper {
 
   /** 단건 조회 (customNo 기준) */
   CustomCardDto findById(@Param("customNo") Long customNo);
+  
+  int updateAi(@Param("customNo") Long customNo,
+          @Param("aiResult") String aiResult,
+          @Param("aiReason") String aiReason);
 }

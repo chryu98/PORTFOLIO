@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -54,5 +55,26 @@ public class CustomCardController {
     dto.setImageBlob(null);
     return ResponseEntity.ok(dto);
   }
+  
+  
+  @PostMapping("/{customNo}/ai")
+  public ResponseEntity<?> updateAi(
+          @PathVariable("customNo") Long customNo,
+          @RequestBody AiUpdateRequest req
+  ) {
+      int n = service.updateAi(customNo, req.getAiResult(), req.getAiReason());
+      return ResponseEntity.ok(Map.of("updated", n));
+  }
+
+  // 👇 같은 파일 하단에 DTO 하나 추가(레코드/롬복 둘 다 OK)
+  static class AiUpdateRequest {
+      private String aiResult; // "ACCEPT" | "REJECT"
+      private String aiReason; // 사람친화 사유 문자열
+      public String getAiResult() { return aiResult; }
+      public String getAiReason() { return aiReason; }
+  }
+  
+  
+  
 }
 	

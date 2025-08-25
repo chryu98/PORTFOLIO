@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
@@ -11,8 +12,12 @@ import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 import 'package:http_parser/http_parser.dart';
 import 'package:bnkandroid/user/custom_benefit_page.dart';
 
+const String apiPublicBase = 'http://192.168.0.5:8090/api/custom-cards';
+const String aiModerateUrl = 'http://192.168.0.5:8001/moderate';
+
 class CustomCardEditorPage extends StatefulWidget {
-  const CustomCardEditorPage({super.key});
+  final int memberNo;
+  const CustomCardEditorPage({super.key,  required this.memberNo});
 
   @override
   State<CustomCardEditorPage> createState() => _CustomCardEditorPageState();
@@ -224,7 +229,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
     if (sel == null || sel.id == -1) return;
 
     Color temp = sel.color;
-    await showDialog(
+     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('글자 색상'),
@@ -587,42 +592,138 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
   }
 
   Future<void> _finishDesign() async {
+    // 1) 검증중 다이얼로그: "보여주기만" (await ❌)
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => const Dialog(
+        backgroundColor: Colors.black87,
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 12),
+              Text(
+                'AI 부적절한 이미지를 검증중입니다.\n잠시만 기다려주세요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // 다이얼로그가 먼저 그려지도록 한 프레임 양보
+    await Future.delayed(const Duration(milliseconds: 50));
+
     try {
+      // 2) 카드 PNG 캡처
       final pngBytes = await _captureCardPngBytes();
 
-      final memberNo = 1001;              // 로그인 사용자 ID (앱에서 주입)
-      final customService = '우대금리 + 영화예매 1천원 할인'; // 혜택 설명(선택)
-      final uri = Uri.parse('http://192.168.0.224:8090/api/custom-cards');
+      // 3) 카드 저장(스프링) → customNo 획득
+      final uriSave = Uri.parse(apiPublicBase);
+      final req = http.MultipartRequest('POST', uriSave)
+        ..fields['memberNo'] = widget.memberNo.toString()
+        ..fields['customService'] = '우대금리 + 영화예매 1천원 할인'
+        ..files.add(http.MultipartFile.fromBytes(
+          'image', pngBytes,
+          filename: 'card.png',
+          contentType: MediaType('image', 'png'),
+        ));
 
-      final req = http.MultipartRequest('POST', uri)
-        ..fields['memberNo'] = memberNo.toString()
-        ..fields['customService'] = customService
-        ..files.add(
-          http.MultipartFile.fromBytes(
-            'image', pngBytes,
-            filename: 'card.png',
-            contentType: MediaType('image', 'png'),
+      final streamed = await req.send().timeout(const Duration(seconds: 20));
+      final saveRes = await http.Response.fromStream(streamed);
+      if (saveRes.statusCode != 201) {
+        throw Exception('저장 실패: ${saveRes.statusCode} ${saveRes.body}');
+      }
+      final customNo = (json.decode(saveRes.body)['customNo'] as num).toInt();
+
+      // 4) AI 서버 검증 (백엔드 규격에 맞게 하나로 통일!)
+      // 👉 _runAiModeration가 multipart 기대라면 아래처럼 multipart로 호출해 주세요.
+      final modReq = http.MultipartRequest('POST', Uri.parse(aiModerateUrl))
+        ..fields['customNo'] = customNo.toString()
+        ..fields['memberNo'] = widget.memberNo.toString()
+        ..files.add(http.MultipartFile.fromBytes(
+          'image', pngBytes,
+          filename: 'card.png',
+          contentType: MediaType('image', 'png'),
+        ));
+      final modStream = await modReq.send().timeout(const Duration(seconds: 20));
+      final modRes = await http.Response.fromStream(modStream);
+      if (modRes.statusCode != 200) {
+        throw Exception('AI 검증 실패: ${modRes.statusCode} ${modRes.body}');
+      }
+      final mod = json.decode(modRes.body) as Map<String, dynamic>;
+      final decision = ((mod['decision'] ?? mod['result']) ?? 'ACCEPT').toString().toUpperCase();
+      final reason   = (mod['reason'] ?? 'OK').toString();
+
+      // 5) 결과 기록
+      final uriAi = Uri.parse('$apiPublicBase/$customNo/ai');
+      final aiRes = await http.post(
+        uriAi,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'aiResult': decision,                  // 'ACCEPT' / 'REJECT'
+          'aiReason': _humanReadable(reason),
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      if (aiRes.statusCode != 200) {
+        debugPrint('[AI-UPDATE] ${aiRes.statusCode} ${aiRes.body}');
+        throw Exception('AI 결과 저장 실패: ${aiRes.statusCode}');
+      }
+      // 6) 다이얼로그 닫기
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop(); // progress dialog 닫기
+      }
+
+      // 7) 사용자 안내
+      if (decision == 'REJECT') {
+        await showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('사용자 불허'),
+            content: Text('부적절한 이미지가 감지되었습니다.\n사유: ${_humanReadable(reason)}'),
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('확인'))],
           ),
         );
-
-      final streamed = await req.send();
-      final res = await http.Response.fromStream(streamed);
-
-      if (res.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('디자인이 저장되었습니다. 심사 대기(PENDING)')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장 실패: ${res.statusCode} ${res.body}')),
-        );
+        return;
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('업로드 오류: $e')),
+
+      await showDialog(
+        context: context,
+        builder: (_) => const AlertDialog(
+          title: Text('통과'),
+          content: Text('심사가 끝났습니다. 혜택으로 이동합니다.'),
+        ),
       );
+      // TODO: 혜택 화면으로 이동
+    } catch (e) {
+      // 실패 시에도 반드시 닫아주기
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('오류: $e')));
+      }
     }
   }
+
+
+// “VIOLENCE_GUN” → “총 이미지 노출” 등 보기 좋게
+  String _humanReadable(String reason) {
+    final r = reason.toUpperCase();
+    if (r.contains('GUN'))   return '총 이미지 노출';
+    if (r.contains('KNIFE')) return '칼 이미지 노출';
+    return reason; // 기본
+  }
+
+
+
+
+
 
   Widget _chipBtn(String label, {required VoidCallback onTap}) {
     return InkWell(
@@ -755,6 +856,64 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
     );
   }
 }
+
+
+//김성훈 수정
+class _AiDecision {
+  final bool allow;     // 통과 여부
+  final String? reason; // 불허 사유 (총/칼 등)
+  _AiDecision(this.allow, this.reason);
+}
+
+Future<_AiDecision> _runAiModeration(Uint8List pngBytes) async {
+  // 기본: multipart 업로드로 /moderate 호출, 응답 예시: { "result":"ACCEPT"|"REJECT", "reason":"총, 칼" }
+  final uri = Uri.parse(aiModerateUrl);
+  final req = http.MultipartRequest('POST', uri)
+    ..files.add(http.MultipartFile.fromBytes(
+      'image', pngBytes,
+      filename: 'card.png',
+      contentType: MediaType('image', 'png'),
+    ));
+
+  final streamed = await req.send();
+  final res = await http.Response.fromStream(streamed);
+
+  if (res.statusCode >= 300) {
+    // 서버 오류 시 안전하게 불허 처리
+    return _AiDecision(false, '서버 응답 오류(${res.statusCode})');
+  }
+
+  // JSON 파싱 (result/decision 필드 어느 쪽이든 허용)
+  try {
+    final Map<String, dynamic> j = json.decode(res.body);
+    final result = (j['result'] ?? j['decision'] ?? '').toString().toUpperCase();
+    final reason = j['reason']?.toString();
+    final allow = result == 'ACCEPT' || result == 'ALLOW' || result == 'OK';
+    return _AiDecision(allow, allow ? null : (reason ?? '정책 위반 이미지'));
+  } catch (_) {
+    // 파싱 실패 시도 불허
+    return _AiDecision(false, '응답 파싱 실패');
+  }
+}
+
+void _showProgressDialog(BuildContext context, String message) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => AlertDialog(
+      content: Row(
+        children: [
+          const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+          const SizedBox(width: 12),
+          Expanded(child: Text(message)),
+        ],
+      ),
+    ),
+  );
+}
+
+
+
 
 // ===== 모델 =====
 class _TextElement {

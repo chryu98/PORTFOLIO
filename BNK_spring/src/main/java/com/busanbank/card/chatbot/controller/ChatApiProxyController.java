@@ -2,6 +2,8 @@
 package com.busanbank.card.chatbot.controller;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +18,8 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class ChatApiProxyController {
 
-    private final WebClient chatWebClient;
+
+    private final @Qualifier("chatWebClient") WebClient chatWebClient;
 
     @PostMapping("/ask")
     public Map<String, Object> ask(@RequestBody Map<String, String> body) {

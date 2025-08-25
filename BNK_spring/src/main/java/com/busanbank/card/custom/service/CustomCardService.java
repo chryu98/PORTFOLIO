@@ -28,5 +28,9 @@ public class CustomCardService {
     mapper.insert(dto);
     return id;
   }
+  
+  public int updateAi(Long customNo, String aiResult, String aiReason) {
+	  return mapper.updateAi(customNo, aiResult, aiReason);
+	}
 }
 
