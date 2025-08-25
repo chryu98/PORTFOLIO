@@ -2,7 +2,7 @@ package com.busanbank.card.admin.service;
 
 import com.busanbank.card.admin.dao.AdminPushMapper;
 import com.busanbank.card.admin.dto.AdminPushRow;
-import com.busanbank.card.sse.SsePushService; // ← 네 SSE 서비스 위치에 맞게 수정
+import com.busanbank.card.sse.SsePushService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,9 +35,11 @@ public class AdminPushService {
         row.setContent(content);
         row.setTargetType(targetType);
         row.setCreatedBy(adminId);
-        mapper.insertPush(row); // RETURNING으로 pushNo 채워짐
 
-        if ("MEMBER_LIST".equalsIgnoreCase(targetType) && memberList != null) {
+        // 키 생성: IDENTITY면 useGeneratedKeys로 자동 주입, 시퀀스면 selectKey로 주입
+        mapper.insertPush(row);
+
+        if ("MEMBER_LIST".equalsIgnoreCase(targetType) && memberList != null && !memberList.isEmpty()) {
             for (Long m : memberList) {
                 mapper.insertPushTarget(row.getPushNo(), m);
             }
@@ -58,10 +60,13 @@ public class AdminPushService {
         return row.getPushNo();
     }
 
+    @Transactional(readOnly = true)
     public Map<String,Object> list(int page, int size) {
-        int offset = page * size;
-        var rows = mapper.selectPushList(offset, size);
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, size);
+        int offset = safePage * safeSize;
+        var rows = mapper.selectPushList(offset, safeSize);
         int total = mapper.countPushList();
-        return Map.of("total", total, "page", page, "size", size, "rows", rows);
+        return Map.of("total", total, "page", safePage, "size", safeSize, "rows", rows);
     }
 }
