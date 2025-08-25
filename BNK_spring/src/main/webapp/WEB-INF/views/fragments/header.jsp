@@ -16,6 +16,7 @@ uri="http://java.sun.com/jsp/jstl/core" %>
 		<a href="/admin/card-approval">카드 승인</a>
 		<a href="/admin/verify/logs">사용자 인증관리</a>
 		<a href="/admin/pushpage">알림 관리</a>
+		<a href="/admin/branches">영업점 관리</a>
 		<a href="/admin/Mainpage">사용자 메인페이지로</a>
 		<div class="logout-container">
             <button id="logoutBtn">로그아웃</button>
