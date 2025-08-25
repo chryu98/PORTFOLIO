@@ -172,6 +172,17 @@ public class AdminMainController {
 		return "admin/push/adminPush";
 	}
 	
+	// 이탈률 관리
+	@GetMapping("/bouncerate")
+	public String bouncerate() {
+		AdminDto admin = adminSession.getLoginUser();
+		if (admin == null) {
+			// 로그인 안한 경우
+			return "redirect:/admin/adminLoginForm";
+		}
+		return "admin/adminBounceRate";
+	}
+	
 
 	
 	//=========================================
