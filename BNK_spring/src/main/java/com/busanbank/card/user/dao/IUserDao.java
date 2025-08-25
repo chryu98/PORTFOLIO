@@ -60,16 +60,26 @@ public interface IUserDao {
     @Select("SELECT card_url, card_name FROM card WHERE card_no IN (1, 2, 3)")
     List<CardDto> findMyCard();
     
+ // AFTER (없으면 INSERT, 있으면 UPDATE)
     @Update("""
-            UPDATE push_member
-               SET push_yn = #{pushYn},
-                   agreed_at = SYSDATE
-             WHERE member_no = #{memberNo}
-        """)
-        int updatePushMember(PushMemberDto pushMember);
+      MERGE INTO push_member pm
+      USING (SELECT #{memberNo} AS member_no, #{pushYn} AS push_yn FROM dual) src
+         ON (pm.member_no = src.member_no)
+      WHEN MATCHED THEN
+        UPDATE SET pm.push_yn = src.push_yn,
+                   pm.agreed_at = SYSDATE
+      WHEN NOT MATCHED THEN
+        INSERT (member_no, push_yn, agreed_at)
+        VALUES (src.member_no, src.push_yn, SYSDATE)
+    """)
+    int upsertPushMember(PushMemberDto pushMember);
     
-    @Select("SELECT push_yn FROM push_member WHERE member_no = #{memberNo}")
-    char findPushYn(int memberNo);
+    @Select("""
+    		  SELECT NVL(MAX(push_yn), 'N')
+    		    FROM push_member
+    		   WHERE member_no = #{memberNo}
+    		""")
+    		String findPushYn(int memberNo);
     
     @Select("SELECT c.card_no, "
     		+ "c.card_name, "
@@ -83,4 +93,8 @@ public interface IUserDao {
     		+ "WHERE ca.member_no = #{memberNo}"
     		+ "  AND ca.status IN ('SIGNED', 'APPROVED')")
     List<UserCardDto> getUserCardList(int memberNo);
+    
+    
+    
+    
 }

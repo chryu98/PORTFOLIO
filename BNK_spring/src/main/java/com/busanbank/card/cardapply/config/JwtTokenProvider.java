@@ -70,6 +70,20 @@ public class JwtTokenProvider {
         }
     }
 
+    
+    public Integer getMemberNo(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .get("memberNo", Integer.class);
+        } catch (Exception e) {
+            System.err.println("[JWT] Failed to extract memberNo: " + e.getMessage());
+            return null;
+        }
+    }
     /** 토큰 유효성 검사 (로그 추가) */
     public boolean validateToken(String token) {
         try {

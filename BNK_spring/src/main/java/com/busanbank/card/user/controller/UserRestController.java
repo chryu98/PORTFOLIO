@@ -101,7 +101,8 @@ public class UserRestController {
 		Map<String, Object> response = new HashMap<>();
 		// 로그인한 사용자의 username으로 정보 조회
 		UserDto userDto = userDao.findByUsername(principal.getName());
-		char pushYn = userDao.findPushYn(userDto.getMemberNo());
+		String pushYn = userDao.findPushYn(userDto.getMemberNo());
+		if (pushYn == null || pushYn.isBlank()) pushYn = "N";
 		
 		response.put("user", userDto);
 		response.put("pushYn", pushYn);
@@ -189,16 +190,10 @@ public class UserRestController {
 	
 	@PostMapping("/push-member")
 	public ResponseEntity<?> updatePushMember(@RequestBody PushMemberDto pushMember) {
-//	    int memberNo = pushMember.getMemberNo();
-//	    String pushYn = pushMember.getPushYn(); // 'Y' 또는 'N'
-
-	    System.out.println("memberNo: " + pushMember.getMemberNo());
-	    System.out.println("pushYn: " + pushMember.getPushYn());
-	    
-	    int updated = userDao.updatePushMember(pushMember);
+	    int updated = userDao.upsertPushMember(pushMember);
 	    return ResponseEntity.ok(Map.of("success", updated > 0));
 	}
-
+	
 	@PostMapping("/card-list")
 	public ResponseEntity<List<UserCardDto>> getCardApplications(Principal principal) {
 	    // 로그인한 사용자의 memberNo 조회
