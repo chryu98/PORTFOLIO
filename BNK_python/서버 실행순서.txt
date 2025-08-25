@@ -18,6 +18,22 @@ http://localhost:8000/docs
 
 이건 문제가 없다는거지 ? 유저가 처음 대화를 하면 방이 생성되고 그런게 다 적용된거라는거지?
 
+pip install ultralytics==8.3.0
+pip install pillow
+pip install requests
+
+python -c "import torch,sys; print('python:',sys.version); print('torch:',torch.__version__); print('cuda available:',torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'no cuda')"
+
+
+yolo detect train `
+  data=yolo/weapons.yaml `
+  model=yolov8n.pt `
+  imgsz=640 `
+  epochs=30 `
+  batch=16 `
+  project=data/weights `
+  name=weapons_v1
+
 
 pip install pdfkit
 pip install cx_Oracle
@@ -26,9 +42,46 @@ pip install pdfplumber
 pip install dotenv
 pip install fpdf
 
+학습용서버
+-----------------------------------------------------------------------
+# 지금 venv 종료
+deactivate
 
-<%-- faq.jsp 상단에 테스트로 추가 --%>
-<%
-  Object loginUser = session.getAttribute("loginUser");
-  out.println("세션에 로그인유저 있음? " + (loginUser != null));
-%>
+# Python 3.11 기반 새 venv 생성 (이름은 venv_cuda)
+py -3.11 -m venv venv_cuda
+
+# 활성화
+.\venv_cuda\Scripts\activate
+------------------------------------------------------------------------
+# 프로젝트 루트에서
+py -3.11 -m venv venv_cuda
+.\venv_cuda\Scripts\activate
+
+# CUDA 지원 PyTorch (4060 → CUDA 12.x)
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# 나머지
+pip install ultralytics==8.3.0 opencv-python matplotlib
+
+#인식체크
+python -c "import torch;print(torch.__version__);print('cuda:',torch.cuda.is_available());print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'no cuda')"
+
+------------------------------------------------------------------------
+cd C:\java_class\CP\bnkcard\BNK_python
+yolo detect train `
+  data=data/weapon_dataset/dataset.yaml `
+  model=yolov8n.pt `
+  imgsz=640 `
+  epochs=30 `
+  batch=16 `
+  device=0 `
+  workers=4 `
+  cache=True `
+  project=data/weights `
+  name=weapons_gpu `
+  plots=True
+--------------------------------------------------------------------------
+
+
+
+

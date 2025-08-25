@@ -1,0 +1,7 @@
+path: C:/java_class/CP/bnkcard/BNK_python/data/weapon_dataset/dataset/dataset
+
+train: images/train
+val: images/val
+
+nc: 2
+names: ['knife', 'gun']
