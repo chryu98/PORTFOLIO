@@ -415,13 +415,24 @@ class _NaverMapPageState extends State<NaverMapPage>
                         child: TabBar(
                           controller: _tabController,  // ✅ DefaultTabController 대신 직접 만든 controller 연결
                           indicator: BoxDecoration(
-                            color: Colors.redAccent,
+                            color: Color(0xFFF83030),
                             borderRadius: BorderRadius.all(Radius.circular(18)),
                           ),
                           labelColor: Colors.white,
                           unselectedLabelColor: Colors.black87,
                           indicatorSize: TabBarIndicatorSize.tab,
                           dividerColor: Colors.transparent,
+
+                          // ⬇️ 글자 크기/굵기 키우기
+                          labelStyle: const TextStyle(
+                            fontSize: 16,            // 필요하면 17~18로 더 키워도 OK
+                            fontWeight: FontWeight.w600,
+                          ),
+                          unselectedLabelStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+
                           tabs: const [
                             Tab(text: '전체'),
                             Tab(text: '근처 영업점'),
@@ -502,7 +513,7 @@ class _NaverMapPageState extends State<NaverMapPage>
                 Text(
                   '${b.branchTel}\n${b.branchAddress}',
                   style: const TextStyle(
-                      fontSize: 12, color: Colors.black54, height: 1.3),
+                      fontSize: 14, color: Colors.black87, height: 1.35),
                 ),
               ],
             ),
@@ -518,7 +529,7 @@ class _NaverMapPageState extends State<NaverMapPage>
       child: Align(
         alignment: Alignment.topCenter,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 12), // ⬅️ top=0
           child: Row(
             children: [
               // ⬇️ 뒤로가기 버튼 (동그란 카드 스타일)
