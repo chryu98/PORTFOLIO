@@ -152,9 +152,14 @@ public interface ICardApplyDao {
 
 	// 상태 변경(승인/반려)
 	@Update("""
-			    UPDATE CARD_APPLICATION
-			       SET status = #{status}, updated_at = SYSDATE
-			     WHERE APPLICATION_NO = #{applicationNo}
-			""")
-	int updateStatus(@Param("applicationNo") Integer applicationNo, @Param("status") String status);
+		    UPDATE CARD_APPLICATION
+		    SET status = #{status},
+		        approval_reason = CASE WHEN #{status} = 'APPROVED' THEN #{reason} ELSE NULL END,
+		        rejection_reason = CASE WHEN #{status} = 'REJECTED' THEN #{reason} ELSE NULL END,
+		        updated_at = SYSDATE
+		    WHERE APPLICATION_NO = #{applicationNo}
+		""")
+	int updateStatusWithReason(@Param("applicationNo") Integer applicationNo,
+							   @Param("status") String status,
+							   @Param("reason") String reason);
 }

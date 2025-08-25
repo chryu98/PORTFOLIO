@@ -66,7 +66,8 @@ public class AdminCardApprovalController {
 	public ResponseEntity<?> updateStatus(@PathVariable("applicationNo") Integer applicationNo,
 										  @RequestBody Map<String, String> body) {
         String status = body.get("status");
-        int updated = cardApplyDao.updateStatus(applicationNo, status);
+        String reason = body.getOrDefault("reason", "");
+        int updated = cardApplyDao.updateStatusWithReason(applicationNo, status, reason);
         
         if (updated > 0) {
             return ResponseEntity.ok(Map.of("success", true));
