@@ -1,4 +1,50 @@
-HELP.md
+# ────────────────
+# 기본 Python
+# ────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-BNK_python/.env
+# 가상환경
+.venv/
+venv/
+venv_cuda/
+
+# IDE/에디터
+.vscode/
+.idea/
+
+# ────────────────
+# 환경변수/설정
+# ────────────────
 .env
+BNK_python/.env
+HELP.md
+kaggle.json
+
+# ────────────────
+# YOLO 데이터셋 & 결과
+# ────────────────
+data/weapon_dataset/images/
+data/weapon_dataset/labels/
+data/weapon_dataset/dataset/
+*.cache
+*.zip
+*.yaml  # 데이터셋 yaml (원하면 dataset.yaml만 제외하고 관리 가능)
+
+# 학습 결과 및 가중치
+runs/
+data/weights/
+*.pt
+*.onnx
+*.engine
+
+# 로그 & 결과물
+logs/
+*.log
+*.csv
+*.json
+*.jpg
+*.png
+*.tmp
