@@ -6,37 +6,130 @@
 <title>카드별 약관</title>
 <link rel="stylesheet" href="/css/adminstyle.css">
 <style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
-
-  /* 중앙 정렬 컨테이너 */
-:root { --shift-x: 24px; } /* 원하는 만큼 오른쪽으로 (px 또는 %) */
-.container{
-  width:min(1100px,92vw);
-  margin:0 auto;           /* 기본 가운데 정렬 */
-   transform: translateX(200px); /* 살짝 오른쪽으로 이동 */
+/* ========= 공통 팔레트 ========= */
+:root{
+  --bg:#ffffff;
+  --txt:#111827;
+  --muted:#6b7280;
+  --line:#e5e7eb;
+  --line-soft:#f3f4f6;
+  --thead:#fafbfc;
+  --card:#ffffff;
+  --accent:#2563eb;
+  --shadow:0 6px 18px rgba(17,24,39,.06);
+  --radius:12px;
+  --radius-lg:14px;
+  --container:1100px;
 }
-  /* 제목/뒤로가기 중앙 정렬 */
-  .title{margin:0 0 8px; text-align:center;}
-  .back{margin:6px 0 16px; text-align:center;}
-  .back a{
-    display:inline-block; padding:6px 10px; border:1px solid #d1d5db;
-    border-radius:8px; text-decoration:none; color:#111827;
-  }
-  .back a:hover{background:#f3f4f6;}
 
-  /* 본문 그리드 */
-  .grid{display:grid; grid-template-columns:360px 1fr; gap:16px;}
+*{ box-sizing:border-box }
+html,body{ height:100% }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--txt);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+}
 
-  .box{border:1px solid #e5e7eb; border-radius:12px; padding:12px;}
-  .row{display:flex; gap:8px; align-items:center;}
-  input,select,button{padding:8px 10px; border-radius:10px; border:1px solid #d1d5db;}
+/* ========= 가운데 정렬 컨테이너 ========= */
+.container{
+  width:min(var(--container),92vw);
+  margin:0 auto;
+}
 
-  table{width:100%; border-collapse:separate; border-spacing:0;}
-  th,td{padding:8px; border-bottom:1px solid #f3f4f6; font-size:14px;}
-  .muted{color:#6b7280;}
-  .btn{cursor:pointer;}
-  .btn.primary{background:#111827; color:#fff; border-color:#111827;}
-  .pill{padding:2px 8px; border-radius:999px; background:#f3f4f6; font-size:12px;}
+/* ========= 제목/뒤로가기 ========= */
+.title{
+  margin:0 0 8px;
+  font-size:28px; font-weight:700; letter-spacing:-.01em;
+  text-align:center;
+  padding-top:40px;
+}
+.back{ margin:6px 0 16px; text-align:center; }
+.back a{
+  display:inline-block; padding:8px 12px;
+  border:1px solid var(--line); border-radius:10px;
+  background:#fff; color:var(--txt); text-decoration:none;
+  transition:background .15s, transform .05s;
+}
+.back a:hover{ background:#f3f4f6 }
+.back a:active{ transform:translateY(1px) }
+
+/* ========= 본문 레이아웃 ========= */
+.grid{
+  display:grid;
+  grid-template-columns:360px 1fr;
+  gap:16px;
+  align-items:start;
+}
+@media (max-width: 900px){
+  .grid{ grid-template-columns:1fr; }
+}
+
+/* ========= 카드 박스 ========= */
+.box{
+  border:1px solid var(--line);
+  border-radius:var(--radius-lg);
+  padding:12px;
+  background:var(--card);
+  box-shadow:var(--shadow);
+}
+
+/* ========= 공통 폼 요소 ========= */
+.row{ display:flex; gap:8px; align-items:center; }
+input,select,button{
+  padding:10px 12px;
+  border-radius:10px; border:1px solid var(--line);
+  font-size:14px; background:#fff; color:var(--txt);
+  outline:none;
+  transition:border-color .18s, box-shadow .18s, transform .05s, filter .12s;
+}
+input:focus, select:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(37,99,235,.15);
+}
+
+/* 버튼 */
+.btn{ cursor:pointer; background:#fff; color:var(--txt); border-color:var(--line); }
+.btn:hover{ filter:brightness(.98) }
+.btn:active{ transform:translateY(1px) }
+.btn.primary{ background:var(--accent); color:#fff; border-color:var(--accent) }
+
+/* ========= 표 ========= */
+table{
+  width:100%;
+  border-collapse:separate; border-spacing:0;
+  margin-top:6px;
+  background:#fff;
+  border:1px solid var(--line); border-radius:var(--radius);
+  overflow:hidden; box-shadow:var(--shadow);
+}
+thead th{
+  background:var(--thead); color:#374151;
+  font-weight:600; text-align:left;
+  padding:10px 12px; font-size:14px;
+  border-bottom:1px solid var(--line);
+}
+tbody td{
+  padding:10px 12px; font-size:14px;
+  border-bottom:1px solid var(--line-soft); vertical-align:middle;
+}
+tbody tr:hover{ background:#fdfefe }
+
+/* ========= 텍스트/뱃지 ========= */
+.muted{ color:var(--muted) }
+.pill{
+  padding:2px 8px; border-radius:999px;
+  background:#f3f4f6; border:1px solid var(--line);
+  font-size:12px;
+}
+
+/* ========= 스크롤 영역 ========= */
+#card-list, #pdf-list{ margin-top:10px; max-height:70vh; overflow:auto; }
+#pdf-list{ max-height:40vh }
+
+/* ========= 접근성 ========= */
+:focus-visible{ outline:3px solid rgba(37,99,235,.35); outline-offset:2px }
 </style>
 </head>
 <body>
@@ -53,7 +146,7 @@
           <input id="card-q" placeholder="카드명/브랜드/타입 검색" onkeyup="if(event.key==='Enter') searchCards()" />
           <button class="btn" onclick="searchCards()">검색</button>
         </div>
-        <div id="card-list" style="margin-top:10px; max-height:70vh; overflow:auto;"></div>
+        <div id="card-list"></div>
       </div>
 
       <!-- 우: 매핑 목록 + PDF 검색 -->
@@ -65,17 +158,22 @@
           </div>
         </div>
 
-        <h3 style="margin-top:12px;">연결된 약관</h3>
+        <h3 style="margin:12px 0 6px;">연결된 약관</h3>
         <table>
           <thead>
             <tr>
-              <th>PDF_NO</th><th>PDF명</th><th>범위</th><th>코드</th><th>필수</th><th>수정/삭제</th>
+              <th>PDF_NO</th>
+              <th>PDF명</th>
+              <th>범위</th>
+              <th>코드</th>
+              <th>필수</th>
+              <th>수정/삭제</th>
             </tr>
           </thead>
           <tbody id="terms"></tbody>
         </table>
 
-        <h3 style="margin-top:16px;">PDF 검색 → 연결</h3>
+        <h3 style="margin:16px 0 6px;">PDF 검색 → 연결</h3>
         <div class="row">
           <input id="pdf-q" placeholder="PDF명/코드 검색" onkeyup="if(event.key==='Enter') searchPdfs()" />
           <select id="pdf-scope">
@@ -91,18 +189,18 @@
           </select>
           <button class="btn" onclick="searchPdfs()">검색</button>
         </div>
-        <div id="pdf-list" style="margin-top:8px; max-height:40vh; overflow:auto;"></div>
+        <div id="pdf-list"></div>
       </div>
-    </div> <!-- /.grid -->
-  </div> <!-- /.container -->
+    </div>
+  </div>
 
   <script src="/js/adminHeader.js"></script>
   <script>
   /* ===== 유틸 ===== */
   function h(s){ return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-  function jsStr(s){ return JSON.stringify(String(s==null?'':s)); } // onclick 등에 안전하게 넣기용
+  function jsStr(s){ return JSON.stringify(String(s==null?'':s)); }
 
-  const API = '/admin/api'; // 컨트롤러 prefix
+  const API = '/admin/api';
 
   async function api(url, options){
     const res = await fetch(url, Object.assign({ headers: { 'Content-Type': 'application/json' } }, options||{}));

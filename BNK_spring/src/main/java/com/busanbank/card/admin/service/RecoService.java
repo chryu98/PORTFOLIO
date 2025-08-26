@@ -33,5 +33,13 @@ public class RecoService {
  // ★ 자동완성
  public List<CardInsightDto> searchCards(String q){ return mapper.searchCards(q); }
  public List<CardInsightDto> searchMembers(String q){ return mapper.searchMembers(q); }
+
+ 
+//★ 추가: 행동 로그 INSERT
+public void insertBehaviorLog(Long memberNo, Long cardNo, String type, String isoTime,
+                              String device, String ua, String ip) {
+  mapper.insertBehaviorLog(memberNo, cardNo, type, isoTime, device, ua, ip);
+}
+
 }
 

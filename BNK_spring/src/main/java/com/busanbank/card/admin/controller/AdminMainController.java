@@ -162,15 +162,7 @@ public class AdminMainController {
 		return "admin/adminReviewReport";
 	}
 	
-	@GetMapping("/pushpage")
-	public String pushpage() {
-		AdminDto admin = adminSession.getLoginUser();
-		if (admin == null) {
-			// 로그인 안한 경우
-			return "redirect:/admin/adminLoginForm";
-		}
-		return "admin/push/adminPush";
-	}
+
 	
 	// 이탈률 관리
 	@GetMapping("/bouncerate")
