@@ -48,7 +48,7 @@ h1 {
 	gap: 16px;
 	align-items: start;
 	max-width: 1150px;
-argin: 0 auto;
+	margin: 0 auto;
 }
 
 .panel {

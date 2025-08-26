@@ -23,8 +23,7 @@
   --container:1100px;
 }
 
-/* ========== 베이스 ========== */
-*{ box-sizing:border-box }
+/* ========== 베이스 ========== */*{ box-sizing:border-box }
 html,body{ height:100% }
 body{
   margin:0;

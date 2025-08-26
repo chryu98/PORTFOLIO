@@ -29,6 +29,7 @@ a,li,ul{
     gap:40px;
     transition: width 0.3s ease, padding 0.3s ease;
     overflow-y: auto; /* 세로 스크롤 허용 */
+    box-sizing: content-box;
 }
 .admin-header a{
 	color:white;

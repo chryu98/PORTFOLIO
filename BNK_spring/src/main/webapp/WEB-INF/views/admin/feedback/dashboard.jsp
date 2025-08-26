@@ -32,9 +32,21 @@ body {
 	background: var(--bg)
 }
 
+.wrapper{
+	max-width:1100px;
+	margin:0 auto;
+}
+
 h1 {
 	font-size: 28px;
 	margin: 0 0 12px
+}
+
+.title{
+    margin: 0 auto;
+    width: 300px;
+    padding: 30px;
+
 }
 
 h2 {
@@ -211,7 +223,9 @@ tr:last-child td {
 </head>
 <body>
 	<jsp:include page="../../fragments/header.jsp"></jsp:include>
-	<h1>피드백 대시보드</h1>
+	
+	<div class="wrapper">
+	<h1 class="title">피드백 대시보드</h1>
 
 	<!-- 컨트롤러가 days/top/minScore를 안 줬어도 안전하게 기본값 보정 -->
 	<c:set var="days" value="${empty days ? 30 : days}" />
@@ -552,6 +566,7 @@ tr:last-child td {
 			</a>
 		</div>
 	</c:if>
+	</div>
 <script src="/js/adminHeader.js"></script>
 </body>
 </html>
