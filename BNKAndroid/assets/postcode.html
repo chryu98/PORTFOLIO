@@ -2,41 +2,69 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>우편번호 찾기</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
     <style>
-        html, body, #wrap { height: 100%; margin: 0; }
-        body { overscroll-behavior: contain; }
+        html, body, #wrap { height:100%; margin:0; padding:0; }
     </style>
+    <!-- HTTPS 필수 -->
     <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 </head>
 <body>
 <div id="wrap"></div>
+
 <script>
-    function sendToFlutter(payload){
-      // 1) 모바일(WebView) 경로: webview_flutter JS 채널
-      if (window.App && window.App.postMessage) {
-        window.App.postMessage(JSON.stringify(payload));
-        return;
-      }
-      // 2) 웹(Chrome) 경로: 부모(Flutter Web) 창으로 전달
-      if (window.parent) {
-        window.parent.postMessage({ type: 'postcode', payload }, '*');
-      }
+    // ✅ 모바일(WebView)로 메시지 보내기 (우선 App.postMessage 직접 호출)
+    function sendToFlutter(payload) {
+      var json = JSON.stringify(payload);
+
+      // 1) webview_flutter JavaScriptChannel: App
+      try {
+        if (typeof App !== 'undefined' && typeof App.postMessage === 'function') {
+          App.postMessage(json);          // ← 핵심!
+          return;
+        }
+      } catch (e) {}
+
+      // 2) 일부 환경에서 window.App 로 노출되는 경우 대비
+      try {
+        if (window.App && typeof window.App.postMessage === 'function') {
+          window.App.postMessage(json);
+          return;
+        }
+      } catch (e) {}
+
+      // (웹용 브릿지는 무시해도 됨. 앱만 쓸 거면 아래는 없어도 OK)
+      // window.parent.postMessage(json, '*');
+
+      // 디버그용 (개발 중 일시적으로 확인)
+      // alert('No App.postMessage bridge found');
     }
 
-    new daum.Postcode({
-      oncomplete: function (data) {
-        const extra = [data.bname, data.buildingName].filter(Boolean).join(' ');
-        sendToFlutter({
-          zonecode: data.zonecode,
-          roadAddress: data.roadAddress,
-          jibunAddress: data.jibunAddress,
-          extraAddress: extra
-        });
-      },
-      width:'100%', height:'100%'
-    }).embed(document.getElementById('wrap'));
+    function execDaumPostcode() {
+      new daum.Postcode({
+        oncomplete: function (data) {
+          var extra = '';
+          if (data.bname && /[동|로|가]$/.test(data.bname)) extra += data.bname;
+          if (data.buildingName && data.apartment === 'Y') {
+            extra += (extra ? ', ' : '') + data.buildingName;
+          }
+          var payload = {
+            zonecode: data.zonecode,                 // 5자리
+            roadAddress: data.roadAddress || '',
+            jibunAddress: data.jibunAddress || '',
+            extraAddress: extra
+          };
+          sendToFlutter(payload); // ← 선택 즉시 Flutter로 전송
+        }
+      }).embed(document.getElementById('wrap'));
+    }
+
+    // ✅ 채널 동작 핑 테스트(원하면 잠깐 켜서 동작 확인)
+    // setTimeout(function(){
+    //   sendToFlutter({ ping: true }); // 앱에서 즉시 pop 되면 OK
+    // }, 500);
+
+    window.onload = execDaumPostcode;
 </script>
 </body>
 </html>
