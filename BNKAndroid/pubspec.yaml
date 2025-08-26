@@ -18,6 +18,11 @@ dependencies:
   open_filex: ^4.5.0
   signature: ^5.5.0
   confetti: ^0.7.0
+
+  package_info_plus: ^8.0.2          # ★ NEW (앱 버전/빌드번호)
+  device_info_plus: ^11.0.0          # ★ NEW (OS/디바이스/브라우저 정보)
+  universal_io: ^2.2.2               # ★ NEW (Platform API를 웹에서도 사용 가능하도록)
+
   # 기존
   flutter_staggered_animations: ^1.0.0
   visibility_detector: ^0.4.0

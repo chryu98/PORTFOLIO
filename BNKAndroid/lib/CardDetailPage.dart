@@ -17,6 +17,9 @@ import 'ApplicationStep0TermsPage.dart';
 import 'package:bnkandroid/navigation/guards.dart';
 import 'package:bnkandroid/app_shell.dart' show pushFullScreen; // root push helper
 
+// ★ ADDED: 행동 로그 공용 로거
+import 'package:bnkandroid/analytics/behavior_logger.dart';
+
 // ApiException이 정의된 위치에 맞춰 import
 // 예시: import 'package:bnkandroid/constants/api_exception.dart';
 
@@ -197,7 +200,8 @@ Widget buildSimpleBenefitBox(String category, String line, {String? rate}) {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (rate != null) ...[
-          Text(rate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Color(0xffB91111))),
+          Text(rate,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Color(0xffB91111))),
           const SizedBox(width: 12),
         ],
         Expanded(
@@ -394,13 +398,42 @@ class CardDetailPage extends StatefulWidget {
 class _CardDetailPageState extends State<CardDetailPage> {
   late Future<CardModel> _futureCard;
 
+  // ★ ADDED: VIEW 중복 방지 플래그
+  bool _viewLogged = false;
+
+  // ★ ADDED: 로그인한 사용자 번호 로드 (앱에서 저장한 키명과 맞추세요)
+  Future<int?> _getMemberNo() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      // 보통 int로 저장되어 있거나 String으로 저장된 경우가 있어 둘 다 시도
+      final i = sp.getInt('memberNo');
+      if (i != null) return i;
+      final s = sp.getString('memberNo');
+      if (s != null) return int.tryParse(s);
+    } catch (_) {}
+    return null;
+  }
+
+  // ★ ADDED: VIEW 로그 1회 전송
+  Future<void> _logViewOnce() async {
+    if (_viewLogged) return;
+    final no = int.tryParse(widget.cardNo);
+    if (no == null) return;
+    final memberNo = await _getMemberNo();
+    await BehaviorLogger.instance.logView(cardNo: no, memberNo: memberNo);
+    _viewLogged = true;
+  }
+
   @override
   void initState() {
     super.initState();
     _futureCard = CardService.fetchCompareCardDetail(widget.cardNo);
+    // ★ ADDED: 페이지 진입 시 VIEW 로깅
+    _logViewOnce();
   }
 
-  void _toggleCompare(String cardNo) {
+  // ★ CHANGED: 클릭 로깅 위해 async 로 변경
+  Future<void> _toggleCompare(String cardNo) async {
     final s = widget.compareIds.value.toSet();
     if (s.contains(cardNo)) {
       s.remove(cardNo);
@@ -415,6 +448,14 @@ class _CardDetailPageState extends State<CardDetailPage> {
     widget.compareIds.value = s;
     widget.onCompareChanged();
     setState(() {});
+
+    // ★ ADDED: CLICK 로깅 (비교 버튼을 클릭한 시점)
+    final no = int.tryParse(cardNo);
+    if (no != null) {
+      final memberNo = await _getMemberNo();
+      // 실패해도 UI 흐름 막지 않도록 await 제거해도 됨 (지금은 진단 위해 await 유지)
+      await BehaviorLogger.instance.logClick(cardNo: no, memberNo: memberNo);
+    }
   }
 
   /// 발급 시작 (로그인 체크 → 필요 시 로그인 → 이어서 발급)
@@ -428,6 +469,14 @@ class _CardDetailPageState extends State<CardDetailPage> {
       return;
     }
 
+    // ★ ADDED: APPLY 로깅 (발급 버튼 클릭 시점)
+    try {
+      final memberNo = await _getMemberNo();
+      await BehaviorLogger.instance.logApply(cardNo: cardNo, memberNo: memberNo);
+    } catch (_) {
+      // 로깅 실패해도 발급 플로우는 진행
+    }
+
     // ✅ 로그인 가드만 유지하고, Step0로 진입
     await ensureLoggedInAndRun(context, () async {
       await pushFullScreen(
@@ -436,8 +485,6 @@ class _CardDetailPageState extends State<CardDetailPage> {
       );
     });
   }
-
-
 
   /// ---- 여기 아래 두 개 헬퍼를 같은 파일(같은 클래스 안 or 바깥) 에 추가하세요 ----
 
@@ -480,7 +527,6 @@ class _CardDetailPageState extends State<CardDetailPage> {
 
     return e.toString();
   }
-
 
   void _showCompareModal() {
     final ids = widget.compareIds.value;
@@ -550,8 +596,8 @@ class _CardDetailPageState extends State<CardDetailPage> {
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(color: Colors.red),
                               ),
-                              child: Text('#$tag',
-                                  style: const TextStyle(fontSize: 11, color: Colors.red)),
+                              child:
+                              Text('#$tag', style: const TextStyle(fontSize: 11, color: Colors.red)),
                             ))
                                 .toList(),
                           ),
@@ -751,7 +797,9 @@ class _CardDetailPageState extends State<CardDetailPage> {
                     SectionTile(
                       title: '유의사항',
                       child: Text(
-                        (card.notice != null && card.notice!.trim().isNotEmpty) ? card.notice! : '유의사항이 없습니다.',
+                        (card.notice != null && card.notice!.trim().isNotEmpty)
+                            ? card.notice!
+                            : '유의사항이 없습니다.',
                         style: const TextStyle(fontSize: 13),
                       ),
                     ),
@@ -983,26 +1031,26 @@ class _SectionTileState extends State<SectionTile> {
 }
 
 
-  String _extractErrorMessage(dynamic e) {
-    // body.message → message → toString()
-    try {
-      final body = (e as dynamic).body;
-      if (body is Map && body['message'] != null) {
-        return body['message'].toString();
-      }
-    } catch (_) {}
+// (원본에 있던 아래 두 함수/빌드 조각은 그대로 유지—컴파일 에러만 없다면 수정 불가피 X)
 
-    try {
-      final msg = (e as dynamic).message;
-      if (msg != null) return msg.toString();
-    } catch (_) {}
+String _extractErrorMessage(dynamic e) {
+  // body.message → message → toString()
+  try {
+    final body = (e as dynamic).body;
+    if (body is Map && body['message'] != null) {
+      return body['message'].toString();
+    }
+  } catch (_) {}
 
-    return e.toString();
-  }
+  try {
+    final msg = (e as dynamic).message;
+    if (msg != null) return msg.toString();
+  } catch (_) {}
 
+  return e.toString();
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
-  }
-
+@override
+Widget build(BuildContext context) {
+  return const Scaffold(body: Center(child: CircularProgressIndicator()));
+}
