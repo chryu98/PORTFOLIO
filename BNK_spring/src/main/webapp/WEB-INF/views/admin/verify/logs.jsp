@@ -267,7 +267,7 @@ a.btn.btn-outline.active { /* 통과만 보기 ON 상태 */
 <link rel="stylesheet" href="/css/adminstyle.css">
 </head>
 <body>
-	<jsp:include page="../fragments/header.jsp"></jsp:include>
+	<jsp:include page="../..//fragments/header.jsp"></jsp:include>
 	<div class="wrap">
 		<div class="title">인증 로그 기록</div>
 
