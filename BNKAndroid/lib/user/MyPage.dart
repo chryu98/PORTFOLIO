@@ -456,7 +456,13 @@ class _MyPageState extends State<MyPage> {
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $jwt'},
         body: jsonEncode({'memberNo': memberNo, 'pushYn': enabled ? 'Y' : 'N'}),
       );
-      if (res.statusCode != 200) throw Exception('push-member failed');
+
+      if (res.statusCode == 200) {
+        // ✅ 성공 시 알림 띄우기
+        _toast(enabled ? '마케팅 푸시 알림이 활성화되었습니다.' : '마케팅 푸시 알림이 해제되었습니다.');
+      } else {
+        throw Exception('push-member failed');
+      }
     } catch (e) {
       setState(() => marketingPush = !enabled);
       _toast('알림 설정 변경에 실패했습니다.');
@@ -945,6 +951,11 @@ class _CardHistorySection extends StatelessWidget {
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 6),
+                Text(
+                  cardStatusText(card.status),
+                  style: TextStyle(fontSize: 13, color: cardStatusColor(card.status)),
+                ),
+                const SizedBox(height: 4),
                 Text(
                   '연동 계좌번호: ${card.accountNumber ?? '계좌 없음'}',
                   style: const TextStyle(fontSize: 13, color: Colors.black87),
