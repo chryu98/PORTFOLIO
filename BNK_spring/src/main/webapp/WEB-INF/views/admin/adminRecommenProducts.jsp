@@ -156,13 +156,13 @@ tbody tr:hover { background: #fafafa; }
 
   <!-- KPI -->
   <div class="box">
-    <h2>요약 KPI</h2>
+    <h2>요약</h2>
     <div class="row">
       <div>
         <label>조회 기간(일)</label>
         <input type="number" id="kpiDays" value="30" min="1" />
       </div>
-      <button id="btnLoadKpi">KPI 조회</button>
+      <button id="btnLoadKpi">조회</button>
       <div class="muted" id="kpiRange"></div>
     </div>
     <div class="kpi" id="kpiWrap"></div>
@@ -198,35 +198,6 @@ tbody tr:hover { background: #fafafa; }
     </table>
   </div>
 
-  <!-- 유사 카드 -->
-  <div class="box">
-    <h2>유사 혜택 카드 추천</h2>
-    <div class="row">
-      <div>
-        <label>기준 카드(번호 또는 이름)</label>
-        <input type="text" id="similarKey" placeholder="예) 1001 또는 커피 혜택 카드" />
-      </div>
-      <div>
-        <label>조회 기간(일)</label>
-        <input type="number" id="similarDays" value="30" min="1" />
-      </div>
-      <div>
-        <label>개수</label>
-        <input type="number" id="similarLimit" value="10" min="1" />
-      </div>
-      <button id="btnLoadSimilar">유사카드 조회</button>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>기준 카드</th>
-          <th>유사 카드</th>
-          <th class="right">유사도 점수</th>
-        </tr>
-      </thead>
-      <tbody id="similarTbody"></tbody>
-    </table>
-  </div>
 
   <!-- 로그 -->
   <div class="box">
