@@ -257,16 +257,10 @@
     (LOG_NO, MEMBER_NO, CARD_NO, BEHAVIOR_TYPE, BEHAVIOR_TIME, DEVICE_TYPE, USER_AGENT, IP_ADDRESS)
   VALUES
     (SEQ_CARD_BEHAVIOR_LOG.NEXTVAL,
-     #{memberNo},
-     #{cardNo},
+     #{memberNo, jdbcType=NUMERIC},
+     #{cardNo, jdbcType=NUMERIC},
      #{type},
-     CAST(
-       TO_TIMESTAMP_TZ(
-         REGEXP_REPLACE(#{isoTime}, 'Z$', '+00:00'),   -- Z → +00:00
-         'YYYY-MM-DD"T"HH24:MI:SS.FFTZH:TZM'           -- FF: 분수초 가변 허용
-       ) AT TIME ZONE 'Asia/Seoul'
-       AS DATE
-     ),
+     TO_DATE(#{isoTime}, 'YYYY-MM-DD"T"HH24:MI:SS'),
      #{device},
      #{ua},
      #{ip})
