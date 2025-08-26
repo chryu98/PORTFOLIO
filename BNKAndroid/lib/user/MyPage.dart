@@ -270,6 +270,29 @@ class _MyPageState extends State<MyPage> {
     }
   }
 
+  void _showSnackForNotice(InAppNotice n) {
+    if (!mounted) return;
+    // 이전 스낵바가 있으면 닫고 새로 띄움
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${n.title} • ${n.body}',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: '보기',
+          onPressed: () => _openNoticeDetail(n),
+        ),
+      ),
+    );
+  }
+
+
+
+
   void _connectSse(String jwt) {
     final uri = Uri.parse('$kApiBase/api/sse/stream');
     _sse = _SimpleSseClient(
@@ -303,7 +326,7 @@ class _MyPageState extends State<MyPage> {
         setState(() {
           _inbox.insert(0, notice);
         });
-        _showInAppToast(notice);
+        _showSnackForNotice(notice);
       },
     )..connect();
   }
