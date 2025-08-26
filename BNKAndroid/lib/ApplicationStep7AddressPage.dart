@@ -221,7 +221,7 @@ class _ApplicationStep7AddressPageState extends State<ApplicationStep7AddressPag
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: const BackButton(color: Colors.black87),
-        title: const Text('카드 수령 주소', style: TextStyle(color: Colors.black87)),
+
         backgroundColor: Colors.white,
         elevation: 0.5,
       ),
@@ -231,7 +231,7 @@ class _ApplicationStep7AddressPageState extends State<ApplicationStep7AddressPag
           key: _formKey,
           child: ListView(
             children: [
-              const _StepHeader7(current: 7, total: 8),
+              const _StepHeader7(current: 6, total: 6),
               const SizedBox(height: 14),
               const Text('수령지를 선택해주세요', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
