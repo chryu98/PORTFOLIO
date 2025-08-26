@@ -40,7 +40,7 @@ body{
 
 /* ===== Page titles ===== */
 h1{
-  margin:0 0 12px; padding-top:40px;
+  padding-top:40px;
   font-size:28px; font-weight:700; letter-spacing:-.01em;
   display:flex; align-items:center; justify-content:center; gap:10px; text-align:center;
 }

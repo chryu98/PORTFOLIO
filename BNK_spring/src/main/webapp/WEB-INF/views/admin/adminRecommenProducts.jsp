@@ -5,263 +5,276 @@
   <meta charset="UTF-8">
   <title>추천 상품 관리</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/css/adminstyle.css">
   <style>
-/* ===== 기본 · 레이아웃 ===== */
-* { box-sizing: border-box; }
-html, body { height: 100%; }
-body {
-  margin: 0;
-  background: #fff;                 /* 전체 화이트 */
-  color: #111827;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+/* ========== 공통 디자인 토큰 (영업점 톤) ========== */
+:root{
+  --bg:#ffffff;
+  --txt:#111827;
+  --muted:#6b7280;
+  --line:#e5e7eb;
+  --line-soft:#f1f5f9;
+  --thead:#fafbfc;
+  --card:#ffffff;
+  --accent:#2563eb;
+  --shadow:0 6px 18px rgba(17,24,39,.06);
+  --radius:12px;
+  --radius-lg:14px;
+  --container:1100px;
 }
 
-/* 페이지 폭(가운데 정렬) */
-body > .box {
-  width: min(1100px, 92vw);         /* 필요 시 1000px/90vw 등으로 조절 */
-  margin: 0 auto;
+/* ========== 베이스 ========== */
+*{ box-sizing:border-box }
+html,body{ height:100% }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--txt);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
 }
 
-/* 제목 */
-h1 {
-  margin: 0px auto 16px;
-  font-size: 24px;
-  font-weight: 700;
-  text-align: center;
-}
-h2 { margin: 28px 0 12px; font-size: 16px; }
-
-/* ===== 카드/컨테이너 ===== */
-.box {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  padding: 16px;
-  margin: 16px auto 18px;
-  box-shadow: 0 4px 12px rgba(0,0,0,.05);
+/* 가운데 정렬 컨테이너 */
+.container{
+  width:min(var(--container),92vw);
+  margin:0 auto;
 }
 
-/* ===== 폼/컨트롤 ===== */
-.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
-label { font-size: 12px; color: #6b7280; display: block; margin-bottom: 6px; }
-
-input, select, button {
-  padding: 8px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 14px;
-  background: #fff;
-  color: #111827;
-  outline: none;
-  transition: border-color .18s, box-shadow .18s, filter .12s, transform .04s;
+/* 타이틀 */
+h1{
+  margin:0 auto 16px;
+  font-size:28px; font-weight:700; letter-spacing:-.01em;
+  text-align:center;
+  padding-top:40px;
 }
-input:focus, select:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
-}
+h2{ margin:18px 0 12px; font-size:16px; font-weight:700; }
 
-button { cursor: pointer; }
-button:hover { filter: brightness(0.98); }
-button:active { transform: translateY(1px); }
-button#btnLoadKpi,
-button#btnLoadPopular,
-button#btnLoadSimilar,
-button#btnLoadLogs {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #fff;
+/* 카드 박스 */
+.box{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius-lg);
+  padding:16px;
+  margin:16px auto 18px;
+  box-shadow:var(--shadow);
 }
 
-/* ===== KPI ===== */
-.kpi { display: flex; gap: 12px; flex-wrap: wrap; }
-.kpi .k {
-  flex: 1 1 180px;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 12px 14px;
-  background: #fff;
-  box-shadow: 0 3px 8px rgba(0,0,0,.04);
-}
-.kpi .muted { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+/* 폼/컨트롤 */
+.row{ display:flex; gap:12px; flex-wrap:wrap; align-items:end; }
+label{ font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
 
-/* ===== 테이블 ===== */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  overflow: hidden;
+input,select,button{
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  font-size:14px;
+  background:#fff; color:var(--txt); outline:none;
+  transition:border-color .18s, box-shadow .18s, transform .05s, filter .12s;
 }
-th, td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #f1f5f9;
-  text-align: left;
-  vertical-align: top;
-  font-size: 14px;
-}
-th {
-  background: #f9fafb;
-  font-weight: 600;
-  color: #374151;
-}
-tbody tr:hover { background: #fafafa; }
-.right { text-align: right; }
-.muted { color: #6b7280; font-size: 12px; }
-
-/* ===== 카드/회원 셀 ===== */
-.cardcell { display: flex; align-items: center; gap: 10px; min-width: 240px; }
-.thumb {
-  width: 48px; height: 30px;
-  border-radius: 6px; object-fit: cover;
-  background: #f2f2f2; border: 1px solid #eee;
-}
-.cardname { font-weight: 600; }
-.cardno { color: #6b7280; font-size: 12px; }
-
-.memberwrap { display: flex; align-items: center; gap: 10px; min-width: 200px; }
-.membername { font-weight: 600; }
-.memberno { color: #6b7280; font-size: 12px; }
-.avatar {
-  width: 30px; height: 30px; border-radius: 50%;
-  background: #f2f2f2; border: 1px solid #eee;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 12px; color: #9ca3af;
+input:focus, select:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(37,99,235,.15);
 }
 
-/* ===== 하단 페이지 버튼 영역 정렬 ===== */
-.row[style*="justify-content:flex-end"] { gap: 8px; }
+/* 버튼 */
+button{
+  cursor:pointer;
+  background:var(--accent); border-color:var(--accent); color:#fff;
+}
+button:hover{ filter:brightness(.98) }
+button:active{ transform:translateY(1px) }
 
-/* ===== 반응형 ===== */
-@media (max-width: 720px) {
-  h1 { font-size: 20px; }
-  th, td { padding: 9px 10px; font-size: 13px; }
-  .cardcell { min-width: 200px; }
-  .memberwrap { min-width: 160px; }
+/* KPI 카드 */
+.kpi{ display:flex; gap:12px; flex-wrap:wrap; }
+.kpi .k{
+  flex:1 1 180px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:12px 14px;
+  background:#fff;
+  box-shadow:0 3px 8px rgba(0,0,0,.04);
+}
+.kpi .muted{ font-size:12px; color:var(--muted); margin-bottom:4px; }
+
+/* 테이블 */
+table{
+  width:100%;
+  border-collapse:separate; border-spacing:0;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  overflow:hidden;
+}
+th,td{
+  padding:10px 12px; font-size:14px; vertical-align:top;
+  border-bottom:1px solid var(--line-soft);
+  text-align:left;
+}
+thead th{
+  background:var(--thead);
+  font-weight:600; color:#374151;
+}
+tbody tr:hover{ background:#fafafa }
+.right{ text-align:right }
+.muted{ color:var(--muted); font-size:12px }
+
+/* 카드/회원 셀 */
+.cardcell{ display:flex; align-items:center; gap:10px; min-width:240px; }
+.thumb{
+  width:48px; height:30px; border-radius:6px; object-fit:cover;
+  background:#f2f2f2; border:1px solid #eee;
+}
+.cardname{ font-weight:600 }
+.cardno{ color:var(--muted); font-size:12px }
+
+.memberwrap{ display:flex; align-items:center; gap:10px; min-width:200px; }
+.membername{ font-weight:600 }
+.memberno{ color:var(--muted); font-size:12px }
+.avatar{
+  width:30px; height:30px; border-radius:50%;
+  background:#f2f2f2; border:1px solid #eee;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:12px; color:#9ca3af;
 }
 
-/* ===== 프린트 ===== */
-@media print {
-  .box { box-shadow: none; border-color: #ddd; page-break-inside: avoid; }
-  button { display: none !important; }
-}
+/* 하단 네비 행 간격 */
+.row[style*="justify-content:flex-end"]{ gap:8px }
 
+/* 접근성 */
+:focus-visible{ outline:3px solid rgba(37,99,235,.35); outline-offset:2px }
+
+/* 반응형 */
+@media (max-width:720px){
+  h1{ font-size:24px }
+  th,td{ padding:9px 10px; font-size:13px }
+  .cardcell{ min-width:200px }
+  .memberwrap{ min-width:160px }
+}
+.pager {
+  justify-content: center;
+  margin-top: 10px;
+  gap: 8px;
+}
+/* 프린트 */
+@media print{
+  .box{ box-shadow:none; border-color:#ddd; page-break-inside:avoid }
+  button{ display:none !important }
+}
   </style>
-
-<link rel="stylesheet" href="/css/adminstyle.css">
 </head>
 <body>
-<jsp:include page="../fragments/header.jsp"></jsp:include>
-  <h1>추천 상품 관리</h1>
+  <jsp:include page="../fragments/header.jsp"></jsp:include>
 
-  <!-- KPI -->
-  <div class="box">
-    <h2>요약</h2>
-    <div class="row">
-      <div>
-        <label>조회 기간(일)</label>
-        <input type="number" id="kpiDays" value="30" min="1" />
+  <div class="container">
+    <h1>추천 상품 관리</h1>
+
+    <!-- KPI -->
+    <div class="box">
+      <h2>요약</h2>
+      <div class="row">
+        <div>
+          <label>조회 기간(일)</label>
+          <input type="number" id="kpiDays" value="30" min="1" />
+        </div>
+        <button id="btnLoadKpi">조회</button>
+        <div class="muted" id="kpiRange"></div>
       </div>
-      <button id="btnLoadKpi">조회</button>
-      <div class="muted" id="kpiRange"></div>
+      <div class="kpi" id="kpiWrap"></div>
     </div>
-    <div class="kpi" id="kpiWrap"></div>
-  </div>
 
-  <!-- 인기 카드 -->
-  <div class="box">
-    <h2>인기 카드 TOP N</h2>
-    <div class="row">
-      <div>
-        <label>조회 기간(일)</label>
-        <input type="number" id="popularDays" value="30" min="1" />
+    <!-- 인기 카드 -->
+    <div class="box">
+      <h2>인기 카드 TOP N</h2>
+      <div class="row">
+        <div>
+          <label>조회 기간(일)</label>
+          <input type="number" id="popularDays" value="30" min="1" />
+        </div>
+        <div>
+          <label>개수</label>
+          <input type="number" id="popularLimit" value="10" min="1" />
+        </div>
+        <button id="btnLoadPopular">인기 조회</button>
       </div>
-      <div>
-        <label>개수</label>
-        <input type="number" id="popularLimit" value="10" min="1" />
-      </div>
-      <button id="btnLoadPopular">인기 조회</button>
+      <table>
+        <thead>
+          <tr>
+            <th>카드</th>
+            <th class="right">VIEW</th>
+            <th class="right">CLICK</th>
+            <th class="right">APPLY</th>
+            <th class="right">점수</th>
+            <th class="right">클릭률</th>
+            <th class="right">전환율</th>
+          </tr>
+        </thead>
+        <tbody id="popularTbody"></tbody>
+      </table>
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th>카드</th>
-          <th class="right">VIEW</th>
-          <th class="right">CLICK</th>
-          <th class="right">APPLY</th>
-          <th class="right">점수</th>
-          <th class="right">클릭률</th>
-          <th class="right">전환율</th>
-        </tr>
-      </thead>
-      <tbody id="popularTbody"></tbody>
-    </table>
-  </div>
 
-
-  <!-- 로그 -->
-  <div class="box">
-    <h2>행동 로그</h2>
-    <div class="row">
-      <!-- 번호 또는 이름 + 자동완성 -->
-      <div>
-        <label>회원(번호 또는 이름)</label>
-        <input type="text" id="logMemberKey" placeholder="예) 1001 또는 홍길동" list="memberHints" />
-        <datalist id="memberHints"></datalist>
+    <!-- 로그 -->
+    <div class="box">
+      <h2>행동 로그</h2>
+      <div class="row">
+        <div>
+          <label>회원(번호 또는 이름)</label>
+          <input type="text" id="logMemberKey" placeholder="예) 1001 또는 홍길동" list="memberHints" />
+          <datalist id="memberHints"></datalist>
+        </div>
+        <div>
+          <label>카드(번호 또는 이름)</label>
+          <input type="text" id="logCardKey" placeholder="예) 2002 또는 커피 혜택 카드" list="cardHints" />
+          <datalist id="cardHints"></datalist>
+        </div>
+        <div>
+          <label>타입</label>
+          <select id="logType">
+            <option value="">(전체)</option>
+            <option value="VIEW">VIEW</option>
+            <option value="CLICK">CLICK</option>
+            <option value="APPLY">APPLY</option>
+          </select>
+        </div>
+        <div>
+          <label>시작일</label>
+          <input type="date" id="logFrom" />
+        </div>
+        <div>
+          <label>종료일</label>
+          <input type="date" id="logTo" />
+        </div>
+        <div class="controls">
+          <label>페이지</label>
+          <input type="number" id="logPage" value="1" min="1" style="width:80px" />
+          <label>사이즈</label>
+          <input type="number" id="logSize" value="20" min="1" style="width:80px" />
+        </div>
+        <button id="btnLoadLogs">로그 조회</button>
       </div>
-      <div>
-        <label>카드(번호 또는 이름)</label>
-        <input type="text" id="logCardKey" placeholder="예) 2002 또는 커피 혜택 카드" list="cardHints" />
-        <datalist id="cardHints"></datalist>
-      </div>
-      <div>
-        <label>타입</label>
-        <select id="logType">
-          <option value="">(전체)</option>
-          <option value="VIEW">VIEW</option>
-          <option value="CLICK">CLICK</option>
-          <option value="APPLY">APPLY</option>
-        </select>
-      </div>
-      <div>
-        <label>시작일</label>
-        <input type="date" id="logFrom" />
-      </div>
-      <div>
-        <label>종료일</label>
-        <input type="date" id="logTo" />
-      </div>
-      <div class="controls">
-        <label>페이지</label>
-        <input type="number" id="logPage" value="1" min="1" style="width:80px"/>
-        <label>사이즈</label>
-        <input type="number" id="logSize" value="20" min="1" style="width:80px"/>
-      </div>
-      <button id="btnLoadLogs">로그 조회</button>
+      <table>
+        <thead>
+          <tr>
+            <th>LOG_NO</th>
+            <th>회원</th>
+            <th>카드</th>
+            <th>TYPE</th>
+            <th>TIME</th>
+            <th>DEVICE</th>
+            <th>IP</th>
+            <th>USER_AGENT</th>
+          </tr>
+        </thead>
+        <tbody id="logsTbody"></tbody>
+      </table>
+   <div class="row pager">
+  <button id="prevPage">이전</button>
+  <button id="nextPage">다음</button>
+</div>
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th>LOG_NO</th>
-          <th>회원</th>
-          <th>카드</th>
-          <th>TYPE</th>
-          <th>TIME</th>
-          <th>DEVICE</th>
-          <th>IP</th>
-          <th>USER_AGENT</th>
-        </tr>
-      </thead>
-      <tbody id="logsTbody"></tbody>
-    </table>
-    <div class="row" style="justify-content:flex-end; margin-top:10px;">
-      <button id="prevPage">이전</button>
-      <button id="nextPage">다음</button>
-    </div>
-  </div>
+  </div><!-- /.container -->
 
-<script src="/js/adminHeader.js"></script>
-<script>
+  <script src="/js/adminHeader.js"></script>
+  <script>
   const ctx = '<%= request.getContextPath() %>';
   const API = ctx + '/admin/reco';
 
@@ -294,7 +307,7 @@ tbody tr:hover { background: #fafafa; }
     }catch{ return u; }
   }
   function pickImageSrcFromRecord(r){
-    const first = r?.cardImageUrl; // 없어도 됨(없으면 fallback)
+    const first = r?.cardImageUrl;
     const fallback = isImageUrl(r?.cardProductUrl) ? r.cardProductUrl : null;
     return normalizeUrl(first || fallback);
   }
@@ -372,15 +385,16 @@ tbody tr:hover { background: #fafafa; }
     }catch(e){ alert('인기 카드 조회 실패: '+e.message); }
   }
 
-  // 유사
+  // (유사카드 섹션이 현재 화면엔 없으므로 함수/바인딩은 안전가드만)
   async function loadSimilar(){
     try{
-      const key   = (document.getElementById('similarKey').value || '').trim();
-      const days  = document.getElementById('similarDays').value || 30;
-      const limit = document.getElementById('similarLimit').value || 10;
+      const key   = (document.getElementById('similarKey')?.value || '').trim();
+      const days  = document.getElementById('similarDays')?.value || 30;
+      const limit = document.getElementById('similarLimit')?.value || 10;
       if(!key){ alert('기준 카드(번호 또는 이름)를 입력해주세요.'); return; }
       const data = await jfetch(`${API}/similar/${encodeURIComponent(key)}?days=${days}&limit=${limit}`);
       const tb = document.getElementById('similarTbody');
+      if(!tb){ return; }
       tb.innerHTML = (data||[]).map(r=>{
         const bImg  = imgTag(pickImageSrcFromRecord(r), r.cardName || '기준 카드');
         const bName = r.cardName || '(이름없음)';
@@ -396,16 +410,8 @@ tbody tr:hover { background: #fafafa; }
 
         return `
           <tr>
-            <td>
-              ${b1}
-              <div class="cardcell">${bImg}<div><div class="cardname">${bName}</div><div class="cardno">${bNum}</div></div></div>
-              ${b2}
-            </td>
-            <td>
-              ${s1}
-              <div class="cardcell">${sImg}<div><div class="cardname">${sName}</div><div class="cardno">${sNum}</div></div></div>
-              ${s2}
-            </td>
+            <td>${b1}<div class="cardcell">${bImg}<div><div class="cardname">${bName}</div><div class="cardno">${bNum}</div></div></div>${b2}</td>
+            <td>${s1}<div class="cardcell">${sImg}<div><div class="cardname">${sName}</div><div class="cardno">${sNum}</div></div></div>${s2}</td>
             <td class="right">${fmt(r.simScore)}</td>
           </tr>
         `;
@@ -555,9 +561,11 @@ tbody tr:hover { background: #fafafa; }
     }catch(e){ alert('로그 조회 실패: '+e.message); }
   }
 
+  // 이벤트 바인딩
   document.getElementById('btnLoadKpi').addEventListener('click', loadKpi);
   document.getElementById('btnLoadPopular').addEventListener('click', loadPopular);
-  document.getElementById('btnLoadSimilar').addEventListener('click', loadSimilar);
+  const $btnSimilar = document.getElementById('btnLoadSimilar');
+  if($btnSimilar) $btnSimilar.addEventListener('click', loadSimilar); // 섹션 없으면 무시
   document.getElementById('btnLoadLogs').addEventListener('click', () => loadLogs());
   document.getElementById('prevPage').addEventListener('click', () => loadLogs({delta:-1}));
   document.getElementById('nextPage').addEventListener('click', () => loadLogs({delta:+1}));
@@ -565,8 +573,7 @@ tbody tr:hover { background: #fafafa; }
   bindTypeahead();
   loadKpi();
   loadPopular();
-  loadLogs(); // ★ 첫 페이지 자동 로딩
-</script>
-
+  loadLogs(); // 첫 페이지 자동 로딩
+  </script>
 </body>
 </html>
