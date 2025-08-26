@@ -42,7 +42,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
   ui.Image? _bgImage;                                // 배경 이미지 (메모리상)
   ImageProvider? _bgProvider;                        // 배경 이미지 Provider (화면 표시용)
   Offset _bgOffset = Offset.zero;                    // 배경 위치(드래그)
-  double _bgScale = 1.0;                             // 배경 확대/축소
+  double _bgScale = 0.8;                             // 배경 확대/축소
   double _bgRotateDeg = 0.0;                         // 배경 회전(도)
   Color _cardBgColor = Colors.white;                 // 배경색(이미지와 병행)
 
@@ -434,7 +434,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
                                         scale: _bgScale,
                                         child: Image(
                                           image: _bgProvider!,
-                                          fit: BoxFit.cover,
+                                          fit: BoxFit.contain,
                                         ),
                                       ),
                                     ),
