@@ -14,20 +14,18 @@ public class AdminReviewReportService {
     private final AdminReviewReportMapper mapper;
 
     public Map<String,Object> summary(String startDt, String endDt) {
-        int inflow      = mapper.countNewApps(Map.of("startDt", startDt, "endDt", endDt));
-        int confirmed   = mapper.countIssuedApps(Map.of("startDt", startDt, "endDt", endDt)); // SIGNED
-        int tempOpen    = mapper.countInProgressNow();
+        int inflow    = mapper.countNewApps(Map.of("startDt", startDt, "endDt", endDt));  // TEMP
+        int confirmed = mapper.countIssuedApps(Map.of("startDt", startDt, "endDt", endDt)); // APPLICATION
+        int tempOpen  = mapper.countInProgressNow();
 
-        Map<String, Object> cohort = mapper.cohortConversion(Map.of("startDt", startDt, "endDt", endDt));
-        int cohortSize   = ((Number)cohort.getOrDefault("cohortSize", 0)).intValue();
-        int cohortIssued = ((Number)cohort.getOrDefault("cohortIssued",0)).intValue();
-        double cohortPct = cohortSize == 0 ? 0 : Math.round((cohortIssued*1000.0)/cohortSize)/10.0;
+        double convPct = inflow == 0 ? 0 : Math.round((confirmed * 1000.0) / inflow) / 10.0; // 소수1자리
 
         Map<String,Object> res = new HashMap<>();
         res.put("tempInflow", inflow);
         res.put("finalConfirmed", confirmed);
         res.put("tempOpen", tempOpen);
-        res.put("cohortConversionPct", cohortPct);
+        // 프런트가 이 키를 쓰고 있으니 이름 유지
+        res.put("cohortConversionPct", convPct);
         return res;
     }
 
