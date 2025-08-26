@@ -210,7 +210,11 @@ class _MyPageState extends State<MyPage> {
   _SimpleSseClient? _sse;
   bool _sseStarted = false;
   final List<InAppNotice> _inbox = [];
+
+  // ✅ 여기에 추가 (중복 알림 차단용)
+  final Set<String> _seenNoticeKeys = {};
   OverlayEntry? _toastEntry;
+
 
   @override
   void initState() {
@@ -308,11 +312,22 @@ class _MyPageState extends State<MyPage> {
         // 로그용
       },
       onMessage: (data, event) {
-        // event == 'marketing' 일 수도, 아닐 수도 있음. payload만 사용.
+        // 선택: 서버 핑/준비 이벤트 무시
+        if (event == 'ready' || event == 'ping') return;
+
         final title = (data['title'] ?? '알림').toString();
         final body  = (data['body'] ?? '').toString();
-        final tsMs  = (data['ts'] is num) ? (data['ts'] as num).toInt() : DateTime.now().millisecondsSinceEpoch;
         final pushNo = (data['pushNo'] is num) ? (data['pushNo'] as num).toInt() : null;
+
+        // ✅ 중복 차단 키 (pushNo가 있으면 그걸로, 없으면 제목+본문 조합)
+        final key = (pushNo != null) ? 'p:$pushNo' : 'tb:$title|$body';
+        if (_seenNoticeKeys.contains(key)) return; // 이미 받았던 알림이면 스킵
+        _seenNoticeKeys.add(key);
+        if (_seenNoticeKeys.length > 500) _seenNoticeKeys.clear(); // 메모리 보호(선택)
+
+        final tsMs = (data['ts'] is num)
+            ? (data['ts'] as num).toInt()
+            : DateTime.now().millisecondsSinceEpoch;
 
         final notice = InAppNotice(
           pushNo: pushNo,
@@ -324,9 +339,12 @@ class _MyPageState extends State<MyPage> {
 
         if (!mounted) return;
         setState(() {
-          _inbox.insert(0, notice);
+          _inbox.insert(0, notice); // 목록/뱃지만 갱신
         });
-        //_showSnackForNotice(notice);
+
+        // ❌ 팝업/스낵바 호출 없음
+        // _showSnackForNotice(notice);
+        // _showInAppToast(notice);
       },
     )..connect();
   }
