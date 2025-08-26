@@ -41,14 +41,14 @@ html, body {
 
 .wrap {
 	max-width: 1100px;
-	margin: 32px auto 80px;
-	padding: 0 16px
+	margin: 0 auto;
+	padding-top: 50px;
 }
 
 .title {
 	font-weight: 700;
 	font-size: 22px;
-	margin: 6px 0 16px
+	margin-bottom: 30px;
 }
 
 .toolbar {

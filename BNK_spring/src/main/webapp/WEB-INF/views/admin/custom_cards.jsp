@@ -35,12 +35,20 @@ body {
 h1 {
 	margin: 0 0 16px;
 }
+.title{
+    margin: 0 auto;
+    display: block;
+    width: 300px;
+    padding-top: 20px;
+    margin-bottom: 20px;}
 
 .wrap {
-	display: grid;
-	grid-template-columns: 1fr 380px;
+	display: flex;
+	template-columns: 1fr 380px;
 	gap: 16px;
-	align-items: start
+	align-items: start;
+	max-width: 1150px;
+argin: 0 auto;
 }
 
 .panel {
@@ -182,7 +190,7 @@ tbody tr.selected {
 	display: flex;
 	gap: 8px;
 	align-items: center;
-	justify-content: flex-end
+    justify-content: center;
 }
 
 .inline {
@@ -214,7 +222,7 @@ tbody tr.selected {
 <body>
 
 	<jsp:include page="../fragments/header.jsp"></jsp:include>
-	<h1>커스텀 AI 판단 로그</h1>
+	<h1 class="title">커스텀 AI 판단 로그</h1>
 
 	<div class="wrap">
 		<!-- 좌측: 리스트/필터 -->

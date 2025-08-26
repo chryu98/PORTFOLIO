@@ -326,7 +326,7 @@ class _MyPageState extends State<MyPage> {
         setState(() {
           _inbox.insert(0, notice);
         });
-        _showSnackForNotice(notice);
+        //_showSnackForNotice(notice);
       },
     )..connect();
   }
