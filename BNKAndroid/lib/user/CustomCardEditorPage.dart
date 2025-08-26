@@ -72,7 +72,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
 
   // ===== 이모지 목록 =====
   static const _emojis = [
-    '😀','😂','😍','👍','🔥','🎉','💖','🐱','🌈','😎','🥳','🤩','🤔','😺'
+    '🐵','🌶','🍺','👍','🔥','🍔','❤','🐱','🌈','🐥','🐷','🐶','💩','😺','🐯'
   ];
 
   // =============== 유틸 ===============
@@ -108,14 +108,34 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
     final codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
 
+    final img = frame.image;
+
+
+    // 카드 영역 크기 가져오기
+    final cardCtx = _cardKey.currentContext;
+    Size? cardSize;
+    if (cardCtx != null) {
+      final rb = cardCtx.findRenderObject() as RenderBox;
+      cardSize = rb.size;
+    }
+
+    double initScale = 1.0;
+    if (cardSize != null) {
+      // 배경 이미지를 카드 안에 맞게 줄이는 기본 배율 계산
+      final scaleX = cardSize.width / img.width;
+      final scaleY = cardSize.height / img.height;
+      initScale = math.min(scaleX, scaleY) * 0.9; // 살짝 여유 있게 90%
+    }
+
     setState(() {
-      _bgImage = frame.image;
+      _bgImage = img;
       _bgProvider = MemoryImage(bytes);
       _bgOffset = Offset.zero;
-      _bgScale = 1.0;
+      _bgScale = initScale; // ← 기본 배율 적용
       _bgRotateDeg = 0.0;
-      // 배경색은 유지
     });
+
+
   }
 
   void _resetAll() {
@@ -511,6 +531,7 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
           _chipBtnIcon(Icons.image_outlined, '배경 이미지', onTap: _pickBackgroundImage),
           _chipBtn('배경 색상', onTap: _setBgColor),
           _chipBtn('위치 초기화', onTap: () => setState(() => _bgOffset = Offset.zero)),
+          _chipBtn('전체 초기화', onTap: _confirmAndReset), // ✅ 전체 초기화 추가
         ],
       ),
     );
