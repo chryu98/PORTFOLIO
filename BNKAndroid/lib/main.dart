@@ -8,6 +8,9 @@ import 'package:bnkandroid/constants/chat_api.dart';
 import 'package:bnkandroid/user/CustomCardEditorPage.dart';
 import 'package:bnkandroid/user/MainPage.dart';
 
+// ★ 추가
+import 'splash/splash_page.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
@@ -76,15 +79,13 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      // 앱이 처음 뜰 때 보여줄 화면
-      home: const AppShell(),
+      // ★ 스플래시 게이트: 스플래시를 모달로 띄운 뒤 AppShell로 전환
+      home: const _Bootstrapper(),
 
-      // ✅ 메인으로 점프하기 위한 네임드 라우트 등록
       routes: {
         '/home': (_) => const AppShell(),
       },
 
-      // ✅ /sign 라우트 핸들링(기존 그대로)
       onGenerateRoute: (settings) {
         if (settings.name == '/sign') {
           final args = settings.arguments as Map<String, dynamic>?;
@@ -97,5 +98,43 @@ class MyApp extends StatelessWidget {
         return null;
       },
     );
+  }
+}
+
+// ★ 스플래시를 띄운 뒤 AppShell을 보여주는 작은 게이트 위젯
+class _Bootstrapper extends StatefulWidget {
+  const _Bootstrapper({super.key});
+  @override
+  State<_Bootstrapper> createState() => _BootstrapperState();
+}
+
+class _BootstrapperState extends State<_Bootstrapper> {
+  bool _ready = false;
+
+  Future<void> _dummyInit() async {
+    // main()에서 이미 초기화 끝났다면 비워둬도 됨.
+    // 추가로 필요한 초기 비동기 작업이 있으면 여기에 작성.
+    await Future.delayed(const Duration(milliseconds: 300));
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // 스플래시를 반투명 모달로 띄운 후 닫히면 홈 전환
+      await Navigator.of(context).push(PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.transparent,
+        pageBuilder: (_, __, ___) => SplashPage(onReady: _dummyInit),
+        transitionsBuilder: (_, a, __, child) =>
+            FadeTransition(opacity: a, child: child),
+      ));
+      if (mounted) setState(() => _ready = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ready ? const AppShell() : const SizedBox.shrink();
   }
 }

@@ -121,7 +121,7 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
 
     setState(() => _idFile = file);
 
-    // OCR 호출 → 잠금 카드 자동 채움
+    // OCR 호출 → 잠금 카드 자동 채움 (기능 변경 없음)
     try {
       setState(() {
         _loading = true;
@@ -238,39 +238,49 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
   Widget build(BuildContext context) {
     return SecureScreen(
       child: Scaffold(
-        appBar: AppBar(title: const Text('본인인증')),
+        appBar: AppBar(
+          title: const Text('본인인증'),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
         body: Stack(
           children: [
             AbsorbPointer(
               absorbing: _loading,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 미리보기 썸네일: 신분증(가로 비율), 얼굴(세로 비율)
-                    Row(children: [
-                      Expanded(
-                        child: _ThumbBox(
-                          title: '신분증',
-                          file: _idFile,
-                          onPick: _captureId,
-                          aspectRatio: 4 / 3, // 가로형
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _ThumbBox(
-                          title: '얼굴',
-                          file: _faceFile,
-                          onPick: _captureFace,
-                          aspectRatio: 3 / 4, // 세로형
-                        ),
-                      ),
-                    ]),
-                    const SizedBox(height: 12),
+                    // 상단 안내 문구 (디자인만 추가)
+                    const SizedBox(height: 6),
+                    const Text(
+                      '본인 인증이 필요해요',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 18),
 
-                    // OCR 잠금 표시
+                    // ▶ 큰 카드 1: 신분증
+                    _UploadCard(
+                      title: '신분증 사진 업로드',
+                      subtitle: '주민등록증 • 운전면허증',
+                      file: _idFile,
+                      onTap: _captureId,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ▶ 큰 카드 2: 얼굴
+                    _UploadCard(
+                      title: '실시간 얼굴 사진 업로드',
+                      subtitle: '정면에서 촬영해 주세요',
+                      file: _faceFile,
+                      onTap: _captureFace,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // 주민번호 잠금 표시(기능 유지)
                     _RrnLockedCard(
                       front: _front,
                       gender: _gender.isNotEmpty ? _gender[0] : '',
@@ -287,9 +297,11 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
                       },
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
+
+                    // 하단 “다음” 버튼(동작은 _submit 그대로)
                     SizedBox(
-                      height: 48,
+                      height: 52,
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: _loading ? null : _submit,
@@ -299,7 +311,7 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
-                        child: Text(_loading ? '전송 중...' : '인증 요청'),
+                        child: Text(_loading ? '전송 중...' : '다음'),
                       ),
                     ),
 
@@ -319,64 +331,95 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
               ),
           ],
         ),
+        backgroundColor: const Color(0xFFF5F7F8),
       ),
     );
   }
 }
 
-/// 공용 썸네일(원하는 가로세로 비율로 표시)
-class _ThumbBox extends StatelessWidget {
-  const _ThumbBox({
+/// 업로드 카드(탭해서 촬영/선택). 파일이 있으면 미리보기, 없으면 안내문구.
+class _UploadCard extends StatelessWidget {
+  const _UploadCard({
     required this.title,
+    required this.subtitle,
     required this.file,
-    required this.onPick,
-    required this.aspectRatio,
+    required this.onTap,
   });
 
   final String title;
+  final String subtitle;
   final File? file;
-  final VoidCallback onPick;
-  final double aspectRatio;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final child = AspectRatio(
-      aspectRatio: aspectRatio,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          color: const Color(0xFFF5F5F5),
-          child: file != null
-              ? Image.file(file!, fit: BoxFit.cover)
-              : const Center(child: Text('촬영 전')),
+    final base = Container(
+      height: 160,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: file == null
+          ? Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.add_a_photo_outlined, size: 28),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+          ],
+        ),
+      )
+          : ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.file(file!, fit: BoxFit.cover),
+            // 우상단 변경 아이콘(시각적 보조 – 기능은 동일하게 onTap)
+            Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.45),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.edit, size: 14, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text('다시 촬영', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        child,
-        const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: onPick,
-            icon: const Icon(Icons.camera_alt),
-            label: Text('$title 촬영'),
-            style: OutlinedButton.styleFrom(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-        ),
-      ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: base,
     );
   }
 }
 
-/// 주민번호 잠금표시 + 보기 토글
+/// 주민번호 잠금표시 + 보기 토글 (기능 그대로)
 class _RrnLockedCard extends StatelessWidget {
   const _RrnLockedCard({
     required this.front,
@@ -407,6 +450,7 @@ class _RrnLockedCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
+        color: Colors.white,
         border: Border.all(color: const Color(0xFFE0E0E0)),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -479,6 +523,7 @@ class _ResultBox extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border.all(color: const Color(0xFFE0E0E0)),
         borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
       ),
       child: DefaultTextStyle(
         style: const TextStyle(fontFamily: 'monospace', fontSize: 12),

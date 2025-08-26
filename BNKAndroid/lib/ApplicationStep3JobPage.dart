@@ -2,14 +2,14 @@
 import 'package:flutter/material.dart';
 import 'ApplicationStep1Page.dart' show kPrimaryRed;
 import 'user/service/card_apply_service.dart' as apply;
-
+import 'ApplicationStep4OcrPage.dart';
 // ✅ 5페이지(계좌연결)로 바로 이동
 import 'ApplicationStep5AccountPage.dart';
 
 // -------------------------
 // 개발용: OCR 스킵 여부 (true면 Step5로 직행)
 // -------------------------
-const bool kSkipOcrForDev = true;
+const bool kSkipOcrForDev = false;
 
 /// Step 3: 직업/거래목적/자금출처
 class ApplicationStep3JobPage extends StatefulWidget {
@@ -88,15 +88,15 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
           ),
         );
       } else {
-        // 원래 흐름(필요 시 사용)
-        // await Navigator.of(context).push(
-        //   MaterialPageRoute(
-        //     builder: (_) => ApplicationStep4OcrPage(
-        //       applicationNo: widget.applicationNo,
-        //       cardNo: widget.cardNo,
-        //     ),
-        //   ),
-        // );
+        //원래 흐름(필요 시 사용)
+        await Navigator.of(context).push(
+           MaterialPageRoute(
+             builder: (_) => ApplicationStep4OcrPage(
+              applicationNo: widget.applicationNo,
+              cardNo: widget.cardNo,
+             ),
+           ),
+         );
       }
     } on apply.ApiException catch (e) {
       if (!mounted) return;

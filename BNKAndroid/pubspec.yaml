@@ -51,9 +51,27 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/
     - assets/postcode.html
+
+# ==== 앱 아이콘 설정 ====
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icon/app_icon.png
+  min_sdk_android: 21
+
+# ==== 스플래시 설정 ====
+flutter_native_splash:
+  color: "#FFFFFF"  # 앱 배경과 동일
+  android_12:
+    color: "#FFFFFF"
+  android: true
+  ios: true
+  web: false
