@@ -28,7 +28,6 @@
 body {
 	font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial,
 		sans-serif;
-	margin: 24px;
 	color: var(--txt);
 	background: var(--bg)
 }

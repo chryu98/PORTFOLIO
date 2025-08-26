@@ -1,7 +1,8 @@
 package com.busanbank.card.sse;
 
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -9,44 +10,55 @@ import com.busanbank.card.cardapply.config.JwtTokenProvider;
 
 @RestController
 @RequestMapping("/api/sse")
-@CrossOrigin(origins = "*") // 필요 시
+@CrossOrigin(origins = "*")
 public class SseController {
 
     private final SseEmitterRegistry registry;
     private final JwtTokenProvider jwtTokenProvider;
+    private final SseEventStore store;
 
-    public SseController(SseEmitterRegistry registry, JwtTokenProvider jwtTokenProvider) {
+    public SseController(SseEmitterRegistry registry, JwtTokenProvider jwtTokenProvider, SseEventStore store) {
         this.registry = registry;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.store = store;
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter stream(
+    public ResponseEntity<SseEmitter> stream(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam(value = "memberNo", required = false) Long memberNoParam,
             @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId
     ) {
         Long memberNo = memberNoParam;
 
-        // JWT에서 memberNo 추출(토큰에 넣어두셨으니 이 경로가 편합니다)
         if (memberNo == null && authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             if (jwtTokenProvider.validateToken(token)) {
-                // 예: JwtTokenProvider에 getMemberNo(token) 같은 메서드 하나 추가
-                Integer no = jwtTokenProvider.getMemberNo(token);
+                Integer no = jwtTokenProvider.getMemberNo(token); // 존재한다고 하셨던 메서드
                 if (no != null) memberNo = no.longValue();
             }
         }
 
         if (memberNo == null) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "memberNo is required"
-            );
+            return ResponseEntity.badRequest().build();
         }
 
         SseEmitter emitter = registry.register(memberNo, 60L * 60 * 1000);
         registry.safeSend(emitter, SseEmitter.event().name("ready").data("ok"), () -> {});
-        return emitter;
+
+        // 재연결 시 누락분 재전송 (최근 50개 한도)
+        for (var se : store.since(memberNo, lastEventId, 50)) {
+            registry.safeSend(
+                    emitter,
+                    SseEmitter.event().id(se.id).name(se.name).data(se.payload),
+                    () -> registry.remove(memberNo, emitter)
+            );
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-cache")
+                .header("X-Accel-Buffering", "no")        // Nginx 등 버퍼링 방지
+                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .body(emitter);
     }
 }
-
