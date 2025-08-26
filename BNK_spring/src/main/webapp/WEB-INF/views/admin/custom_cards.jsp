@@ -1,151 +1,328 @@
-<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
-<%@ taglib prefix="c" uri="jakarta.tags.core" %>
-<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="jakarta.tags.core"%>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt"%>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8"/>
-  <title>AI 커스텀 로그</title>
-  <style>
-    :root{
-      --border:#e5e7eb; --muted:#6b7280; --bg:#f9fafb; --ink:#111827; --ink2:#374151;
-      --pill:#eef2ff; --okBg:#ecfdf5; --ok:#065f46; --badBg:#fef2f2; --bad:#7f1d1d;
-      --primary:#111827; --rowHover:#f9fafb; --sel:#eef2ff;
-    }
-    *{box-sizing:border-box}
-    body{font-family:system-ui,AppleSDGothicNeo,Segoe UI,Roboto,Arial; margin:20px; color:var(--ink)}
-    h1{margin:0 0 16px;}
-    .wrap{display:grid; grid-template-columns: 1fr 380px; gap:16px; align-items:start}
-    .panel{border:1px solid var(--border); border-radius:12px; padding:14px; background:#fff}
-    .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    label{font-size:12px; color:var(--muted); margin-right:6px}
-    select,input{padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:#fff}
-    button{padding:8px 12px; border:1px solid var(--border); background:#fff; border-radius:10px; cursor:pointer}
-    button.primary{background:var(--primary); color:#fff; border-color:var(--primary)}
-    button:disabled{opacity:.5; cursor:not-allowed}
-    .table-wrap{max-height:62vh; overflow:auto; border:1px solid var(--border); border-radius:10px}
-    table{width:100%; border-collapse:separate; border-spacing:0; font-size:14px; min-width:700px}
-    thead th{position:sticky; top:0; background:#fff; z-index:1; border-bottom:1px solid var(--border); padding:10px; text-align:left; font-weight:700}
-    tbody td{border-bottom:1px solid var(--border); padding:10px; color:var(--ink2)}
-    tbody tr{cursor:pointer}
-    tbody tr:hover{background:var(--rowHover)}
-    tbody tr.selected{background:var(--sel)}
-    .pill{display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border); background:var(--pill)}
-    .pill.ok{background:var(--okBg); color:var(--ok); border-color:#10b981}
-    .pill.bad{background:var(--badBg); color:var(--bad); border-color:#ef4444}
-    .muted{color:var(--muted); font-size:12px}
-    .right .box{border:1px solid var(--border); border-radius:10px; padding:10px; background:#fff}
-    .right img{width:100%; border-radius:10px; background:#f3f4f6}
-    .row-actions{display:flex; gap:6px}
-    .pagination{margin-top:12px; display:flex; gap:8px; align-items:center; justify-content:flex-end}
-    .inline{display:inline-flex; align-items:center; gap:6px}
-    .kvs{display:grid; grid-template-columns:90px 1fr; gap:6px; font-size:13px}
-    .kvs dt{color:var(--muted)}
-    .empty{padding:18px; text-align:center; color:var(--muted)}
-  </style>
-  
+<meta charset="UTF-8" />
+<title>AI 커스텀 로그</title>
+<style>
+:root {
+	--border: #e5e7eb;
+	--muted: #6b7280;
+	--bg: #f9fafb;
+	--ink: #111827;
+	--ink2: #374151;
+	--pill: #eef2ff;
+	--okBg: #ecfdf5;
+	--ok: #065f46;
+	--badBg: #fef2f2;
+	--bad: #7f1d1d;
+	--primary: #111827;
+	--rowHover: #f9fafb;
+	--sel: #eef2ff;
+}
+
+* {
+	box-sizing: border-box
+}
+
+body {
+	font-family: system-ui, AppleSDGothicNeo, Segoe UI, Roboto, Arial;
+	color: var(--ink)
+}
+
+h1 {
+	margin: 0 0 16px;
+}
+
+.wrap {
+	display: grid;
+	grid-template-columns: 1fr 380px;
+	gap: 16px;
+	align-items: start
+}
+
+.panel {
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	padding: 14px;
+	background: #fff
+}
+
+.toolbar {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	align-items: center
+}
+
+label {
+	font-size: 12px;
+	color: var(--muted);
+	margin-right: 6px
+}
+
+select, input {
+	padding: 8px 10px;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	background: #fff
+}
+
+button {
+	padding: 8px 12px;
+	border: 1px solid var(--border);
+	background: #fff;
+	border-radius: 10px;
+	cursor: pointer
+}
+
+button.primary {
+	background: var(--primary);
+	color: #fff;
+	border-color: var(--primary)
+}
+
+button:disabled {
+	opacity: .5;
+	cursor: not-allowed
+}
+
+.table-wrap {
+	max-height: 62vh;
+	overflow: auto;
+	border: 1px solid var(--border);
+	border-radius: 10px
+}
+
+table {
+	width: 100%;
+	border-collapse: separate;
+	border-spacing: 0;
+	font-size: 14px;
+	min-width: 700px
+}
+
+thead th {
+	position: sticky;
+	top: 0;
+	background: #fff;
+	z-index: 1;
+	border-bottom: 1px solid var(--border);
+	padding: 10px;
+	text-align: left;
+	font-weight: 700
+}
+
+tbody td {
+	border-bottom: 1px solid var(--border);
+	padding: 10px;
+	color: var(--ink2)
+}
+
+tbody tr {
+	cursor: pointer
+}
+
+tbody tr:hover {
+	background: var(--rowHover)
+}
+
+tbody tr.selected {
+	background: var(--sel)
+}
+
+.pill {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-size: 12px;
+	border: 1px solid var(--border);
+	background: var(--pill)
+}
+
+.pill.ok {
+	background: var(--okBg);
+	color: var(--ok);
+	border-color: #10b981
+}
+
+.pill.bad {
+	background: var(--badBg);
+	color: var(--bad);
+	border-color: #ef4444
+}
+
+.muted {
+	color: var(--muted);
+	font-size: 12px
+}
+
+.right .box {
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 10px;
+	background: #fff
+}
+
+.right img {
+	width: 100%;
+	border-radius: 10px;
+	background: #f3f4f6
+}
+
+.row-actions {
+	display: flex;
+	gap: 6px
+}
+
+.pagination {
+	margin-top: 12px;
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	justify-content: flex-end
+}
+
+.inline {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px
+}
+
+.kvs {
+	display: grid;
+	grid-template-columns: 90px 1fr;
+	gap: 6px;
+	font-size: 13px
+}
+
+.kvs dt {
+	color: var(--muted)
+}
+
+.empty {
+	padding: 18px;
+	text-align: center;
+	color: var(--muted)
+}
+</style>
+
 <link rel="stylesheet" href="/css/adminstyle.css">
 </head>
 <body>
 
-<jsp:include page="../fragments/header.jsp"></jsp:include>
-<h1>커스텀 AI 판단 로그</h1>
+	<jsp:include page="../fragments/header.jsp"></jsp:include>
+	<h1>커스텀 AI 판단 로그</h1>
 
-<div class="wrap">
-  <!-- 좌측: 리스트/필터 -->
-  <div class="panel">
-    <form id="searchForm" class="toolbar" action="<c:url value='/admin/custom-cards'/>" method="get">
-      <div class="inline">
-        <label>AI 결과</label>
-        <select name="aiResult" id="aiResult">
-          <option value="" <c:if test="${empty param.aiResult}">selected</c:if>>전체</option>
-          <option value="ACCEPT" <c:if test="${param.aiResult == 'ACCEPT'}">selected</c:if>>ACCEPT</option>
-          <option value="REJECT" <c:if test="${param.aiResult == 'REJECT'}">selected</c:if>>REJECT</option>
-        </select>
-      </div>
-      <div class="inline">
-        <label>상태</label>
-        <select name="status" id="status">
-          <option value="" <c:if test="${empty param.status}">selected</c:if>>전체</option>
-          <option value="PENDING"  <c:if test="${param.status == 'PENDING'}">selected</c:if>>PENDING</option>
-          <option value="APPROVED" <c:if test="${param.status == 'APPROVED'}">selected</c:if>>APPROVED</option>
-          <option value="REJECTED" <c:if test="${param.status == 'REJECTED'}">selected</c:if>>REJECTED</option>
-        </select>
-      </div>
-      <div class="inline">
-        <label>회원번호</label>
-        <input type="text" name="memberNo" id="memberNo" value="${empty param.memberNo ? '' : param.memberNo}" placeholder="예: 1001"/>
-      </div>
-      <div class="inline">
-        <label>페이지</label>
-        <select name="size" id="size">
-          <option value="10"  <c:if test="${param.size == '10'}">selected</c:if>>10</option>
-          <option value="20"  <c:if test="${empty param.size or param.size == '20'}">selected</c:if>>20</option>
-          <option value="50"  <c:if test="${param.size == '50'}">selected</c:if>>50</option>
-        </select>
-      </div>
-      <button type="submit" class="primary">검색</button>
-      <button type="button" id="resetBtn">초기화</button>
-    </form>
+	<div class="wrap">
+		<!-- 좌측: 리스트/필터 -->
+		<div class="panel">
+			<form id="searchForm" class="toolbar"
+				action="<c:url value='/admin/custom-cards'/>" method="get">
+				<div class="inline">
+					<label>AI 결과</label> <select name="aiResult" id="aiResult">
+						<option value=""
+							<c:if test="${empty param.aiResult}">selected</c:if>>전체</option>
+						<option value="ACCEPT"
+							<c:if test="${param.aiResult == 'ACCEPT'}">selected</c:if>>ACCEPT</option>
+						<option value="REJECT"
+							<c:if test="${param.aiResult == 'REJECT'}">selected</c:if>>REJECT</option>
+					</select>
+				</div>
+				<div class="inline">
+					<label>상태</label> <select name="status" id="status">
+						<option value=""
+							<c:if test="${empty param.status}">selected</c:if>>전체</option>
+						<option value="PENDING"
+							<c:if test="${param.status == 'PENDING'}">selected</c:if>>PENDING</option>
+						<option value="APPROVED"
+							<c:if test="${param.status == 'APPROVED'}">selected</c:if>>APPROVED</option>
+						<option value="REJECTED"
+							<c:if test="${param.status == 'REJECTED'}">selected</c:if>>REJECTED</option>
+					</select>
+				</div>
+				<div class="inline">
+					<label>회원번호</label> <input type="text" name="memberNo"
+						id="memberNo"
+						value="${empty param.memberNo ? '' : param.memberNo}"
+						placeholder="예: 1001" />
+				</div>
+				<div class="inline">
+					<label>페이지</label> <select name="size" id="size">
+						<option value="10"
+							<c:if test="${param.size == '10'}">selected</c:if>>10</option>
+						<option value="20"
+							<c:if test="${empty param.size or param.size == '20'}">selected</c:if>>20</option>
+						<option value="50"
+							<c:if test="${param.size == '50'}">selected</c:if>>50</option>
+					</select>
+				</div>
+				<button type="submit" class="primary">검색</button>
+				<button type="button" id="resetBtn">초기화</button>
+			</form>
 
-    <div class="table-wrap" id="tableWrap">
-      <table>
-        <thead>
-        <tr>
-          <th style="width:90px">번호</th>
-          <th style="width:110px">회원</th>
-          <th style="width:120px">상태</th>
-          <th style="width:120px">AI 결과</th>
-          <th>사유</th>
-          <th style="width:170px">생성일</th>
-        </tr>
-        </thead>
-        <tbody id="rows">
-        <tr><td colspan="6" class="empty">데이터를 불러오는 중…</td></tr>
-        </tbody>
-      </table>
-    </div>
+			<div class="table-wrap" id="tableWrap">
+				<table>
+					<thead>
+						<tr>
+							<th style="width: 90px">번호</th>
+							<th style="width: 110px">회원</th>
+							<th style="width: 120px">상태</th>
+							<th style="width: 120px">AI 결과</th>
+							<th>사유</th>
+							<th style="width: 170px">생성일</th>
+						</tr>
+					</thead>
+					<tbody id="rows">
+						<tr>
+							<td colspan="6" class="empty">데이터를 불러오는 중…</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
 
-    <div class="pagination">
-      <span class="muted" id="pageInfo">페이지 1 / 1</span>
-      <button id="firstBtn">&laquo; 처음</button>
-      <button id="prevBtn">&lt; 이전</button>
-      <button id="nextBtn">다음 &gt;</button>
-      <button id="lastBtn">마지막 &raquo;</button>
-    </div>
-  </div>
+			<div class="pagination">
+				<span class="muted" id="pageInfo">페이지 1 / 1</span>
+				<button id="firstBtn">&laquo; 처음</button>
+				<button id="prevBtn">&lt; 이전</button>
+				<button id="nextBtn">다음 &gt;</button>
+				<button id="lastBtn">마지막 &raquo;</button>
+			</div>
+		</div>
 
-  <!-- 우측: 미리보기/상세 -->
-  <div class="panel right">
-    <div class="box">
-      <div class="muted">선택한 카드 이미지</div>
-      <div id="imgWrap" style="margin-top:8px">
-        <img id="preview" alt="행을 선택하면 미리보기가 표시됩니다" src=""
-             onerror="this.src='';this.alt='이미지 없음'"/>
-      </div>
-      <div style="display:flex; gap:8px; margin-top:10px">
-        <a id="downloadBtn" href="#" download class="inline">
-          <button type="button">이미지 다운로드</button>
-        </a>
-        <a id="openRawBtn" href="#" target="_blank" class="inline">
-          <button type="button">원본 새 창</button>
-        </a>
-      </div>
-    </div>
+		<!-- 우측: 미리보기/상세 -->
+		<div class="panel right">
+			<div class="box">
+				<div class="muted">선택한 카드 이미지</div>
+				<div id="imgWrap" style="margin-top: 8px">
+					<img id="preview" alt="행을 선택하면 미리보기가 표시됩니다" src=""
+						onerror="this.src='';this.alt='이미지 없음'" />
+				</div>
+				<div style="display: flex; gap: 8px; margin-top: 10px">
+					<a id="downloadBtn" href="#" download class="inline">
+						<button type="button">이미지 다운로드</button>
+					</a> <a id="openRawBtn" href="#" target="_blank" class="inline">
+						<button type="button">원본 새 창</button>
+					</a>
+				</div>
+			</div>
 
-    <div class="box" style="margin-top:12px">
-      <div class="muted" style="margin-bottom:6px">상세 정보</div>
-      <dl class="kvs" id="detailBox">
-        <dt>안내</dt><dd class="muted">행을 선택하면 상세정보가 표시됩니다.</dd>
-      </dl>
-    </div>
-  </div>
-</div>
+			<div class="box" style="margin-top: 12px">
+				<div class="muted" style="margin-bottom: 6px">상세 정보</div>
+				<dl class="kvs" id="detailBox">
+					<dt>안내</dt>
+					<dd class="muted">행을 선택하면 상세정보가 표시됩니다.</dd>
+				</dl>
+			</div>
+		</div>
+	</div>
 
-<c:url value="/admin/api/custom-cards" var="apiBase"/>
+	<c:url value="/admin/api/custom-cards" var="apiBase" />
 
-<script src="/js/adminHeader.js"></script>
-<script>
+	<script src="/js/adminHeader.js"></script>
+	<script>
   // HTML escape
   function h(s){ s=(s??'').toString(); return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }

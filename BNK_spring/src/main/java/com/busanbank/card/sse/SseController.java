@@ -43,6 +43,7 @@ public class SseController {
             return ResponseEntity.badRequest().build();
         }
 
+        Long memberNoResolved = memberNo; 
         SseEmitter emitter = registry.register(memberNo, 60L * 60 * 1000);
         registry.safeSend(emitter, SseEmitter.event().name("ready").data("ok"), () -> {});
 
@@ -51,7 +52,7 @@ public class SseController {
             registry.safeSend(
                     emitter,
                     SseEmitter.event().id(se.id).name(se.name).data(se.payload),
-                    () -> registry.remove(memberNo, emitter)
+                    () -> registry.remove(memberNoResolved, emitter)
             );
         }
 
