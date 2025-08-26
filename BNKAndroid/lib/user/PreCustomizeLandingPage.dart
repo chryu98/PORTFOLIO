@@ -187,7 +187,7 @@ class _PreCustomizeLandingPageState extends State<PreCustomizeLandingPage> {
                 ),
               ),
               onPressed: () {
-                if (widget.memberNo == null) {
+                if (widget.memberNo == null || widget.memberNo == 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('로그인 후 이용 가능합니다.')),
                   );

@@ -703,8 +703,8 @@ class _CustomCardEditorPageState extends State<CustomCardEditorPage> {
       await showDialog(
         context: context,
         builder: (_) => const AlertDialog(
-          title: Text('통과'),
-          content: Text('심사가 끝났습니다. 혜택 편집 페이지로 이동합니다.'),
+          title: Text('AI 심사 통과'),
+          content: Text('심사가 끝났습니다. 화면을 터치하면 혜택 편집 페이지로 이동합니다.'),
         ),
       );
       if (!mounted) return;

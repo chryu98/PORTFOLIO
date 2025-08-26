@@ -311,14 +311,7 @@ class _CustomBenefitPageState extends State<CustomBenefitPage> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(statusLabel, style: TextStyle(color: statusColor, fontWeight: FontWeight.w700)),
-            ),
+
           )
         ],
       ),
@@ -601,7 +594,13 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
                 const SizedBox(height: 2),
-                Text(subtitle, style: const TextStyle(fontSize: 12.5, color: Colors.black54)),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
+                  style: const TextStyle(fontSize: 12.5,fontWeight: FontWeight.w600, color: Colors.black54, height: 1.2),
+                ),
               ],
             ),
           ),
