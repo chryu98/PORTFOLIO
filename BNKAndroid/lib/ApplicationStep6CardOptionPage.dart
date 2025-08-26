@@ -68,7 +68,7 @@ class _ApplicationStep6CardOptionPageState extends State<ApplicationStep6CardOpt
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: const BackButton(color: Colors.black87),
-        title: const Text('카드 옵션 선택', style: TextStyle(color: Colors.black87)),
+
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0.5,
@@ -78,7 +78,7 @@ class _ApplicationStep6CardOptionPageState extends State<ApplicationStep6CardOpt
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _StepHeader6(current: 2, total: 3), // 진행바(디자인 자유)
+            const _StepHeader6(current: 5, total: 6), // 진행바(디자인 자유)
             const SizedBox(height: 16),
             Row(
               children: const [
