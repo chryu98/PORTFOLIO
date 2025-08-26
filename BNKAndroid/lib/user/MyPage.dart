@@ -17,7 +17,7 @@ const kTitle       = Color(0xFF111111);
 const kBg          = Colors.white;
 
 /// ✅ API 호스트 한 곳에서 관리
-const String kApiBase = 'http://192.168.0.5:8090';
+const String kApiBase = 'http://192.168.100.106:8090';
 
 class CardApplication {
   final int cardNo;
