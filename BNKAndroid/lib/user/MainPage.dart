@@ -275,13 +275,17 @@ class _CardMainPageState extends State<CardMainPage> {
           const SizedBox(height: 8),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: pad),
-            child: const _EventBanner(),
+            child: _EventBanner(
+              imagePathOrUrl: 'assets/event1.png', // ← 에셋 경로 또는 네트워크 URL
+              isAsset: true,                              // 네트워크면 false
+              darken: 0.25,                               // 텍스트 가독 위해 살짝 어둡게 (선택)
+            ),
           ),
 
           const SizedBox(height: 12),
           Center(
             child: Text(
-              '2 / 8',
+              '1 / 8',
               style: TextStyle(color: Colors.black.withOpacity(0.45), fontWeight: FontWeight.w600),
             ),
           ),
@@ -715,21 +719,44 @@ class _CardListItem extends StatelessWidget {
 }
 
 class _EventBanner extends StatelessWidget {
-  const _EventBanner();
+  final String? imagePathOrUrl; // 에셋 경로 또는 네트워크 URL
+  final bool isAsset;           // true면 AssetImage, false면 NetworkImage
+  final double darken;          // 0.0~1.0, 배경 어둡게 (텍스트 가독성)
+
+  const _EventBanner({
+    this.imagePathOrUrl,
+    this.isAsset = true,
+    this.darken = 0.0,
+  });
 
   @override
   Widget build(BuildContext context) {
+    ImageProvider? bg;
+    if (imagePathOrUrl != null && imagePathOrUrl!.isNotEmpty) {
+      bg = isAsset
+          ? AssetImage(imagePathOrUrl!)
+          : NetworkImage(imagePathOrUrl!) as ImageProvider;
+    }
+
     return _GradientCard(
-      colors: const [Color(0xFF7F7FD5), Color(0xFF86A8E7)],
-      height: 120, // 배너 높이 고정
+      colors: const [Color(0xFF7F7FD5), Color(0xFF86A8E7)], // 이미지 없을 때 그라디언트
+      height: 120,
+      backgroundImage: bg,   // ✅ 이미지 적용
+      darken: darken,        // ✅ 가독성 보정
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        alignment: Alignment.bottomLeft,
         child: const Text(
-          '해외승급 최대혜택!\n송금수수료 면제 + 캐시백',
-          style: TextStyle(color: Colors.white, fontSize: 16, height: 1.25, fontWeight: FontWeight.w800),
+          '최대혜택!\n송금수수료 면제 + 캐시백',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            height: 1.25,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
     );
   }
 }
+
