@@ -252,22 +252,23 @@
   </select>
   
    <!-- ★ 추가: 행동 로그 INSERT (SEQ_CARD_BEHAVIOR_LOG 사용) -->
-  <insert id="insertBehaviorLog">
-    INSERT INTO CARD_BEHAVIOR_LOG
-      (LOG_NO, MEMBER_NO, CARD_NO, BEHAVIOR_TYPE, BEHAVIOR_TIME, DEVICE_TYPE, USER_AGENT, IP_ADDRESS)
-    VALUES
-      (SEQ_CARD_BEHAVIOR_LOG.NEXTVAL,
-       #{memberNo},
-       #{cardNo},
-       #{type},
-       /* ISO8601(UTC) 문자열을 KST DATE로 저장하는 예시 */
-       CAST(
-         TO_TIMESTAMP_TZ(#{isoTime}, 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM')
-         AT TIME ZONE 'Asia/Seoul'
-         AS DATE
-       ),
-       #{device},
-       #{ua},
-       #{ip})
-  </insert>
+<insert id="insertBehaviorLog">
+  INSERT INTO CARD_BEHAVIOR_LOG
+    (LOG_NO, MEMBER_NO, CARD_NO, BEHAVIOR_TYPE, BEHAVIOR_TIME, DEVICE_TYPE, USER_AGENT, IP_ADDRESS)
+  VALUES
+    (SEQ_CARD_BEHAVIOR_LOG.NEXTVAL,
+     #{memberNo},
+     #{cardNo},
+     #{type},
+     CAST(
+       TO_TIMESTAMP_TZ(
+         REGEXP_REPLACE(#{isoTime}, 'Z$', '+00:00'),   -- Z → +00:00
+         'YYYY-MM-DD"T"HH24:MI:SS.FFTZH:TZM'           -- FF: 분수초 가변 허용
+       ) AT TIME ZONE 'Asia/Seoul'
+       AS DATE
+     ),
+     #{device},
+     #{ua},
+     #{ip})
+</insert>
 </mapper>
