@@ -211,7 +211,7 @@ tr:last-child td {
 <link rel="stylesheet" href="/css/adminstyle.css">
 </head>
 <body>
-	<jsp:include page="../..//fragments/header.jsp"></jsp:include>
+	<jsp:include page="../../fragments/header.jsp"></jsp:include>
 	<h1>피드백 대시보드</h1>
 
 	<!-- 컨트롤러가 days/top/minScore를 안 줬어도 안전하게 기본값 보정 -->
