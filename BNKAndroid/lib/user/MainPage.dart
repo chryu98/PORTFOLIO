@@ -9,6 +9,8 @@ import 'package:bnkandroid/user/CustomCardEditorPage.dart';
 import 'package:bnkandroid/user/model/CardModel.dart';
 import 'package:bnkandroid/constants/api.dart';
 import 'package:bnkandroid/user/NaverMapPage.dart';
+import 'package:bnkandroid/user/PreCustomizeLandingPage.dart';
+
 
 class CardMainPage extends StatefulWidget {
   const CardMainPage({super.key});
@@ -110,7 +112,7 @@ class _CardMainPageState extends State<CardMainPage> {
     }
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
-        builder: (_) => CustomCardEditorPage(memberNo: _memberNo!), // 로그인 회원번호 전달
+        builder: (_) => PreCustomizeLandingPage(memberNo: _memberNo!), // ✅ 회원번호 전달
         fullscreenDialog: true,
       ),
     );
