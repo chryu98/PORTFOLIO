@@ -24,7 +24,7 @@ a,li,ul{
     height:100vh;
     background-color: #2c3e50;
     color: white;
-    padding: 60px 40px 0 40px;
+    padding: 100px 0px 0px 90px;
     position:fixed;
     gap:40px;
     transition: width 0.3s ease, padding 0.3s ease;
