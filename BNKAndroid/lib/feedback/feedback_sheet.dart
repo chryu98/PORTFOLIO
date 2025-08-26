@@ -84,7 +84,7 @@ class _FeedbackSheetState extends State<_FeedbackSheet> {
             children: [
               Row(
                 children: [
-                  const Text('피드백', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('카드 발급 절차는 어떠셨나요?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const Spacer(),
                   IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
                 ],
