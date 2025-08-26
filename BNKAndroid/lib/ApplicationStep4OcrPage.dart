@@ -321,7 +321,9 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
                     ),
 
                     const SizedBox(height: 12),
-                    if (_resultJson != null) _ResultBox(data: _resultJson!),
+                    if (_resultJson != null &&
+                        ((_resultJson!['status'] ?? '').toString().toUpperCase() == 'PASS'))
+                      _ResultBox(data: _resultJson!),
                   ],
                 ),
               ),
