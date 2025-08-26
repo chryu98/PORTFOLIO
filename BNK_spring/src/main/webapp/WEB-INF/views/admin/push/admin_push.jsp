@@ -44,11 +44,12 @@ html, body {
 
 .container {
 	max-width: 1100px;
-	margin: 40px auto;
+	margin: 0px auto;
 	padding: 0 16px
 }
 
 .h1 {
+	padding-top:40px;
 	font-size: 22px;
 	font-weight: 700;
 	margin-bottom: 16px
@@ -181,8 +182,11 @@ textarea {
 	color: var(--muted)
 }
 </style>
+ <link rel="stylesheet" href="/css/adminstyle.css">
 </head>
 <body>
+
+<jsp:include page="../../fragments/header.jsp"></jsp:include>
 	<div class="container">
 		<div class="h1">마케팅 푸시 발송</div>
 
@@ -256,6 +260,8 @@ textarea {
 			</div>
 		</div>
 	</div>
+
+<script src="/js/adminHeader.js"></script>
 
 	<script>
 // ---------- URL & CSRF ----------
