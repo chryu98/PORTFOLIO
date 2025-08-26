@@ -166,10 +166,9 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
     if (!mounted) return;
 
     if (res['ok'] == true) {
-      _snack('계좌가 선택되었습니다.');
       _goStep6();
     } else {
-      _snack(res['message'] ?? '인증 실패');
+      _snack(res['message'] ?? '비밀번호가 올바르지 않습니다');
     }
   }
 
@@ -200,7 +199,6 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
       appBar: AppBar(
         backgroundColor: Colors.white, elevation: 0.5,
         leading: const BackButton(color: Colors.black87),
-        title: const Text('계좌 연결', style: TextStyle(color: Colors.black87)),
         foregroundColor: Colors.black87,
       ),
       body: Padding(
@@ -262,7 +260,7 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 6),
-          const _StepIndicator(),
+          const _StepIndicator(current: 4, total: 6),
           const SizedBox(height: 18),
           const Text('신규 계좌가 생성되었습니다', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
@@ -286,7 +284,7 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 6),
-        const _StepIndicator(),
+        const _StepIndicator(current: 4, total: 6),
         const SizedBox(height: 18),
         Text(
           _createError == null ? '신규 계좌를 만들어 연결하세요' : '계좌 생성에 실패했어요',
@@ -316,7 +314,7 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 6),
-        const _StepIndicator(),
+        const _StepIndicator(current: 4, total: 6),
         const SizedBox(height: 18),
         const Text('계좌 선택', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
         const SizedBox(height: 10),
@@ -642,17 +640,25 @@ class _CTA extends StatelessWidget {
 }
 
 class _StepIndicator extends StatelessWidget {
-  const _StepIndicator();
+  final int current; // 1-based
+  final int total;
+  const _StepIndicator({required this.current, required this.total});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 4,
       child: Row(
-        children: [
-          Expanded(child: Container(color: kPrimaryRed)),
-          Container(width: 36, color: const Color(0xFFF0F0F0)),
-        ],
+        children: List.generate(total, (i) {
+          final active = (i + 1) <= current;
+          return Expanded(
+            child: Container(
+              height: 4,
+              margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
+              color: active ? kPrimaryRed : const Color(0xFFF0F0F0),
+            ),
+          );
+        }),
       ),
     );
   }

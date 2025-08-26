@@ -229,7 +229,7 @@ class _ApplicationStep2PageState extends State<ApplicationStep2Page> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Column(
               children: [
-                const _StepHeader2(current: 2, total: 3),
+                const _StepHeader2(current: 2, total: 6),
                 const SizedBox(height: 12),
                 const Align(
                   alignment: Alignment.centerLeft,

@@ -260,7 +260,7 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
-                const _StepHeader(current: 2, total: 5),
+                const _StepHeader(current: 1, total: 6),
                 const SizedBox(height: 12),
                 const Align(
                   alignment: Alignment.centerLeft,

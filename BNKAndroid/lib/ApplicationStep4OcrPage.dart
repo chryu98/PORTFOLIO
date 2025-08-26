@@ -239,7 +239,7 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
     return SecureScreen(
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('본인인증'),
+
           elevation: 0,
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,

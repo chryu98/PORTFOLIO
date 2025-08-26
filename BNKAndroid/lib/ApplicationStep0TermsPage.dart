@@ -200,7 +200,7 @@ class _ApplicationStep0TermsPageState extends State<ApplicationStep0TermsPage> {
     return Scaffold(
       backgroundColor: Colors.white, // 흰 배경
       appBar: AppBar(
-        title: const Text('카드 발급 — 약관 동의'),
+
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0,
@@ -548,11 +548,7 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
     });
     if (mounted && n >= c && !_lastToastShown.contains(pdfNo)) {
       _lastToastShown.add(pdfNo);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('마지막 페이지입니다.'),
-            duration: Duration(seconds: 1),
-        ),
-      );
+      // 더 이상 스낵바를 띄우지 않음
     }
   }
 
@@ -565,10 +561,7 @@ class _TermsPdfTabsState extends State<TermsPdfTabs> with SingleTickerProviderSt
     });
     if (mounted && n >= c && !_lastToastShown.contains(pdfNo)) {
       _lastToastShown.add(pdfNo);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('마지막 페이지입니다.')
-        ,duration: Duration(seconds: 1),),
-      );
+      // 더 이상 스낵바를 띄우지 않음
     }
   }
 

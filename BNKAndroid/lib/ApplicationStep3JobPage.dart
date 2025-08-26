@@ -9,7 +9,7 @@ import 'ApplicationStep5AccountPage.dart';
 // -------------------------
 // 개발용: OCR 스킵 여부 (true면 Step5로 직행)
 // -------------------------
-const bool kSkipOcrForDev = false;
+const bool kSkipOcrForDev = true;
 
 /// Step 3: 직업/거래목적/자금출처
 class ApplicationStep3JobPage extends StatefulWidget {
@@ -123,7 +123,7 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           children: [
-            const _StepHeader3(current: 4, total: 5), // 표시만 그대로 둠
+            const _StepHeader3(current: 3, total: 6), // 표시만 그대로 둠
             const SizedBox(height: 12),
             const Align(
               alignment: Alignment.centerLeft,
