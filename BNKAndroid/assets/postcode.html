@@ -13,13 +13,13 @@
 <body>
 <div id="wrap"></div>
 <script>
-    function sendToFlutter(payload){
-      // 1) 모바일(WebView) 경로: webview_flutter JS 채널
+    function sendToFlutter(payload) {
+      // 1) 모바일(WebView, JSChannel: App)
       if (window.App && window.App.postMessage) {
         window.App.postMessage(JSON.stringify(payload));
         return;
       }
-      // 2) 웹(Chrome) 경로: 부모(Flutter Web) 창으로 전달
+      // 2) 웹(iframe, postMessage)
       if (window.parent) {
         window.parent.postMessage({ type: 'postcode', payload }, '*');
       }
@@ -29,10 +29,10 @@
       oncomplete: function (data) {
         const extra = [data.bname, data.buildingName].filter(Boolean).join(' ');
         sendToFlutter({
-          zonecode: data.zonecode,
-          roadAddress: data.roadAddress,
-          jibunAddress: data.jibunAddress,
-          extraAddress: extra
+          zonecode: data.zonecode,        // 우편번호
+          roadAddress: data.roadAddress,  // 도로명
+          jibunAddress: data.jibunAddress,// 지번
+          extraAddress: extra             // 참고항목
         });
       },
       width:'100%', height:'100%'
