@@ -106,10 +106,14 @@ public class AccountRestController {
     public static class PwSetRequest {
         private String pw1;
         private String pw2;
+        private Integer applicationNo; // ✅ 추가
+
         public String getPw1() { return pw1; }
         public void setPw1(String pw1) { this.pw1 = pw1; }
         public String getPw2() { return pw2; }
         public void setPw2(String pw2) { this.pw2 = pw2; }
+        public Integer getApplicationNo() { return applicationNo; }
+        public void setApplicationNo(Integer applicationNo) { this.applicationNo = applicationNo; }
     }
 
     public static class VerifyRequest {
@@ -218,10 +222,11 @@ public class AccountRestController {
     // ---------- 비밀번호 설정 ----------
     @PostMapping("/{acNo}/set-password")
     @Transactional
-    public ResponseEntity<Map<String,Object>> setPassword(@PathVariable("acNo") Long acNo,
-                                                          @RequestBody PwSetRequest req,
-                                                          @RequestParam("applicationNo") Integer applicationNo,
-                                                          HttpSession session) {
+    public ResponseEntity<Map<String,Object>> setPassword(
+            @PathVariable("acNo") Long acNo,
+            @RequestBody PwSetRequest req,
+            HttpSession session) {
+
         UserDto user = currentUser(session);
         if (user == null) return unauthorized();
 
@@ -243,16 +248,17 @@ public class AccountRestController {
             return ResponseEntity.ok(res);
         }
 
-        String hash = passwordEncoder.encode(req.getPw1());
-        int updated = accountMapper.updatePasswordByOwner(acNo, loginMemberNo, hash);
+        int updated = accountMapper.updatePasswordByOwner(acNo, loginMemberNo, passwordEncoder.encode(req.getPw1()));
         if (updated == 0) {
             res.put("ok", false);
             res.put("message", "비밀번호 설정에 실패했습니다.");
             return ResponseEntity.ok(res);
         }
 
-        // ✅ 카드 신청 상태 갱신
-        cardApplyDao.updateApplicationStatusByAppNo(applicationNo, "ACCOUNT_PW_SET");
+        // ✅ 카드 신청 상태 갱신 (바디에서 받음)
+        if (req.getApplicationNo() != null) {
+            cardApplyDao.updateApplicationStatusByAppNo(req.getApplicationNo(), "ACCOUNT_PW_SET");
+        }
 
         res.put("ok", true);
         res.put("message", "비밀번호가 설정되었습니다.");

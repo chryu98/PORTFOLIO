@@ -188,7 +188,7 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
 
     setState(() {
       _loading = true;
-      _resultJson = null;
+      _resultJson = null; // 초기화
     });
 
     try {
@@ -196,21 +196,26 @@ class _ApplicationStep4OcrPageState extends State<ApplicationStep4OcrPage> {
       final resp = await api.sendVerification(
         idImage: _idFile!,
         faceImage: _faceFile!,
-        applicationNo: widget.applicationNo, // ✅ 서버가 DB에서 주민번호를 조회
+        applicationNo: widget.applicationNo,
       );
 
       final data = resp.data is Map<String, dynamic>
           ? resp.data as Map<String, dynamic>
           : jsonDecode(resp.data.toString()) as Map<String, dynamic>;
 
-      setState(() => _resultJson = data);
-
       final status = (data['status'] ?? '').toString().toUpperCase();
-      if (status == 'PASS') {
+      final isPass = status == 'PASS';
+
+      // ✅ PASS일 때만 하단 결과박스에 보여주도록 세팅
+      if (mounted) {
+        setState(() => _resultJson = isPass ? data : null);
+      }
+
+      if (isPass) {
         _showSnack('본인인증 성공! 다음 단계로 이동합니다.');
         _goStep5();
       } else {
-        // ✅ 실패 시에는 사유/수치 노출 금지, 모달만 표시
+        // 실패 정보는 사용자에게 노출하지 않고 모달만
         debugPrint('VERIFY FAIL (hidden to user): ${data['reason'] ?? data}');
         await _showVerifyFailDialog();
       }
