@@ -144,9 +144,6 @@ class _ApplicationStep7AddressPageState extends State<ApplicationStep7AddressPag
 
       if (!mounted) return;
       if (ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('주소 저장 완료')),
-        );
         // TODO: 다음 단계 이동
         Navigator.push(
           context,
