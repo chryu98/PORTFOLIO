@@ -30,6 +30,13 @@ public class SecurityConfig {
         	.cors(cors -> cors.configurationSource(corsConfigurationSource))
             .securityMatcher("/admin/**")
             .authorizeHttpRequests(auth -> auth
+                    // CORS preflight
+                    .requestMatchers(HttpMethod.OPTIONS, "/admin/**").permitAll()
+                    // ↑↑↑ 프리플라이트 허용
+
+                    // 👇 앱에서 쓰는 행동로그 엔드포인트만 공개
+                    .requestMatchers(HttpMethod.POST, "/admin/reco/log").permitAll()
+
                 .requestMatchers(
                     "/admin/Search/searchlog/**",
                     "/admin/Mainpage",
