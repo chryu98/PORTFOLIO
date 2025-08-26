@@ -27,12 +27,12 @@ class _ApplicationStep8CardPinPageState extends State<ApplicationStep8CardPinPag
   Future<void> _openPadAndSave() async {
     if (_saving) return;
 
-    // ✅ 전체화면 PIN 패드 호출 (6자리, 2회 확인, 연속/반복/생일 금지 내장)
+    // ✅ 전체화면 PIN 패드 호출 (4자리, 2회 확인, 연속/반복/생일 금지 내장)
     final pin = await FullscreenPinPad.open(
       context,
       title: '카드 비밀번호를 입력해주세요',
       confirm: true,       // 신규 설정 → 2회 확인
-      length: 6,           // 6자리 통일
+      length: 4,           // 🔴 6 → 4자리로 변경
       birthYmd: widget.birthYmd, // 생년월일 있으면 전달
     );
     if (pin == null) return; // 사용자가 닫음
@@ -51,7 +51,7 @@ class _ApplicationStep8CardPinPageState extends State<ApplicationStep8CardPinPag
         const SnackBar(content: Text('비밀번호가 저장되고 신청이 준비되었습니다.')),
       );
 
-      // 🔴 변경: 서명 화면으로 이동 (rootNavigator 사용)
+      // 서명 화면으로 이동 (rootNavigator 사용)
       Navigator.of(context, rootNavigator: true).pushReplacementNamed(
         '/sign',
         arguments: {'applicationNo': widget.applicationNo},
@@ -64,7 +64,8 @@ class _ApplicationStep8CardPinPageState extends State<ApplicationStep8CardPinPag
       } else if (e.statusCode == 404) {
         msg = '신청서를 찾을 수 없습니다. 처음부터 다시 시도해주세요.';
       } else if (e.statusCode == 400) {
-        msg = '형식 오류: 숫자 6자리로 설정했는지 확인해주세요.';
+        // 🔴 메시지도 4자리 기준으로 수정
+        msg = '형식 오류: 숫자 4자리로 설정했는지 확인해주세요.';
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } catch (e) {
@@ -94,8 +95,9 @@ class _ApplicationStep8CardPinPageState extends State<ApplicationStep8CardPinPag
           children: const [
             _StepHeader8(current: 8, total: 8),
             SizedBox(height: 16),
+            // 🔴 안내 문구도 4자리로 수정
             Text(
-              '카드 결제/인증에 사용할 비밀번호(6자리 숫자)를 설정합니다.',
+              '카드 결제/인증에 사용할 비밀번호(4자리 숫자)를 설정합니다.',
               style: TextStyle(fontSize: 16),
             ),
             SizedBox(height: 8),

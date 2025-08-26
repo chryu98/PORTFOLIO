@@ -20,6 +20,8 @@ class ApplicationStep5AccountPage extends StatefulWidget {
 }
 
 class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPage> {
+  static const int kAccountPinLength = 4; // 🔴 계좌 비밀번호 자리수(4)
+
   bool _loading = true;
 
   // 서버 응답 원본
@@ -128,8 +130,8 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
     final pin = await FullscreenPinPad.open(
       context,
       title: '계좌 비밀번호를 입력해주세요',
-      confirm: true,   // 새 비번 2회
-      length: 6,
+      confirm: true,               // 새 비번 2회
+      length: kAccountPinLength,   // 🔴 6 → 4
       birthYmd: null,
     );
     if (pin == null) return;
@@ -156,8 +158,8 @@ class _ApplicationStep5AccountPageState extends State<ApplicationStep5AccountPag
     final pin = await FullscreenPinPad.open(
       context,
       title: '계좌 비밀번호를 입력해주세요',
-      confirm: false,  // 1회 입력
-      length: 6,
+      confirm: false,              // 1회 입력
+      length: kAccountPinLength,   // 🔴 6 → 4
       birthYmd: null,
     );
     if (pin == null) return;
