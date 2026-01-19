@@ -9,7 +9,7 @@ import 'ApplicationStep5AccountPage.dart';
 // -------------------------
 // 개발용: OCR 스킵 여부 (true면 Step5로 직행)
 // -------------------------
-const bool kSkipOcrForDev = false;
+const bool kSkipOcrForDev = true;
 
 /// Step 3: 직업/거래목적/자금출처
 class ApplicationStep3JobPage extends StatefulWidget {
@@ -75,8 +75,6 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
         return;
       }
 
-
-
       // ✅ OCR 스킵: Step5(계좌연결)로 곧장 이동
       if (kSkipOcrForDev) {
         await Navigator.of(context).push(
@@ -88,15 +86,15 @@ class _ApplicationStep3JobPageState extends State<ApplicationStep3JobPage> {
           ),
         );
       } else {
-        //원래 흐름(필요 시 사용)
+        // 원래 흐름(필요 시 사용)
         await Navigator.of(context).push(
-           MaterialPageRoute(
-             builder: (_) => ApplicationStep4OcrPage(
+          MaterialPageRoute(
+            builder: (_) => ApplicationStep4OcrPage(
               applicationNo: widget.applicationNo,
               cardNo: widget.cardNo,
-             ),
-           ),
-         );
+            ),
+          ),
+        );
       }
     } on apply.ApiException catch (e) {
       if (!mounted) return;
@@ -263,8 +261,7 @@ class FullScreenSelectField extends FormField<String> {
           isEmpty: showHint,
           decoration: dec.copyWith(
             errorText: hasError ? state.errorText : null,
-            suffixIcon:
-            const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.black54),
+            suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.black54),
           ),
           child: showHint
               ? const SizedBox(height: 20)
@@ -304,8 +301,8 @@ class _SelectFullScreenPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0.4,
         leading: const CloseButton(color: Colors.black87),
-        title: Text(title,
-            style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
+        title:
+        Text(title, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
         centerTitle: false,
       ),
       body: SafeArea(
@@ -319,8 +316,7 @@ class _SelectFullScreenPage extends StatelessWidget {
               final isSelected = opt == sel;
               return ListTile(
                 tileColor: Colors.white,
-                contentPadding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                 minVerticalPadding: 12,
                 title: Text(
                   opt,

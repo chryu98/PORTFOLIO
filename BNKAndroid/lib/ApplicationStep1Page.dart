@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:bnkandroid/app_shell.dart' show pushFullScreen; // 루트 푸시 helper
-import 'package:bnkandroid/security/secure_screen.dart';        // 화면 캡처/미러링 방지(가능한 플랫폼)
-import 'package:bnkandroid/security/screenshot_watcher.dart';   // 스크린샷/화면녹화 시도 알림
+// ⛔ 제거: 화면 캡처/미러링 방지 및 스크린샷 알림 관련
+// import 'package:bnkandroid/security/secure_screen.dart';
+// import 'package:bnkandroid/security/screenshot_watcher.dart';
 
 import 'ApplicationStep2Page.dart';
 import 'user/service/card_apply_service.dart';
@@ -126,13 +127,14 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
     _attachFieldListeners();
     _loadPrefill(); // 로그인 기반 프리필 시도
 
-    // ⬇️ (Android/iOS만) 스크린샷/녹화 시도시 토스트/다이얼로그 알림
-    ScreenshotWatcher.instance.start(context);
+    // ⛔ 제거: 스크린샷/녹화 감지 알림 시작
+    // ScreenshotWatcher.instance.start(context);
   }
 
   @override
   void dispose() {
-    ScreenshotWatcher.instance.stop();
+    // ⛔ 제거: 스크린샷/녹화 감지 알림 중지
+    // ScreenshotWatcher.instance.stop();
 
     _name.dispose();
     _engFirst.dispose();
@@ -224,157 +226,156 @@ class _ApplicationStep1PageState extends State<ApplicationStep1Page> {
   Widget build(BuildContext context) {
     final isBusy = _submitting || _prefilling;
 
-    return SecureScreen( // ⬅️ 화면 캡처/미러링 차단(가능한 플랫폼)
-      child: PopScope(
-        canPop: true, // 시스템 뒤로가기 허용
-        onPopInvoked: (didPop) {
-          if (didPop) return;
-          // 우리 쪽 종료: 키보드 내리고 다음 프레임에 안전 pop
-          FocusManager.instance.primaryFocus?.unfocus();
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) {
-              Navigator.of(context, rootNavigator: true).maybePop();
-            }
-          });
-        },
-        child: Scaffold(
-          appBar: AppBar(
-            leading: IconButton(
-              icon: const Icon(Icons.close, color: Colors.black87),
-              onPressed: () {
-                FocusManager.instance.primaryFocus?.unfocus();
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (context.mounted) {
-                    Navigator.of(context, rootNavigator: true).maybePop();
-                  }
-                });
-              },
-            ),
-            backgroundColor: Colors.white,
-            elevation: 0.5,
+    // ⛔ 제거: SecureScreen(캡처/미러링 방지 래퍼)
+    return PopScope(
+      canPop: true, // 시스템 뒤로가기 허용
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        // 우리 쪽 종료: 키보드 내리고 다음 프레임에 안전 pop
+        FocusManager.instance.primaryFocus?.unfocus();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            Navigator.of(context, rootNavigator: true).maybePop();
+          }
+        });
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: Colors.black87),
+            onPressed: () {
+              FocusManager.instance.primaryFocus?.unfocus();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (context.mounted) {
+                  Navigator.of(context, rootNavigator: true).maybePop();
+                }
+              });
+            },
           ),
+          backgroundColor: Colors.white,
+          elevation: 0.5,
+        ),
 
-          // 🔥 웹/크롬에서 레이아웃 깨짐 방지를 위해 body를 ListView 하나로 단순화
-          body: Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              children: [
-                const _StepHeader(current: 1, total: 6),
-                const SizedBox(height: 12),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '정보를 입력해주세요',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        // 🔥 웹/크롬에서 레이아웃 깨짐 방지를 위해 body를 ListView 하나로 단순화
+        body: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            children: [
+              const _StepHeader(current: 1, total: 6),
+              const SizedBox(height: 12),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '정보를 입력해주세요',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // 한글 이름
+              TextFormField(
+                controller: _name,
+                decoration: _fieldDec('이름'),
+                style: TextStyle(color: _colorFor(_name)),
+                textInputAction: TextInputAction.next,
+                validator: (v) =>
+                (v == null || v.trim().isEmpty) ? '이름을 입력하세요' : null,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '여권 이름과 동일해야 합니다.\n* 여권 이름과 다르면 해외에서 카드를 사용할 수 없습니다.',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+
+              // 영문 성 / 이름
+              TextFormField(
+                controller: _engLast,
+                decoration: _fieldDec('영문 성'),
+                style: TextStyle(color: _colorFor(_engLast)),
+                textCapitalization: TextCapitalization.characters,
+                textInputAction: TextInputAction.next,
+                validator: (v) =>
+                (v == null || v.trim().isEmpty) ? '영문 성을 입력하세요' : null,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _engFirst,
+                decoration: _fieldDec('영문 이름'),
+                style: TextStyle(color: _colorFor(_engFirst)),
+                textCapitalization: TextCapitalization.characters,
+                textInputAction: TextInputAction.next,
+                validator: (v) =>
+                (v == null || v.trim().isEmpty) ? '영문 이름을 입력하세요' : null,
+              ),
+              const SizedBox(height: 10),
+
+              // 주민번호 앞 6자리
+              TextFormField(
+                controller: _rrnFront,
+                decoration: _fieldDec('주민등록번호 앞자리'),
+                style: TextStyle(color: _colorFor(_rrnFront)),
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(6),
+                ],
+                textInputAction: TextInputAction.next,
+                validator: (v) =>
+                (v == null || v.length != 6) ? '앞 6자리를 입력하세요' : null,
+              ),
+              const SizedBox(height: 10),
+
+              // 주민번호 뒤 7자리
+              TextFormField(
+                controller: _rrnBack,
+                decoration: _fieldDec('주민등록번호 뒷자리'),
+                style: TextStyle(color: _colorFor(_rrnBack)),
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(7),
+                ],
+                validator: (v) =>
+                (v == null || v.length != 7) ? '뒤 7자리를 입력하세요' : null,
+              ),
+
+              // bottomNavigationBar와 겹치지 않도록 여백
+              const SizedBox(height: 100),
+            ],
+          ),
+        ),
+
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: SizedBox(
+              height: 48,
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: (isBusy) ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimaryRed,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                const SizedBox(height: 8),
-
-                // 한글 이름
-                TextFormField(
-                  controller: _name,
-                  decoration: _fieldDec('이름'),
-                  style: TextStyle(color: _colorFor(_name)),
-                  textInputAction: TextInputAction.next,
-                  validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? '이름을 입력하세요' : null,
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  '여권 이름과 동일해야 합니다.\n* 여권 이름과 다르면 해외에서 카드를 사용할 수 없습니다.',
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-                const SizedBox(height: 12),
-
-                // 영문 성 / 이름
-                TextFormField(
-                  controller: _engLast,
-                  decoration: _fieldDec('영문 성'),
-                  style: TextStyle(color: _colorFor(_engLast)),
-                  textCapitalization: TextCapitalization.characters,
-                  textInputAction: TextInputAction.next,
-                  validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? '영문 성을 입력하세요' : null,
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: _engFirst,
-                  decoration: _fieldDec('영문 이름'),
-                  style: TextStyle(color: _colorFor(_engFirst)),
-                  textCapitalization: TextCapitalization.characters,
-                  textInputAction: TextInputAction.next,
-                  validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? '영문 이름을 입력하세요' : null,
-                ),
-                const SizedBox(height: 10),
-
-                // 주민번호 앞 6자리
-                TextFormField(
-                  controller: _rrnFront,
-                  decoration: _fieldDec('주민등록번호 앞자리'),
-                  style: TextStyle(color: _colorFor(_rrnFront)),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(6),
-                  ],
-                  textInputAction: TextInputAction.next,
-                  validator: (v) =>
-                  (v == null || v.length != 6) ? '앞 6자리를 입력하세요' : null,
-                ),
-                const SizedBox(height: 10),
-
-                // 주민번호 뒤 7자리
-                TextFormField(
-                  controller: _rrnBack,
-                  decoration: _fieldDec('주민등록번호 뒷자리'),
-                  style: TextStyle(color: _colorFor(_rrnBack)),
-                  obscureText: true,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(7),
-                  ],
-                  validator: (v) =>
-                  (v == null || v.length != 7) ? '뒤 7자리를 입력하세요' : null,
-                ),
-
-                // bottomNavigationBar와 겹치지 않도록 여백
-                const SizedBox(height: 100),
-              ],
-            ),
-          ),
-
-          bottomNavigationBar: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: SizedBox(
-                height: 48,
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: (isBusy) ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimaryRed,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: isBusy
-                      ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                      : const Text('다음'),
-                ),
+                child: isBusy
+                    ? const SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                    : const Text('다음'),
               ),
             ),
           ),
-          backgroundColor: Colors.white,
         ),
+        backgroundColor: Colors.white,
       ),
     );
   }

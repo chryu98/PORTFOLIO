@@ -12,7 +12,7 @@ class API {
 
   // 사내/로컬 환경 기본값
 
-  static const String _fallbackHost = '192.168.0.5';
+  static const String _fallbackHost = '192.168.100.106';
 
 
   static const int _configPort = 8090; // 설정 서버
@@ -26,7 +26,7 @@ class API {
   /// 앱 시작 시 1회 호출
   static Future<void> initBaseUrl() async {
 
-    const fallbackIp = '192.168.0.5'; // 개인별 로컬/사내망 IP면 여기만 바꿔도 동작
+    const fallbackIp = '192.168.200.184'; // 개인별 로컬/사내망 IP면 여기만 바꿔도 동작
 
     try {
       final cfg = await _client.get(
